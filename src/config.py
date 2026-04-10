@@ -1,6 +1,6 @@
 # ── Indicators ────────────────────────────────────────────────────────────────
-EMA_FAST = 8                 # fast EMA span (bars)
-EMA_SLOW = 21                # slow EMA span (bars)
+EMA_FAST = 10                # fast EMA span (bars)  — V3: 10/20
+EMA_SLOW = 20                # slow EMA span (bars)
 
 Z_WINDOW = 20                # rolling Z-score window
 Z_BAND_K = 2.5               # Z-score band threshold (optional filter)
@@ -17,7 +17,12 @@ ATR_WINDOW = 14              # ATR window (used for reporting/context; not SL si
 # Optional Z-score filter (USE_ZSCORE_FILTER=True):
 #   long only when zscore <= -Z_BAND_K  (buying stretched-low)
 #   short only when zscore >= +Z_BAND_K (selling stretched-high)
-USE_ZSCORE_FILTER = False    # baseline: trade every crossover
+# Signal mode
+#   "ema_crossover"   — V1/V2: EMA crossover is primary signal; optional z-score gate
+#   "zscore_reversal" — V3+:  z-score crossing back through band is primary;
+#                              EMA direction (fast vs slow) is confirming filter
+SIGNAL_MODE = "zscore_reversal"
+USE_ZSCORE_FILTER = True     # used only when SIGNAL_MODE="ema_crossover"
 
 # ── Execution ─────────────────────────────────────────────────────────────────
 FILL_MODEL = "next_bar_open"
