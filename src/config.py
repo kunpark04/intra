@@ -55,3 +55,13 @@ MC_RUIN_THRESHOLD = 0.5          # ruin = equity drops >= 50% from start
 
 # ── Performance ───────────────────────────────────────────────────────────────
 USE_NUMBA = True                  # set False if numba unavailable
+
+# ── Track A: Entry quality scoring ────────────────────────────────────────────
+# Weights for each component of the entry_score (sum need not equal 1;
+# the scorer normalises by the sum of non-NaN weights automatically).
+SCORE_W_ZSCORE  = 0.25   # abs(zscore_entry) / Z_BAND_K — price stretch
+SCORE_W_VOLUME  = 0.20   # volume_zscore — participation confirmation
+SCORE_W_EMA     = 0.20   # abs(ema_spread) / SCORE_EMA_NORM — trend strength
+SCORE_W_BODY    = 0.20   # bar_body / bar_range — directional conviction
+SCORE_W_SESSION = 0.15   # time-of-day quality (RTH > extended > overnight)
+SCORE_EMA_NORM  = 5.0    # EMA spread normalisation constant (index points)

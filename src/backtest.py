@@ -16,6 +16,8 @@ from typing import List, Dict, Any
 import numpy as np
 import pandas as pd
 
+from src.scoring import score_single_trade
+
 # ── Cython AOT extension (preferred) ─────────────────────────────────────────
 CYTHON_AVAILABLE = False
 try:
@@ -557,6 +559,21 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
             "label_hit_tp_first":  int(raw_label_tp_first[i]),
             "data_quality_flag":   0,
             "rule_violation_flag": int(rr_planned < cfg.MIN_RR - 1e-9),
+            # Track A: entry quality metrics
+            "mfe_mae_ratio": (
+                mfe_pts / abs(mae_pts)
+                if not math.isnan(mae_pts) and abs(mae_pts) >= 0.25
+                else float("nan")
+            ),
+            "entry_score": score_single_trade(
+                zscore_entry=sig_zscore,
+                volume_zscore=sig_vol_z,
+                ema_spread=sig_ema_spread,
+                bar_body_points=abs(sig_row_close - sig_row_open),
+                bar_range_points=sig_row_high - sig_row_low,
+                time_of_day_hhmm=entry_time.strftime("%H%M"),
+                cfg=cfg,
+            ),
         }
         trades.append(trade)
 
