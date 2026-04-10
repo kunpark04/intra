@@ -181,6 +181,35 @@ display(
                                   ("font-weight", "bold"),
                                   ("text-align", "left")]}])
 )
+
+# ── Permutation test on win rate ──────────────────────────────────────────────
+pt = mc.get("permutation_test")
+if pt:
+    sig_05 = "YES ✓" if pt["significant_05"] else "no"
+    sig_01 = "YES ✓" if pt["significant_01"] else "no"
+    pt_rows = {
+        "Observed Trades":        [f"{pt['n_trades']:,}"],
+        "Observed Wins":          [f"{pt['observed_wins']:,}"],
+        "Observed Win Rate":      [f"{pt['observed_win_rate']*100:.2f}%"],
+        "Avg Planned R:R":        [f"{pt['avg_rr_planned']:.3f}"],
+        "Break-Even Win Rate":    [f"{pt['break_even_win_rate']*100:.2f}%"],
+        "Null Win Rate Mean":     [f"{pt['null_win_rate_mean']*100:.2f}%"],
+        "Null Win Rate p95":      [f"{pt['null_win_rate_p95']*100:.2f}%"],
+        "p-value (one-tailed)":   [f"{pt['p_value_one_tailed']:.4f}"],
+        "Significant at 5%":      [sig_05],
+        "Significant at 1%":      [sig_01],
+        "H0":                     ["Win rate = break-even for given R:R"],
+        "H1":                     ["Win rate > break-even (strategy has edge)"],
+    }
+    pt_df = pd.DataFrame(pt_rows, index=["Value"]).T
+    display(
+        pt_df.style
+        .set_caption(f"{VERSION} — Permutation Test: Win Rate vs Break-Even H0")
+        .set_table_styles([{"selector": "caption",
+                            "props": [("font-size", "14px"),
+                                      ("font-weight", "bold"),
+                                      ("text-align", "left")]}])
+    )
 """
 
 

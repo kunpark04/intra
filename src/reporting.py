@@ -171,7 +171,7 @@ def run_monte_carlo(trades: List[Dict[str, Any]], cfg) -> dict:
     cvar_mask = pnls <= var_5
     cvar = float(pnls[cvar_mask].mean()) if cvar_mask.any() else var_5
 
-    return {
+    mc_result = {
         "version":          getattr(cfg, "_VERSION", "unknown"),
         "n_trades":         n,
         "n_sims":           n_sims,
@@ -195,6 +195,66 @@ def run_monte_carlo(trades: List[Dict[str, Any]], cfg) -> dict:
             "IID bootstrap on trade net_pnl_dollars; "
             "horizon = n_trades per path; "
             "VaR/CVaR at 5th percentile trade-level"
+        ),
+    }
+
+    # Permutation test on win rate
+    mc_result["permutation_test"] = _permutation_win_rate_test(
+        trades, n_sims=n_sims, seed=cfg.MC_SEED + 1, rng=rng
+    )
+
+    return mc_result
+
+
+def _permutation_win_rate_test(
+    trades: List[Dict[str, Any]],
+    n_sims: int,
+    seed: int,
+    rng,
+) -> dict:
+    """One-sided binomial permutation test against the break-even win rate.
+
+    H0: the strategy wins at exactly the break-even rate for its average
+        planned R:R (i.e. no edge beyond what random chance would produce).
+    H1: the strategy wins MORE often than break-even (one-tailed).
+
+    Under H0 we simulate n_sims samples of n Bernoulli(break_even_wr) trials
+    and record what fraction of those simulations achieve >= the observed win
+    rate. That fraction is the p-value.
+
+    p < 0.05 → reject H0 at the 5% level (strategy has statistically
+               significant edge over the break-even null).
+    """
+    n = len(trades)
+    observed_wins = sum(t["label_win"] for t in trades)
+    observed_wr   = observed_wins / n
+
+    avg_rr        = float(np.mean([t["rr_planned"] for t in trades]))
+    break_even_wr = 1.0 / (1.0 + avg_rr)   # win rate needed to break even at this RR
+
+    # Simulate under null: n Bernoulli(break_even_wr) trials, n_sims times
+    null_wins = rng.binomial(n, break_even_wr, size=n_sims)
+    null_wrs  = null_wins / n
+
+    p_value = float((null_wrs >= observed_wr).sum() / n_sims)
+
+    return {
+        "n_trades":            n,
+        "observed_wins":       observed_wins,
+        "observed_win_rate":   round(observed_wr, 6),
+        "avg_rr_planned":      round(avg_rr, 4),
+        "break_even_win_rate": round(break_even_wr, 6),
+        "null_win_rate_mean":  round(float(null_wrs.mean()), 6),
+        "null_win_rate_p95":   round(float(np.percentile(null_wrs, 95)), 6),
+        "p_value_one_tailed":  round(p_value, 6),
+        "n_sims":              n_sims,
+        "seed":                seed,
+        "significant_05":      bool(p_value < 0.05),
+        "significant_01":      bool(p_value < 0.01),
+        "notes": (
+            "H0: strategy wins at break-even rate (1/(1+avg_RR)); "
+            "H1: win rate > break-even (one-tailed); "
+            "simulated under H0 via binomial draws"
         ),
     }
 

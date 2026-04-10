@@ -15,7 +15,8 @@ Per training iteration version `Vn`:
 - `iterations/Vn/trades.csv` (ML-ready)
 - `iterations/Vn/trader_log.csv` (simple)
 - `iterations/Vn/daily_ledger.csv` (includes no-trade days)
-- `iterations/Vn/monte_carlo.json` (Monte Carlo risk summary)
+- `iterations/Vn/monte_carlo.json` (Monte Carlo risk summary + permutation test)
+- `iterations/Vn/analysis.ipynb` (7-cell analysis notebook)
 
 Final hold-out evaluation:
 
@@ -65,6 +66,7 @@ Final hold-out evaluation:
 - `hold_bars`, `hold_minutes`
 - `mae_points`, `mfe_points`
 - `mae_dollars`, `mfe_dollars`
+- `mfe_mae_ratio` — `mfe_points / abs(mae_points)`; NaN when `abs(mae_points) < 0.25`; higher = cleaner entry (Track A diagnostic)
 - `equity_before`, `equity_after`
 
 ### Signal-context features at entry (for ML)
@@ -78,6 +80,10 @@ Final hold-out evaluation:
 - `atr_points`
 - `distance_to_ema_fast_points`, `distance_to_ema_slow_points`
 
+### Track A: Entry quality
+
+- `entry_score` — composite entry quality score in [0, 1]; 5 components (z-score stretch, volume, EMA spread, bar body ratio, session quality); NaN-safe, weight-normalised. **Post-trade diagnostic only** (not a feature for ML; computed at entry bar but depends on scoring weights which may change).
+
 ### Labeling + QA flags
 
 - `label_win`
@@ -90,7 +96,7 @@ Final hold-out evaluation:
 When preparing ML datasets:
 
 - **Features**: only columns known at decision time (entry bar close / next open).
-- **Labels**: outcomes (`net_pnl_dollars`, `r_multiple`, `label_win`) and post-trade diagnostics (`mae/mfe`) must not be used as input features.
+- **Labels**: outcomes (`net_pnl_dollars`, `r_multiple`, `label_win`) and post-trade diagnostics (`mae/mfe`, `mfe_mae_ratio`, `entry_score`) must not be used as input features.
 
 Recommended follow-on artifact (optional):
 
@@ -118,7 +124,7 @@ Styling rule in notebooks:
 
 ## 3) Daily ledger (`daily_ledger.csv`)
 
-Purpose: calendar coverage, including **no-trade days** (one row per day in the partition’s date range).
+Purpose: calendar coverage, including **no-trade days** (one row per day in the partition's date range).
 
 Minimum fields (final set can be extended):
 
@@ -155,9 +161,35 @@ Minimum fields (can extend):
 - `n_trades`, `n_sims`, `seed`
 - `bootstrap_method` (e.g. iid, block)
 - `max_drawdown` distribution summary: `p50`, `p90`, `p95`, `p99`, `worst`
-- `var` / `cvar` (define horizon + unit in metadata; trade-level or daily)
-- `risk_of_ruin_prob` (include ruin definition in metadata)
+- `var_trade_pnl` / `cvar_trade_pnl` (5th percentile, trade-level horizon)
+- `risk_of_ruin_prob` (ruin = max drawdown ≥ `MC_RUIN_THRESHOLD * starting_equity`)
+- `ruin_definition` (human-readable string)
 - `notes` (freeform)
 
-Store this alongside the logs so later ML pipelines can join `Vn` performance + risk characteristics.
+### Permutation test sub-object (`permutation_test`)
 
+Embedded inside `monte_carlo.json` under the `"permutation_test"` key.
+
+Tests whether the observed win rate is statistically greater than the break-even win rate implied by the strategy's average planned R:R.
+
+Fields:
+
+| Field | Description |
+|-------|-------------|
+| `n_trades` | Number of observed trades |
+| `observed_wins` | Count of winning trades (`label_win == 1`) |
+| `observed_win_rate` | Observed win fraction |
+| `avg_rr_planned` | Mean `rr_planned` across all trades |
+| `break_even_win_rate` | `1 / (1 + avg_rr_planned)` — H0 null win rate |
+| `null_win_rate_mean` | Mean of simulated null win rates |
+| `null_win_rate_p95` | 95th percentile of simulated null win rates |
+| `p_value_one_tailed` | Fraction of simulations ≥ observed win rate |
+| `significant_05` | bool — p-value < 0.05 |
+| `significant_01` | bool — p-value < 0.01 |
+| `n_sims` | Number of binomial simulations |
+| `seed` | RNG seed used |
+| `notes` | Description of H0 and test method |
+
+Interpretation: `significant_05 = true` means the strategy's win rate cannot be explained by random chance at the 5% level given its R:R profile.
+
+Store alongside Monte Carlo so ML pipelines can join `Vn` performance + risk characteristics.
