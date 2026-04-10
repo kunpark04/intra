@@ -34,9 +34,11 @@ Thumbs.db
 # Claude Code local config (not project-specific)
 .claude/
 
-# Generated artifacts (large; re-run notebooks to produce)
+# Generated artifacts (large; re-run notebooks/scripts to produce)
 iterations/*/plotly_price_indicators.html
 evaluation/plotly_price_indicators.html
+iterations/*/equity_curve.csv
+evaluation/equity_curve.csv
 
 # Parquet intermediates
 *.parquet
