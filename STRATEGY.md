@@ -22,58 +22,55 @@ From CSV:
 
 All computed on **close** unless explicitly stated.
 
-### Z-score
+### EMAs
 
-Rolling window length (v1 fixed): `z_window_N = 20`.
+Two EMAs on close. **Each indicator lives in its own file** under `src/indicators/`.
+
+- fast EMA length: `ema_fast = 8`
+- slow EMA length: `ema_slow = 21`
+- `alpha = 2 / (span + 1)`; warm-up: `ema[0] = close[0]`
+
+Crossover columns computed in `src/indicators/pipeline.py`:
+- `ema_cross_up`   — bool: fast crossed **above** slow this bar
+- `ema_cross_down` — bool: fast crossed **below** slow this bar
+
+### Z-score (optional filter)
+
+Rolling window length: `z_window_N = 20`.
 
 - `z = (close - rolling_mean(close, N)) / rolling_std(close, N)`
-- `ddof`: specify and keep consistent (`0` or `1`); must be documented in config.
+- `ddof = 0`; fixed for V1
 
-Bands:
+Bands (used only when `USE_ZSCORE_FILTER = True`):
 
 - upper band: `z >= +k`
 - lower band: `z <= -k`
 
-where `k` is configurable (suggested 1.5–2.5).
+where **default `k = 2.5`**.
 
-### EMAs (sensitive)
-
-Two EMAs on close (v1 fixed):
-
-- fast EMA length: `ema_fast = 3`
-- slow EMA length: `ema_slow = 6`
-
-Example pairs: 5/13 or 3/8 (configurable).
+**Baseline (V1)**: `USE_ZSCORE_FILTER = False` — trade every EMA crossover.
 
 ## Signal logic (v1 default)
 
-Strategy type: **mean reversion** with **EMA regime confirmation**.
+Strategy type: **EMA crossover trend-following** with optional Z-score filter.
 
-### Primary mean-reversion condition
+### Primary signal: EMA crossover
 
-Long setup:
+Long signal (`signal = 1`):
+- `ema_fast` crosses **above** `ema_slow` (`ema_cross_up == True`)
+- Optionally: `zscore <= -Z_BAND_K` when `USE_ZSCORE_FILTER = True`
 
-- stretch condition: `z <= -k` on the signal bar or recent bar (implementation can use a small state machine)
-- reversal condition (must choose a precise rule and keep it fixed per version):
-  - minimum default: `zscore_delta = z_t - z_{t-1} > 0`
-  - optional add: `close_t > close_{t-1}`
+Short signal (`signal = -1`):
+- `ema_fast` crosses **below** `ema_slow` (`ema_cross_down == True`)
+- Optionally: `zscore >= +Z_BAND_K` when `USE_ZSCORE_FILTER = True`
 
-Short setup: symmetric:
+**Baseline V1**: `USE_ZSCORE_FILTER = False` — every crossover generates a signal.
 
-- stretch: `z >= +k`
-- reversal: `zscore_delta < 0` (and optionally `close_t < close_{t-1}`)
+### Exit conditions (whichever hits first)
 
-### EMA confirmation (regime filter)
-
-Long allowed only if:
-
-- `ema_fast > ema_slow` at entry (or at signal bar; define precisely)
-
-Short allowed only if:
-
-- `ema_fast < ema_slow`
-
-Note: “EMA cross” can be implemented either as a strict inequality regime filter or as “cross within last m bars.” For v1, use the regime filter unless explicitly changed in a new iteration.
+1. **Stop-loss hit**: `low <= sl_price` (long) or `high >= sl_price` (short)
+2. **Take-profit hit**: `high >= tp_price` (long) or `low <= tp_price` (short)
+3. **Opposite signal**: opposite EMA crossover closes the position at next-bar open
 
 ## Entries, stops, targets
 
@@ -90,15 +87,14 @@ The logs must store both:
 
 ### Stop-loss (SL)
 
-Stop placement method is configurable, but must translate to a stop distance in points:
+`STOP_METHOD` is configurable per iteration. V1 baseline: **fixed**.
 
-Examples allowed:
+- **`"fixed"`** (V1 default): `stop_distance = STOP_FIXED_PTS = 30` points
+  - long: `sl = entry - 30`; short: `sl = entry + 30`
+- **`"atr"`**: `stop_distance = ATR * ATR_MULTIPLIER`
+- **`"swing"`**: beyond recent swing low/high ± `SWING_BUFFER_TICKS` ticks
 
-- swing-based: beyond recent swing high/low (define lookback)
-- volatility-based: `ATR * multiplier`
-- fixed points
-
-Also enforce tick rounding to 0.25 points.
+All distances tick-rounded to 0.25 points.
 
 ### Take-profit (TP)
 

@@ -206,6 +206,9 @@ Optional:
 
 ## Backtest execution model (implementation guidance)
 
+- Z-score band default: **`k = 2.5`** (configurable; must be stored in `metadata.json` and logged as `z_band_k` in `trades.csv`).
+- Z-score is an **optional filter** (`USE_ZSCORE_FILTER`); baseline V1 trades every EMA crossover.
+- Each indicator lives in its own file under `src/indicators/` (ema.py, zscore.py, atr.py); `pipeline.py` assembles them.
 - Prefer deterministic bar-by-bar simulation.
 - Entry execution must be consistent:
   - either **next-bar open** fills (recommended for reproducibility) or close-of-signal-bar; pick one and document.

@@ -70,6 +70,7 @@ Final hold-out evaluation:
 ### Signal-context features at entry (for ML)
 
 - `zscore_entry`, `zscore_prev`, `zscore_delta`
+- `z_band_k` (the band threshold `k` active at trade entry — feature for ML)
 - `ema_fast`, `ema_slow`, `ema_spread`
 - `close_price`, `open_price`, `high_price`, `low_price`
 - `bar_range_points`, `bar_body_points`
