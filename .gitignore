@@ -35,13 +35,17 @@ Thumbs.db
 .claude/
 
 # Generated artifacts (large; re-run notebooks/scripts to produce)
-iterations/*/plotly_price_indicators.html
-evaluation/plotly_price_indicators.html
 iterations/*/equity_curve.csv
 evaluation/equity_curve.csv
 
 # Parquet intermediates
 *.parquet
 
-# Keep iteration/evaluation structure but not large HTMLs
+# Cython build artifacts
+*.pyd
+*.so
+src/cython_ext/*.c
+build/
+
+# Keep iteration/evaluation structure
 # (trades.csv, daily_ledger.csv, etc. are small enough to commit)

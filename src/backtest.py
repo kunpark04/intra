@@ -1,9 +1,10 @@
 """
 backtest.py - Bar-by-bar backtest engine for the MNQ 1-minute EMA strategy.
 
-Two-layer design:
-  _backtest_core_numpy  — pure-Python/NumPy fallback (always present)
-  _backtest_core        — Numba @njit JIT-compiled version (used when available)
+Three-layer dispatch (fastest to slowest):
+  backtest_core_cy      — Cython AOT-compiled (preferred; zero JIT overhead)
+  _backtest_core        — Numba @njit JIT-compiled (fallback if Cython absent)
+  _backtest_core_numpy  — pure-Python/NumPy (always present; last resort)
   run_backtest          — Python wrapper: dispatches to core, post-processes records,
                           builds equity curve, returns results dict.
 """
@@ -15,7 +16,15 @@ from typing import List, Dict, Any
 import numpy as np
 import pandas as pd
 
-# ── Numba optional import ─────────────────────────────────────────────────────
+# ── Cython AOT extension (preferred) ─────────────────────────────────────────
+CYTHON_AVAILABLE = False
+try:
+    from src.cython_ext.backtest_core import backtest_core_cy  # type: ignore
+    CYTHON_AVAILABLE = True
+except ImportError:
+    backtest_core_cy = None  # type: ignore
+
+# ── Numba JIT fallback ────────────────────────────────────────────────────────
 NUMBA_AVAILABLE = False
 try:
     from numba import njit  # type: ignore
@@ -354,9 +363,15 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
     same_bar_tp_first = (cfg.SAME_BAR_COLLISION == "tp_first")
     exit_on_opposite  = bool(cfg.EXIT_ON_OPPOSITE_SIGNAL)
 
-    # ── 3. Dispatch to Numba or fallback ─────────────────────────────────────
-    use_numba = bool(getattr(cfg, "USE_NUMBA", True)) and NUMBA_AVAILABLE
-    core_fn   = _backtest_core if use_numba else _backtest_core_numpy
+    # ── 3. Dispatch: Cython → Numba → NumPy ─────────────────────────────────
+    use_cython = CYTHON_AVAILABLE
+    use_numba  = (not use_cython) and bool(getattr(cfg, "USE_NUMBA", True)) and NUMBA_AVAILABLE
+    if use_cython:
+        core_fn = backtest_core_cy
+    elif use_numba:
+        core_fn = _backtest_core
+    else:
+        core_fn = _backtest_core_numpy
 
     (
         raw_side,

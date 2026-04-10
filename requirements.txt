@@ -1,7 +1,10 @@
 pandas
 numpy
-plotly
+matplotlib
+yfinance
 ipykernel
 nbformat
+nbclient
 pyarrow
 numba
+cython
