@@ -5,15 +5,15 @@
   "seed": 42,
   "bootstrap_method": "iid",
   "max_drawdown": {
-    "p50": 1816.0,
-    "p90": 2861.6000000000004,
-    "p95": 3184.0249999999996,
-    "p99": 3714.5150000000003,
-    "worst": 5568.5
+    "p50": 66122.5,
+    "p90": 101308.35,
+    "p95": 111775.29999999993,
+    "p99": 131367.58500000002,
+    "worst": 187824.0
   },
-  "var_trade_pnl": 0.0,
-  "cvar_trade_pnl": -0.23376648012899554,
-  "risk_of_ruin_prob": 0.9103,
-  "ruin_definition": "max_drawdown >= 50% of starting equity ($1000)",
+  "var_trade_pnl": -58.0,
+  "cvar_trade_pnl": -197.2849141150112,
+  "risk_of_ruin_prob": 0.9864,
+  "ruin_definition": "max_drawdown >= 50% of starting equity ($25000)",
   "notes": "IID bootstrap on trade net_pnl_dollars; horizon = n_trades per path; VaR/CVaR at 5th percentile trade-level"
 }

@@ -15,11 +15,11 @@ cnp.import_array()
 
 
 def backtest_core_cy(
-    double[::1] open_arr,
-    double[::1] high_arr,
-    double[::1] low_arr,
-    double[::1] close_arr,
-    cnp.int8_t[::1] signal_arr,
+    const double[::1] open_arr,
+    const double[::1] high_arr,
+    const double[::1] low_arr,
+    const double[::1] close_arr,
+    const cnp.int8_t[::1] signal_arr,
     int n_bars,
     double sl_pts,
     double tp_pts,
