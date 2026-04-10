@@ -28,11 +28,11 @@ STARTING_EQUITY = 2000.0
 RISK_PCT = 0.05                   # risk 5% of equity per trade
 MNQ_DOLLARS_PER_POINT = 2.0       # MNQ: $2 per full index point per contract
 TICK_SIZE = 0.25                  # minimum price increment (points)
-MIN_RR = 2.0                      # minimum reward-to-risk ratio
+MIN_RR = 3.0                      # minimum reward-to-risk ratio (V2: 1:3)
 
 # ── Stop-loss ─────────────────────────────────────────────────────────────────
 STOP_METHOD = "fixed"             # "fixed" | "atr" | "swing"
-STOP_FIXED_PTS = 30.0             # fixed SL distance in points (V1 baseline)
+STOP_FIXED_PTS = 20.0             # fixed SL distance in points (V2: tighter)
 ATR_MULTIPLIER = 1.5              # used when STOP_METHOD="atr"
 SWING_LOOKBACK = 5                # bars for swing high/low (STOP_METHOD="swing")
 SWING_BUFFER_TICKS = 1            # ticks beyond swing extreme

@@ -1,0 +1,19 @@
+{
+  "version": "V2",
+  "n_trades": 53259,
+  "n_sims": 10000,
+  "seed": 42,
+  "bootstrap_method": "iid",
+  "max_drawdown": {
+    "p50": 1816.0,
+    "p90": 2861.6000000000004,
+    "p95": 3184.0249999999996,
+    "p99": 3714.5150000000003,
+    "worst": 5568.5
+  },
+  "var_trade_pnl": 0.0,
+  "cvar_trade_pnl": -0.23376648012899554,
+  "risk_of_ruin_prob": 0.9103,
+  "ruin_definition": "max_drawdown >= 50% of starting equity ($1000)",
+  "notes": "IID bootstrap on trade net_pnl_dollars; horizon = n_trades per path; VaR/CVaR at 5th percentile trade-level"
+}
