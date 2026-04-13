@@ -71,11 +71,20 @@ intra/
   data/
     NQ_1min.csv
     NQ_1min_gaps.csv
+    ml/                               # parameter-sweep ML datasets (Parquet)
+      ml_dataset_v{N}.parquet         # one per sweep version (v2–v10)
+      ml_dataset_v{N}_manifest.json   # per-combo completion manifest
   src/
     __init__.py
     config.py
     data_loader.py
-    indicators.py
+    indicators/                       # one module per indicator + pipeline wrapper
+      __init__.py
+      ema.py
+      zscore.py
+      zscore_variants.py              # generalised z-score (input/anchor/denom/type)
+      atr.py
+      pipeline.py                     # add_indicators() — attaches all indicators
     strategy.py
     risk.py
     backtest.py
@@ -88,15 +97,16 @@ intra/
       backtest_core.c        (generated; gitignored)
       backtest_core.*.pyd    (compiled; gitignored)
   scripts/
-    run_backtest.py
-    gen_analysis_notebook.py
-    exec_analysis.py
-    rerun_and_benchmark.py
+    run_backtest.py                   # single-version iteration runner
+    gen_analysis_notebook.py          # writes 7-cell analysis.ipynb per iteration
+    exec_analysis.py                  # executes analysis.ipynb in-place
+    create_notebooks.py
+    rerun_and_benchmark.py            # reruns V1/V2 across Cython/Numba/NumPy tiers
+    param_sweep.py                    # parameter sweep → data/ml/ml_dataset_vN.parquet
   notebooks/
     01_backtest_and_log.ipynb
   iterations/
-    .gitkeep
-    V1/
+    V1/ V2/ V3/                       # same artifact set per version (see below)
       metadata.json
       trades.csv
       trader_log.csv
@@ -104,8 +114,6 @@ intra/
       equity_curve.csv
       monte_carlo.json
       analysis.ipynb
-    V2/ ... (same structure)
-    V3/ ... (same structure)
   evaluation/
     .gitkeep
     metadata.json           # includes source_iteration: Vn
@@ -115,6 +123,9 @@ intra/
     equity_curve.csv
     monte_carlo.json
     analysis.ipynb
+  tasks/
+    plan.md                           # V1 build plan (historical)
+    v10_sweep_monitor_plan.md         # latest sweep launch + monitor protocol
   setup_cython.py
   requirements.txt
   .gitignore
@@ -128,14 +139,18 @@ intra/
 ### Purpose of key folders
 
 - `src/`: reusable core logic (data loading, indicators, strategy, risk, backtest, reporting, scoring).
+- `src/indicators/`: one module per indicator (`ema.py`, `zscore.py`, `zscore_variants.py`, `atr.py`) plus `pipeline.py` which exposes `add_indicators()` for DataFrame enrichment.
 - `src/cython_ext/`: Cython AOT extension module for the bar-by-bar backtest core.
 - `scripts/`: command-line entry points (repeatable runs without notebooks).
+  - `run_backtest.py`: runs a single iteration version end-to-end.
   - `gen_analysis_notebook.py`: generates 7-cell `analysis.ipynb` for each iteration folder.
   - `exec_analysis.py`: executes `analysis.ipynb` in-place via nbclient with correct cwd.
   - `rerun_and_benchmark.py`: reruns V1/V2 and benchmarks all three engine tiers.
+  - `param_sweep.py`: parameter sweep for Track-B ML training data; writes one row per closed trade to `data/ml/ml_dataset_v{N}.parquet`. Supports `--range-mode` `default | winrate | zscore_variants | v4 | v5 | v6 | v7 | v8 | v9 | v10`.
 - `notebooks/`: interactive analysis; must run from repo root and write outputs to `iterations/` and `evaluation/`.
-- `iterations/`: generated training backtest artifacts, **one folder per version** (`V1/`, `V2/`, …).
+- `iterations/`: generated training backtest artifacts for canonical strategy versions (currently `V1/`, `V2/`, `V3/`). Sweep versions `v4`–`v10` are training-data generators for ML, not strategy iterations — they write Parquet to `data/ml/` rather than producing an `iterations/Vn/` folder.
 - `evaluation/`: generated artifacts for the **single final** hold-out evaluation (no `Vn` subfolders).
+- `data/ml/`: parameter-sweep output datasets (one Parquet + manifest per sweep version). See [`LOG_SCHEMA.md`](LOG_SCHEMA.md) for the parquet schema.
 
 ## Required outputs (artifacts)
 
@@ -222,6 +237,73 @@ Policy:
 
 This file is intended to be referenced before re-running similar commands.
 
+## Reviewing Agent Protocol
+
+After **every logical code change** — new modules, modified algorithms, new sweep
+parameters, indicator formulas, backtest engine changes — spawn a reviewing agent
+before marking the task complete.
+
+### When to spawn
+
+| Change type | Review required |
+|---|---|
+| New indicator / formula | Yes |
+| Modified signal logic | Yes |
+| New sweep parameters / sampling | Yes |
+| Cache / indexing logic | Yes |
+| Backtest engine changes | Yes |
+| Config additions only | No |
+| Pure refactor with no logic change | No |
+
+### Reviewing agent prompt structure
+
+The reviewing agent prompt must always include:
+
+1. **Context** — what the code does and why it was changed
+2. **Files to read** — exact paths for every changed file
+3. **What to check** — explicit checklist:
+   - Mathematical / algorithmic correctness
+   - Edge cases (NaN, zero, empty, first bar, last bar)
+   - Compatibility rules enforced correctly
+   - Cache / key correctness (no aliasing)
+   - ML metadata accuracy (stored metadata matches what was computed)
+   - Off-by-one in time series operations
+4. **Severity schema** — CRITICAL / WARN / INFO
+5. **Explicit OK confirmation** — agent must state which checks passed, not only what failed
+
+### Fix rule
+
+- **CRITICAL** — fix before proceeding, no exceptions
+- **WARN** — fix or document in `lessons.md` with justification
+- **INFO** — optional; note inline if relevant
+
+### Pre-sweep gate (mandatory)
+
+Before launching **any parameter sweep of 3000+ combinations**, spawn a dedicated
+pre-sweep reviewing agent that audits all sweep-related code for:
+
+1. **Type consistency** — every column written to Parquet must have a single
+   consistent dtype across all combo branches (e.g. `int` vs `float` vs `None`
+   mixing that PyArrow will reject at merge time).
+   - **Mandatory sub-check**: For every nullable numeric column (e.g. `swing_lookback`,
+     `stop_fixed_pts`, `atr_multiplier`), verify that **all** `range_mode` branches
+     assign the **same Python type** when the value is non-`None`. A common failure
+     pattern: one new branch uses `int(rng.integers(...))` while all older branches
+     use `float(rng.integers(...))`. When a PyArrow batch contains only `None` for
+     that column, pandas infers `float64`; a subsequent batch with `int` values
+     produces `int64`, and `pa.concat_tables` raises `ArrowTypeError: incompatible
+     types double vs int64`. Rule: nullable stop/lookback columns must always be
+     `float(...)` when non-`None`, never bare `int`.
+2. **Schema completeness** — all keys in `_COMBO_META_KEYS` are present in every
+   combo dict for every `range_mode` branch.
+3. **Logical correctness** — parameter sampling ranges are sensible, no branch
+   silently produces no trades (e.g. unreachable thresholds).
+4. **Append / merge safety** — `_append_parquet` and any schema-promotion logic
+   correctly handles optional/nullable columns.
+
+The sweep **must not launch** until the reviewing agent gives an explicit all-clear
+on the above four points. Any CRITICAL finding blocks the sweep.
+
 ## Reporting & styling requirements
 
 - **Win/Loss row shading**: in notebooks, trades tables should be styled:
@@ -257,10 +339,35 @@ Optional:
 - One position at a time initially.
 - Commission/slippage may start as constants (0 by default) but must be represented in logs as separate fields.
 
+## Parameter sweep (Track B training data)
+
+`scripts/param_sweep.py` generates a diverse ML training set by running the
+backtest core over thousands of randomly-sampled parameter combos. Each combo
+contributes its closed trades (feature + label columns) to a shared Parquet
+file at `data/ml/ml_dataset_v{N}.parquet`, with a sidecar
+`ml_dataset_v{N}_manifest.json` tracking per-combo status (enables resume).
+
+**Version history** (see `lessons.md` for per-version post-mortems):
+
+| Mode | Purpose |
+|---|---|
+| `default` / `winrate` / `zscore_variants` | Original 3k sweeps (V1 diversity + winrate-biased + z-score formulation grid) |
+| `v4` | Data-driven tightened ranges from V3 correlation analysis |
+| `v5` | High-signal ranges + V5 filters (vol regime, session, tod_exit, volume entry) |
+| `v6` | Ultra-tight ranges; V5 filters disabled (V5 analysis showed most hurt WR) |
+| `v7` | Correlation-driven refinement of V6 |
+| `v8` | Diversity pivot — broader ranges for ML coverage |
+| `v9` | Ultra-wide diversity; hard-fixes z-score formulation to `close/rolling_mean/rolling_std/parametric` |
+| `v10` | V9 numeric ranges + sampled z-score formulation + sampled exit/confirmation flags (max qualitative diversity) |
+
+**Key invariant**: every nullable numeric column (`stop_fixed_pts`, `atr_multiplier`,
+`swing_lookback`, …) must be `float(...)` when non-`None`. Mixing `int` and
+`float` across branches causes `ArrowTypeError` at Parquet concat time — this
+is the dominant past failure mode; see the Pre-sweep gate below.
+
 ## Future scope (do not implement yet)
 
-- Track B: ML pipeline — train classifier on `trades.csv` features to predict `label_win`
-- Parameter sweep for ML training data diversity
+- Track B: ML pipeline — train classifier on `data/ml/ml_dataset_v{N}.parquet` to predict `label_win` / per-setup R:R
 - Live volume "bubbles"
 - DOM / Level 2 features
 - Broker execution adapters

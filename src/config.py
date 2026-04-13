@@ -47,7 +47,23 @@ SWING_BUFFER_TICKS = 1            # ticks beyond swing extreme
 #   1. SL hit (low <= sl for long, high >= sl for short)
 #   2. TP hit (high >= tp for long, low <= tp for short)
 #   3. Opposite EMA crossover signal
+#   4. Time exit (if MAX_HOLD_BARS > 0)
 EXIT_ON_OPPOSITE_SIGNAL = True    # close position on opposite crossover
+USE_BREAKEVEN_STOP      = False   # once +1R profit, move SL to entry price
+MAX_HOLD_BARS           = 0       # exit at next open after N bars (0 = disabled)
+
+# ── Entry confirmation ────────────────────────────────────────────────────────
+ZSCORE_CONFIRMATION = False       # require |z| already declining before entry
+
+# ── New entry filters (V5+) ───────────────────────────────────────────────────
+VOLUME_ENTRY_THRESHOLD = 0.0     # min volume_zscore to enter (0.0 = disabled)
+VOL_REGIME_LOOKBACK    = 0       # rolling window for ATR pct rank (0 = disabled)
+VOL_REGIME_MIN_PCT     = 0.0     # min ATR percentile to allow entry (0.0 = no gate)
+VOL_REGIME_MAX_PCT     = 1.0     # max ATR percentile to allow entry (1.0 = no gate)
+SESSION_FILTER_MODE    = 0       # 0=all, 1=daytime(7-20h), 2=core_us(9-16h), 3=overnight(20-7h)
+
+# ── Time-of-day exit (V5+) ────────────────────────────────────────────────────
+TOD_EXIT_HOUR          = 0       # force close open position at this hour (0 = disabled)
 
 # ── Train / test ──────────────────────────────────────────────────────────────
 TRAIN_RATIO = 0.8

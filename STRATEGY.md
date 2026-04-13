@@ -202,10 +202,18 @@ At minimum the strategy/backtest pipeline must produce:
   - simple `trader_log.csv`
 - daily ledger including no-trade days
 
+## Parameter sweep (implemented)
+
+`scripts/param_sweep.py` randomly samples parameter combos within predefined
+`--range-mode`s and runs the backtest core on each, writing one row per closed
+trade to `data/ml/ml_dataset_v{N}.parquet`. Range modes `v4`–`v10` encode
+successive data-driven refinements (see [`CLAUDE.md`](CLAUDE.md) for the
+version history). The sweep reuses all strategy logic in this file; it only
+varies the numeric parameters and the sampled z-score formulation.
+
 ## Known future extensions (not yet implemented)
 
-- ML pipeline (Track B): train classifier on `trades.csv` features to predict `label_win`
-- Parameter sweep for ML training data diversity
+- ML pipeline (Track B): train classifier on `data/ml/ml_dataset_v{N}.parquet` features to predict `label_win` and per-setup optimal R:R
 - Live volume bubbles
 - DOM/Level2 features
 - Execution adapters

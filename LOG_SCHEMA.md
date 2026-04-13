@@ -25,6 +25,13 @@ Final hold-out evaluation:
 - `evaluation/daily_ledger.csv`
 - `evaluation/monte_carlo.json` (optional; same schema)
 
+Parameter sweep (Track-B training data):
+
+- `data/ml/ml_dataset_v{N}.parquet` — one row per closed trade across all sampled combos
+- `data/ml/ml_dataset_v{N}_manifest.json` — per-combo status (enables resume)
+
+See [§5](#5-parameter-sweep-ml-dataset-ml_dataset_vnparquet) for its schema.
+
 ## 1) ML-ready trade log (`trades.csv`)
 
 ### Core identity + timing
@@ -193,3 +200,51 @@ Fields:
 Interpretation: `significant_05 = true` means the strategy's win rate cannot be explained by random chance at the 5% level given its R:R profile.
 
 Store alongside Monte Carlo so ML pipelines can join `Vn` performance + risk characteristics.
+
+## 5) Parameter-sweep ML dataset (`ml_dataset_v{N}.parquet`)
+
+Produced by `scripts/param_sweep.py`. One row per **closed trade** across all
+sampled combos in the run. Used as Track-B ML training data.
+
+Row layout = three concatenated groups, in order:
+
+### (a) Combo metadata — identifies the parameter set that produced the trade
+
+Keys in `_COMBO_META_KEYS` (source of truth in `scripts/param_sweep.py`):
+
+- `combo_id` — integer index into the sampled combo list (seed-reproducible)
+- `z_band_k`, `z_window`, `volume_zscore_window`
+- `ema_fast`, `ema_slow`
+- `stop_method` ∈ {`fixed`, `atr`, `swing`}, `stop_fixed_pts`, `atr_multiplier`, `swing_lookback`
+  - **dtype invariant**: nullable numeric columns are always `float` when non-`None` (never `int`)
+- `min_rr`, `exit_on_opposite_signal`, `use_breakeven_stop`, `max_hold_bars`, `zscore_confirmation`
+- Z-score formulation dimensions: `z_input`, `z_anchor`, `z_denom`, `z_type`, `z_window_2`, `z_window_2_weight`
+- V5+ entry filters: `volume_entry_threshold`, `vol_regime_lookback`, `vol_regime_min_pct`, `vol_regime_max_pct`, `session_filter_mode`, `tod_exit_hour`
+
+### (b) Per-trade features (known at decision time — safe ML inputs)
+
+Keys in `_TRADE_FEATURE_KEYS`:
+
+- `zscore_entry`, `zscore_prev`, `zscore_delta`
+- `volume_zscore`, `ema_spread`
+- `bar_body_points`, `bar_range_points`, `atr_points`
+- `parkinson_vol_pct`, `parkinson_vs_atr`
+- `time_of_day_hhmm`, `day_of_week`
+- `distance_to_ema_fast_points`, `distance_to_ema_slow_points`
+- `side`
+
+### (c) Labels / outcomes (must NOT be used as features)
+
+Keys in `_LABEL_KEYS`:
+
+- `label_win` — 0/1 classification target
+- `net_pnl_dollars` — regression target (dollars)
+- `r_multiple` — regression target (R units)
+
+### Dtype consistency rule (Parquet append safety)
+
+PyArrow rejects concat when the same column has mixed dtypes across batches.
+Every `range_mode` branch in `_sample_combos` must use the same Python type
+for a given key — in particular, nullable stop/lookback columns are always
+`float(...)` when non-`None`. The pre-sweep reviewing gate (see
+[`CLAUDE.md`](CLAUDE.md#pre-sweep-gate-mandatory)) enforces this.

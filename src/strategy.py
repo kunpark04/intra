@@ -31,8 +31,11 @@ def generate_signals(df: pd.DataFrame, cfg) -> pd.DataFrame:
 
     Parameters
     ----------
-    df  : DataFrame produced by indicators.add_indicators().
-    cfg : config module exposing SIGNAL_MODE, USE_ZSCORE_FILTER, Z_BAND_K.
+    df  : DataFrame produced by indicators.add_indicators(). May optionally
+          contain 'atr_pct_rank' and 'bar_hour' columns for V5+ filters.
+    cfg : config module exposing SIGNAL_MODE, USE_ZSCORE_FILTER, Z_BAND_K,
+          and optionally VOLUME_ENTRY_THRESHOLD, VOL_REGIME_LOOKBACK,
+          VOL_REGIME_MIN_PCT, VOL_REGIME_MAX_PCT, SESSION_FILTER_MODE.
 
     Returns
     -------
@@ -47,6 +50,39 @@ def generate_signals(df: pd.DataFrame, cfg) -> pd.DataFrame:
         long_cond, short_cond = _zscore_reversal_signals(df, cfg)
     else:
         long_cond, short_cond = _ema_crossover_signals(df, cfg)
+
+    # ── V5+ entry filters (applied after primary signal logic) ────────────────
+
+    # 1. Volume entry threshold: skip low-participation bars
+    vol_thresh = float(getattr(cfg, "VOLUME_ENTRY_THRESHOLD", 0.0))
+    if vol_thresh > 0.0 and "volume_zscore" in df.columns:
+        vol_z = df["volume_zscore"].to_numpy(dtype=np.float64)
+        vol_ok = (vol_z >= vol_thresh) & ~np.isnan(vol_z)
+        long_cond  = long_cond  & vol_ok
+        short_cond = short_cond & vol_ok
+
+    # 2. Volatility regime gate: skip entries when ATR percentile is out of range
+    vol_regime_lb = int(getattr(cfg, "VOL_REGIME_LOOKBACK", 0))
+    if vol_regime_lb > 0 and "atr_pct_rank" in df.columns:
+        atr_pct = df["atr_pct_rank"].to_numpy(dtype=np.float64)
+        min_pct  = float(getattr(cfg, "VOL_REGIME_MIN_PCT", 0.0))
+        max_pct  = float(getattr(cfg, "VOL_REGIME_MAX_PCT", 1.0))
+        regime_ok = (atr_pct >= min_pct) & (atr_pct <= max_pct) & ~np.isnan(atr_pct)
+        long_cond  = long_cond  & regime_ok
+        short_cond = short_cond & regime_ok
+
+    # 3. Session filter: restrict entries to allowed hours
+    session_mode = int(getattr(cfg, "SESSION_FILTER_MODE", 0))
+    if session_mode != 0 and "bar_hour" in df.columns:
+        hour = df["bar_hour"].to_numpy(dtype=np.int64)
+        if session_mode == 1:    # daytime: 7–19h (inclusive)
+            session_ok = (hour >= 7) & (hour < 20)
+        elif session_mode == 2:  # core US: 9–15h (inclusive)
+            session_ok = (hour >= 9) & (hour < 16)
+        else:                    # overnight: 20–6h (wraps midnight)
+            session_ok = (hour >= 20) | (hour < 7)
+        long_cond  = long_cond  & session_ok
+        short_cond = short_cond & session_ok
 
     signal = np.zeros(len(df), dtype=np.int8)
     signal[long_cond]  =  1
@@ -106,5 +142,15 @@ def _zscore_reversal_signals(df, cfg):
 
     long_cond  = z_cross_up   & ema_bullish
     short_cond = z_cross_down & ema_bearish
+
+    # Z-confirmation: only enter when |z| is already declining (peaked and reverting)
+    if getattr(cfg, "ZSCORE_CONFIRMATION", False):
+        z_abs      = np.abs(z)
+        z_abs_prev = np.empty(n, dtype=np.float64)
+        z_abs_prev[0] = np.nan
+        z_abs_prev[1:] = z_abs[:-1]
+        z_declining = (z_abs < z_abs_prev) & ~np.isnan(z_abs_prev)
+        long_cond  = long_cond  & z_declining
+        short_cond = short_cond & z_declining
 
     return long_cond, short_cond

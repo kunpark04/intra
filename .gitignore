@@ -1,6 +1,13 @@
 # Large data files (>100MB — exceeds GitHub limit)
 data/NQ_1min.csv
 
+# Sweep logs (generated; re-run param_sweep.py to reproduce)
+logs/
+sweep_run*.log
+
+# ML sweep datasets (large generated files; live in data/ml/)
+data/ml/
+
 # Python
 __pycache__/
 *.py[cod]

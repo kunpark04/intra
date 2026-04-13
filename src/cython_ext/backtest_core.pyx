@@ -25,11 +25,34 @@ def backtest_core_cy(
     double tp_pts,
     bint same_bar_tp_first,
     bint exit_on_opposite,
+    bint use_breakeven_stop,
+    int max_hold_bars,
+    const cnp.int64_t[::1] hour_arr,
+    int tod_exit_hour,
 ):
     """AOT-compiled bar-by-bar state machine.
 
-    Parameters match _backtest_core exactly. NumPy arrays are auto-coerced
-    to typed memoryviews by Cython — no copies required for contiguous arrays.
+    Parameters
+    ----------
+    open_arr, high_arr, low_arr, close_arr : price arrays (float64)
+    signal_arr  : int8 array — 1=long, -1=short, 0=flat
+    n_bars      : number of bars
+    sl_pts      : stop-loss distance in points (positive scalar)
+    tp_pts      : take-profit distance in points (positive scalar)
+    same_bar_tp_first : if SL+TP both touched same bar, assume TP first
+    exit_on_opposite  : exit on opposite signal
+    use_breakeven_stop: once +1R profit, move SL to entry price
+    max_hold_bars     : exit at next open after this many bars (0 = disabled)
+    hour_arr          : bar hour-of-day (0–23); used for TOD exit
+    tod_exit_hour     : force close at this hour (0 = disabled)
+
+    Exit reason codes
+    -----------------
+    1 = stop_loss
+    2 = take_profit
+    3 = opposite_signal
+    4 = end_of_data
+    5 = time_exit
 
     Returns
     -------
@@ -53,16 +76,19 @@ def backtest_core_cy(
     cdef cnp.ndarray[cnp.int8_t,   ndim=1] out_label_tp_first= np.empty(max_trades, dtype=np.int8)
 
     # ── State variables ───────────────────────────────────────────────────────
-    cdef bint   in_trade    = False
-    cdef int    side        = 0
-    cdef int    entry_bar_i = -1
-    cdef int    signal_bar_i= -1
-    cdef double entry_price = 0.0
-    cdef double sl_price    = 0.0
-    cdef double tp_price    = 0.0
-    cdef double mae         = 0.0
-    cdef double mfe         = 0.0
-    cdef int    n_trades    = 0
+    cdef bint   in_trade           = False
+    cdef int    side               = 0
+    cdef int    entry_bar_i        = -1
+    cdef int    signal_bar_i       = -1
+    cdef double entry_price        = 0.0
+    cdef double sl_price           = 0.0
+    cdef double effective_sl       = 0.0   # may equal entry_price after breakeven
+    cdef double tp_price           = 0.0
+    cdef double mae                = 0.0
+    cdef double mfe                = 0.0
+    cdef bint   breakeven_activated= False
+    cdef int    bars_held          = 0
+    cdef int    n_trades           = 0
 
     # ── Per-bar temporaries ───────────────────────────────────────────────────
     cdef int    t, sig
@@ -77,18 +103,23 @@ def backtest_core_cy(
         if not in_trade:
             sig = signal_arr[t]
             if sig != 0 and t + 1 < n_bars:
-                in_trade     = True
-                side         = sig
-                signal_bar_i = t
-                entry_bar_i  = t + 1
-                entry_price  = open_arr[t + 1]
-                sl_price     = entry_price - sl_pts * side
-                tp_price     = entry_price + tp_pts * side
-                mae          = 0.0
-                mfe          = 0.0
+                in_trade           = True
+                side               = sig
+                signal_bar_i       = t
+                entry_bar_i        = t + 1
+                entry_price        = open_arr[t + 1]
+                sl_price           = entry_price - sl_pts * side
+                effective_sl       = sl_price
+                tp_price           = entry_price + tp_pts * side
+                mae                = 0.0
+                mfe                = 0.0
+                breakeven_activated= False
+                bars_held          = 0
 
         # ── In-trade bar processing ───────────────────────────────────────────
         if in_trade and t >= entry_bar_i:
+            bars_held += 1
+
             if side == 1:
                 bar_adv = low_arr[t]  - entry_price   # negative = adverse
                 bar_fav = high_arr[t] - entry_price   # positive = favorable
@@ -101,12 +132,18 @@ def backtest_core_cy(
             if bar_fav > mfe:
                 mfe = bar_fav
 
-            # SL / TP hit detection
+            # Breakeven: once +1R profit, move effective SL to entry
+            if use_breakeven_stop and not breakeven_activated:
+                if bar_fav >= sl_pts:
+                    effective_sl       = entry_price
+                    breakeven_activated= True
+
+            # SL / TP hit detection (SL uses effective_sl post-breakeven)
             if side == 1:
-                sl_hit = low_arr[t]  <= sl_price
+                sl_hit = low_arr[t]  <= effective_sl
                 tp_hit = high_arr[t] >= tp_price
             else:
-                sl_hit = high_arr[t] >= sl_price
+                sl_hit = high_arr[t] >= effective_sl
                 tp_hit = low_arr[t]  <= tp_price
 
             exit_reason    = 0
@@ -120,16 +157,22 @@ def backtest_core_cy(
                     label_tp_first = 1
                 else:
                     exit_reason    = 1
-                    exit_price_val = sl_price
+                    exit_price_val = effective_sl
             elif tp_hit:
                 exit_reason    = 2
                 exit_price_val = tp_price
                 label_tp_first = 1
             elif sl_hit:
                 exit_reason    = 1
-                exit_price_val = sl_price
+                exit_price_val = effective_sl
             elif exit_on_opposite and signal_arr[t] == -side and t + 1 < n_bars:
                 exit_reason    = 3
+                exit_price_val = open_arr[t + 1]
+            elif max_hold_bars > 0 and bars_held >= max_hold_bars and t + 1 < n_bars:
+                exit_reason    = 5
+                exit_price_val = open_arr[t + 1]
+            elif tod_exit_hour > 0 and hour_arr[t] == tod_exit_hour and t + 1 < n_bars:
+                exit_reason    = 5
                 exit_price_val = open_arr[t + 1]
 
             # End of data: close at last bar's close
@@ -144,7 +187,7 @@ def backtest_core_cy(
                 out_exit_bar[n_trades]       = t
                 out_entry_price[n_trades]    = entry_price
                 out_exit_price[n_trades]     = exit_price_val
-                out_sl[n_trades]             = sl_price
+                out_sl[n_trades]             = sl_price   # original (pre-breakeven) for sizing
                 out_tp[n_trades]             = tp_price
                 out_exit_reason[n_trades]    = exit_reason
                 out_mae[n_trades]            = mae

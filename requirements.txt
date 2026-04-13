@@ -8,3 +8,5 @@ nbclient
 pyarrow
 numba
 cython
+lightgbm
+scikit-learn

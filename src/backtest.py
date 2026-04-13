@@ -46,79 +46,96 @@ except ImportError:
 
 @njit(cache=True)
 def _backtest_core(
-    open_arr,          # float64[:]
-    high_arr,          # float64[:]
-    low_arr,           # float64[:]
-    close_arr,         # float64[:]
-    signal_arr,        # int8[:]
-    n_bars,            # int
-    sl_pts,            # float  — stop distance in points (positive)
-    tp_pts,            # float  — tp distance in points (positive)
-    same_bar_tp_first, # bool
-    exit_on_opposite,  # bool
+    open_arr,            # float64[:]
+    high_arr,            # float64[:]
+    low_arr,             # float64[:]
+    close_arr,           # float64[:]
+    signal_arr,          # int8[:]
+    n_bars,              # int
+    sl_pts,              # float  — stop distance in points (positive)
+    tp_pts,              # float  — tp distance in points (positive)
+    same_bar_tp_first,   # bool
+    exit_on_opposite,    # bool
+    use_breakeven_stop,  # bool  — move SL to entry once +1R profit
+    max_hold_bars,       # int   — exit at next open after N bars (0 = disabled)
+    hour_arr,            # int64[:] — bar hour-of-day (0–23)
+    tod_exit_hour,       # int   — force close at this hour (0 = disabled)
 ):
     """Numba JIT bar-by-bar state machine. Returns sliced output arrays."""
     max_trades = n_bars // 2 + 1
 
-    out_side         = np.empty(max_trades, dtype=np.int8)
-    out_signal_bar   = np.empty(max_trades, dtype=np.int64)
-    out_entry_bar    = np.empty(max_trades, dtype=np.int64)
-    out_exit_bar     = np.empty(max_trades, dtype=np.int64)
-    out_entry_price  = np.empty(max_trades, dtype=np.float64)
-    out_exit_price   = np.empty(max_trades, dtype=np.float64)
-    out_sl           = np.empty(max_trades, dtype=np.float64)
-    out_tp           = np.empty(max_trades, dtype=np.float64)
-    out_exit_reason  = np.empty(max_trades, dtype=np.int8)
-    out_mae          = np.empty(max_trades, dtype=np.float64)
-    out_mfe          = np.empty(max_trades, dtype=np.float64)
-    out_hold_bars    = np.empty(max_trades, dtype=np.int64)
+    out_side           = np.empty(max_trades, dtype=np.int8)
+    out_signal_bar     = np.empty(max_trades, dtype=np.int64)
+    out_entry_bar      = np.empty(max_trades, dtype=np.int64)
+    out_exit_bar       = np.empty(max_trades, dtype=np.int64)
+    out_entry_price    = np.empty(max_trades, dtype=np.float64)
+    out_exit_price     = np.empty(max_trades, dtype=np.float64)
+    out_sl             = np.empty(max_trades, dtype=np.float64)
+    out_tp             = np.empty(max_trades, dtype=np.float64)
+    out_exit_reason    = np.empty(max_trades, dtype=np.int8)
+    out_mae            = np.empty(max_trades, dtype=np.float64)
+    out_mfe            = np.empty(max_trades, dtype=np.float64)
+    out_hold_bars      = np.empty(max_trades, dtype=np.int64)
     out_label_tp_first = np.empty(max_trades, dtype=np.int8)
 
-    in_trade    = False
-    side        = np.int8(0)
-    entry_bar   = -1
-    signal_bar  = -1
-    entry_price = 0.0
-    sl_price    = 0.0
-    tp_price    = 0.0
-    mae         = 0.0
-    mfe         = 0.0
-    n_trades    = 0
+    in_trade            = False
+    side                = np.int8(0)
+    entry_bar           = -1
+    signal_bar          = -1
+    entry_price         = 0.0
+    sl_price            = 0.0
+    effective_sl        = 0.0
+    tp_price            = 0.0
+    mae                 = 0.0
+    mfe                 = 0.0
+    breakeven_activated = False
+    bars_held           = 0
+    n_trades            = 0
 
     for t in range(n_bars):
         if not in_trade:
             sig = signal_arr[t]
             if sig != 0 and t + 1 < n_bars:
-                in_trade    = True
-                side        = sig
-                signal_bar  = t
-                entry_bar   = t + 1
-                entry_price = open_arr[t + 1]
-                sl_price    = entry_price - sl_pts * side
-                tp_price    = entry_price + tp_pts * side
-                mae         = 0.0
-                mfe         = 0.0
+                in_trade            = True
+                side                = sig
+                signal_bar          = t
+                entry_bar           = t + 1
+                entry_price         = open_arr[t + 1]
+                sl_price            = entry_price - sl_pts * side
+                effective_sl        = sl_price
+                tp_price            = entry_price + tp_pts * side
+                mae                 = 0.0
+                mfe                 = 0.0
+                breakeven_activated = False
+                bars_held           = 0
 
         if in_trade and t >= entry_bar:
-            # Update MAE / MFE (in points, from entry perspective)
+            bars_held += 1
+
             if side == 1:
-                bar_adv = low_arr[t]  - entry_price   # negative = adverse for long
-                bar_fav = high_arr[t] - entry_price   # positive = favorable for long
+                bar_adv = low_arr[t]  - entry_price
+                bar_fav = high_arr[t] - entry_price
             else:
-                bar_adv = entry_price - high_arr[t]   # negative = adverse for short
-                bar_fav = entry_price - low_arr[t]    # positive = favorable for short
+                bar_adv = entry_price - high_arr[t]
+                bar_fav = entry_price - low_arr[t]
 
             if bar_adv < mae:
                 mae = bar_adv
             if bar_fav > mfe:
                 mfe = bar_fav
 
-            # Check SL / TP hit
+            # Breakeven: once +1R profit, move effective SL to entry
+            if use_breakeven_stop and not breakeven_activated:
+                if bar_fav >= sl_pts:
+                    effective_sl        = entry_price
+                    breakeven_activated = True
+
+            # SL / TP hit detection (uses effective_sl)
             if side == 1:
-                sl_hit = low_arr[t]  <= sl_price
+                sl_hit = low_arr[t]  <= effective_sl
                 tp_hit = high_arr[t] >= tp_price
             else:
-                sl_hit = high_arr[t] >= sl_price
+                sl_hit = high_arr[t] >= effective_sl
                 tp_hit = low_arr[t]  <= tp_price
 
             exit_reason    = np.int8(0)
@@ -132,40 +149,42 @@ def _backtest_core(
                     label_tp_first = np.int8(1)
                 else:
                     exit_reason    = np.int8(1)
-                    exit_price     = sl_price
-                    label_tp_first = np.int8(0)
+                    exit_price     = effective_sl
             elif tp_hit:
                 exit_reason    = np.int8(2)
                 exit_price     = tp_price
                 label_tp_first = np.int8(1)
             elif sl_hit:
                 exit_reason    = np.int8(1)
-                exit_price     = sl_price
-                label_tp_first = np.int8(0)
+                exit_price     = effective_sl
             elif exit_on_opposite and signal_arr[t] == -side and t + 1 < n_bars:
                 exit_reason    = np.int8(3)
                 exit_price     = open_arr[t + 1]
-                label_tp_first = np.int8(0)
+            elif max_hold_bars > 0 and bars_held >= max_hold_bars and t + 1 < n_bars:
+                exit_reason    = np.int8(5)
+                exit_price     = open_arr[t + 1]
+            elif tod_exit_hour > 0 and hour_arr[t] == tod_exit_hour and t + 1 < n_bars:
+                exit_reason    = np.int8(5)
+                exit_price     = open_arr[t + 1]
 
             # End of data: close at last close
             if exit_reason == 0 and t == n_bars - 1:
-                exit_reason    = np.int8(4)
-                exit_price     = close_arr[t]
-                label_tp_first = np.int8(0)
+                exit_reason = np.int8(4)
+                exit_price  = close_arr[t]
 
             if exit_reason != 0:
-                out_side[n_trades]          = side
-                out_signal_bar[n_trades]    = signal_bar
-                out_entry_bar[n_trades]     = entry_bar
-                out_exit_bar[n_trades]      = t
-                out_entry_price[n_trades]   = entry_price
-                out_exit_price[n_trades]    = exit_price
-                out_sl[n_trades]            = sl_price
-                out_tp[n_trades]            = tp_price
-                out_exit_reason[n_trades]   = exit_reason
-                out_mae[n_trades]           = mae
-                out_mfe[n_trades]           = mfe
-                out_hold_bars[n_trades]     = t - entry_bar + 1
+                out_side[n_trades]           = side
+                out_signal_bar[n_trades]     = signal_bar
+                out_entry_bar[n_trades]      = entry_bar
+                out_exit_bar[n_trades]       = t
+                out_entry_price[n_trades]    = entry_price
+                out_exit_price[n_trades]     = exit_price
+                out_sl[n_trades]             = sl_price   # original (pre-breakeven) for sizing
+                out_tp[n_trades]             = tp_price
+                out_exit_reason[n_trades]    = exit_reason
+                out_mae[n_trades]            = mae
+                out_mfe[n_trades]            = mfe
+                out_hold_bars[n_trades]      = t - entry_bar + 1
                 out_label_tp_first[n_trades] = label_tp_first
                 n_trades += 1
                 in_trade = False
@@ -201,50 +220,62 @@ def _backtest_core_numpy(
     tp_pts,
     same_bar_tp_first,
     exit_on_opposite,
+    use_breakeven_stop,
+    max_hold_bars,
+    hour_arr,
+    tod_exit_hour,
 ):
     """Pure-Python/NumPy fallback — same logic as _backtest_core, no Numba."""
     max_trades = n_bars // 2 + 1
 
-    out_side          = np.empty(max_trades, dtype=np.int8)
-    out_signal_bar    = np.empty(max_trades, dtype=np.int64)
-    out_entry_bar     = np.empty(max_trades, dtype=np.int64)
-    out_exit_bar      = np.empty(max_trades, dtype=np.int64)
-    out_entry_price   = np.empty(max_trades, dtype=np.float64)
-    out_exit_price    = np.empty(max_trades, dtype=np.float64)
-    out_sl            = np.empty(max_trades, dtype=np.float64)
-    out_tp            = np.empty(max_trades, dtype=np.float64)
-    out_exit_reason   = np.empty(max_trades, dtype=np.int8)
-    out_mae           = np.empty(max_trades, dtype=np.float64)
-    out_mfe           = np.empty(max_trades, dtype=np.float64)
-    out_hold_bars     = np.empty(max_trades, dtype=np.int64)
+    out_side           = np.empty(max_trades, dtype=np.int8)
+    out_signal_bar     = np.empty(max_trades, dtype=np.int64)
+    out_entry_bar      = np.empty(max_trades, dtype=np.int64)
+    out_exit_bar       = np.empty(max_trades, dtype=np.int64)
+    out_entry_price    = np.empty(max_trades, dtype=np.float64)
+    out_exit_price     = np.empty(max_trades, dtype=np.float64)
+    out_sl             = np.empty(max_trades, dtype=np.float64)
+    out_tp             = np.empty(max_trades, dtype=np.float64)
+    out_exit_reason    = np.empty(max_trades, dtype=np.int8)
+    out_mae            = np.empty(max_trades, dtype=np.float64)
+    out_mfe            = np.empty(max_trades, dtype=np.float64)
+    out_hold_bars      = np.empty(max_trades, dtype=np.int64)
     out_label_tp_first = np.empty(max_trades, dtype=np.int8)
 
-    in_trade    = False
-    side        = 0
-    entry_bar   = -1
-    signal_bar  = -1
-    entry_price = 0.0
-    sl_price    = 0.0
-    tp_price    = 0.0
-    mae         = 0.0
-    mfe         = 0.0
-    n_trades    = 0
+    in_trade            = False
+    side                = 0
+    entry_bar           = -1
+    signal_bar          = -1
+    entry_price         = 0.0
+    sl_price            = 0.0
+    effective_sl        = 0.0
+    tp_price            = 0.0
+    mae                 = 0.0
+    mfe                 = 0.0
+    breakeven_activated = False
+    bars_held           = 0
+    n_trades            = 0
 
     for t in range(n_bars):
         if not in_trade:
             sig = int(signal_arr[t])
             if sig != 0 and t + 1 < n_bars:
-                in_trade    = True
-                side        = sig
-                signal_bar  = t
-                entry_bar   = t + 1
-                entry_price = float(open_arr[t + 1])
-                sl_price    = entry_price - sl_pts * side
-                tp_price    = entry_price + tp_pts * side
-                mae         = 0.0
-                mfe         = 0.0
+                in_trade            = True
+                side                = sig
+                signal_bar          = t
+                entry_bar           = t + 1
+                entry_price         = float(open_arr[t + 1])
+                sl_price            = entry_price - sl_pts * side
+                effective_sl        = sl_price
+                tp_price            = entry_price + tp_pts * side
+                mae                 = 0.0
+                mfe                 = 0.0
+                breakeven_activated = False
+                bars_held           = 0
 
         if in_trade and t >= entry_bar:
+            bars_held += 1
+
             if side == 1:
                 bar_adv = float(low_arr[t])  - entry_price
                 bar_fav = float(high_arr[t]) - entry_price
@@ -257,11 +288,17 @@ def _backtest_core_numpy(
             if bar_fav > mfe:
                 mfe = bar_fav
 
+            # Breakeven: once +1R profit, move effective SL to entry
+            if use_breakeven_stop and not breakeven_activated:
+                if bar_fav >= sl_pts:
+                    effective_sl        = entry_price
+                    breakeven_activated = True
+
             if side == 1:
-                sl_hit = float(low_arr[t])  <= sl_price
+                sl_hit = float(low_arr[t])  <= effective_sl
                 tp_hit = float(high_arr[t]) >= tp_price
             else:
-                sl_hit = float(high_arr[t]) >= sl_price
+                sl_hit = float(high_arr[t]) >= effective_sl
                 tp_hit = float(low_arr[t])  <= tp_price
 
             exit_reason    = 0
@@ -275,25 +312,27 @@ def _backtest_core_numpy(
                     label_tp_first = 1
                 else:
                     exit_reason    = 1
-                    exit_price     = sl_price
-                    label_tp_first = 0
+                    exit_price     = effective_sl
             elif tp_hit:
                 exit_reason    = 2
                 exit_price     = tp_price
                 label_tp_first = 1
             elif sl_hit:
                 exit_reason    = 1
-                exit_price     = sl_price
-                label_tp_first = 0
+                exit_price     = effective_sl
             elif exit_on_opposite and int(signal_arr[t]) == -side and t + 1 < n_bars:
                 exit_reason    = 3
                 exit_price     = float(open_arr[t + 1])
-                label_tp_first = 0
+            elif max_hold_bars > 0 and bars_held >= max_hold_bars and t + 1 < n_bars:
+                exit_reason    = 5
+                exit_price     = float(open_arr[t + 1])
+            elif tod_exit_hour > 0 and int(hour_arr[t]) == tod_exit_hour and t + 1 < n_bars:
+                exit_reason    = 5
+                exit_price     = float(open_arr[t + 1])
 
             if exit_reason == 0 and t == n_bars - 1:
-                exit_reason    = 4
-                exit_price     = float(close_arr[t])
-                label_tp_first = 0
+                exit_reason = 4
+                exit_price  = float(close_arr[t])
 
             if exit_reason != 0:
                 out_side[n_trades]           = side
@@ -302,7 +341,7 @@ def _backtest_core_numpy(
                 out_exit_bar[n_trades]       = t
                 out_entry_price[n_trades]    = entry_price
                 out_exit_price[n_trades]     = exit_price
-                out_sl[n_trades]             = sl_price
+                out_sl[n_trades]             = sl_price   # original (pre-breakeven) for sizing
                 out_tp[n_trades]             = tp_price
                 out_exit_reason[n_trades]    = exit_reason
                 out_mae[n_trades]            = mae
@@ -332,7 +371,7 @@ def _backtest_core_numpy(
 
 # ── Layer 2: Python wrapper ───────────────────────────────────────────────────
 
-_EXIT_REASON_MAP = {1: "stop", 2: "take_profit", 3: "opposite_signal", 4: "end_of_data"}
+_EXIT_REASON_MAP = {1: "stop", 2: "take_profit", 3: "opposite_signal", 4: "end_of_data", 5: "time_exit"}
 
 
 def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
@@ -358,12 +397,21 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
     signal_arr = df["signal"].to_numpy(dtype=np.int8)
     n_bars     = len(df)
 
+    # Hour array for TOD exit (zero array if column absent)
+    if "bar_hour" in df.columns:
+        hour_arr = df["bar_hour"].to_numpy(dtype=np.int64)
+    else:
+        hour_arr = np.zeros(n_bars, dtype=np.int64)
+
     # ── 2. Compute SL/TP distances ───────────────────────────────────────────
     sl_pts = float(cfg.STOP_FIXED_PTS)   # positive distance in points
     tp_pts = sl_pts * float(cfg.MIN_RR)  # TP = SL * RR
 
-    same_bar_tp_first = (cfg.SAME_BAR_COLLISION == "tp_first")
-    exit_on_opposite  = bool(cfg.EXIT_ON_OPPOSITE_SIGNAL)
+    same_bar_tp_first  = (cfg.SAME_BAR_COLLISION == "tp_first")
+    exit_on_opposite   = bool(cfg.EXIT_ON_OPPOSITE_SIGNAL)
+    use_breakeven_stop = bool(getattr(cfg, "USE_BREAKEVEN_STOP", False))
+    max_hold_bars      = int(getattr(cfg, "MAX_HOLD_BARS", 0))
+    tod_exit_hour      = int(getattr(cfg, "TOD_EXIT_HOUR", 0))
 
     # ── 3. Dispatch: Cython → Numba → NumPy ─────────────────────────────────
     use_cython = CYTHON_AVAILABLE
@@ -394,6 +442,8 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
         signal_arr, n_bars,
         sl_pts, tp_pts,
         same_bar_tp_first, exit_on_opposite,
+        use_breakeven_stop, max_hold_bars,
+        hour_arr, tod_exit_hour,
     )
 
     n_trades_raw = len(raw_side)
