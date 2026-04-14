@@ -110,6 +110,9 @@ def pick_threshold(ev: np.ndarray, pnls: np.ndarray, wins: np.ndarray,
 
 
 def process_version(v: int, model, rows: list[dict]) -> None:
+    """Batched predict strategy: load whole version, build features for all
+    trades at once with per-row candidate_rr (from combo.min_rr), predict
+    once, then per-combo slice + threshold sweep + aggregate."""
     path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
     if not path.exists():
         print(f"  [WARN] {path} missing", flush=True)
@@ -121,53 +124,85 @@ def process_version(v: int, model, rows: list[dict]) -> None:
     pf = pq.ParquetFile(str(path))
     cols = [c for c in READ_COLS if c in pf.schema_arrow.names]
 
-    # Accumulate per-combo arrays across row groups
-    acc: dict[int, list[pd.DataFrame]] = defaultdict(list)
     t0 = time.time()
-    for rg in range(pf.metadata.num_row_groups):
-        chunk = pf.read_row_group(rg, columns=cols).to_pandas()
-        for cid, g in chunk.groupby("combo_id"):
-            acc[int(cid)].append(g)
-        del chunk
-    print(f"  v{v}: read {pf.metadata.num_rows:,} rows in {time.time()-t0:.1f}s, "
-          f"{len(acc)} combos", flush=True)
+    df = pf.read(columns=cols).to_pandas()
+    print(f"  v{v}: loaded {len(df):,} rows in {time.time()-t0:.1f}s", flush=True)
 
+    # Drop trades whose combo has <MIN_TRADES_COMBO rows in this parquet
+    counts = df.groupby("combo_id").size()
+    keep_cids = set(counts[counts >= MIN_TRADES_COMBO].index.astype(int).tolist())
+    keep_cids &= set(params.keys())
+    df = df[df["combo_id"].astype(int).isin(keep_cids)].reset_index(drop=True)
+    print(f"  v{v}: {len(keep_cids)} combos pass min_trades, {len(df):,} rows", flush=True)
+    if len(df) == 0:
+        return
+
+    # Build stacked feature matrix: per-row candidate_rr from combo's min_rr,
+    # stop_method / exit_on_opposite_signal / min_rr mapped per combo_id.
+    t0 = time.time()
+    cid_to_rr = {cid: float(params[cid]["min_rr"]) for cid in keep_cids}
+    cid_to_sm = {cid: STOP_METHOD_MAP[str(params[cid]["stop_method"])] for cid in keep_cids}
+    cid_to_eo = {cid: int(bool(params[cid]["exit_on_opposite_signal"])) for cid in keep_cids}
+
+    cid_int = df["combo_id"].astype(int).to_numpy()
+    feat = pd.DataFrame(index=df.index)
+    float_feats = [c for c in ENTRY_FEATS
+                   if c not in ("side", "time_of_day_hhmm", "day_of_week")]
+    for c in float_feats:
+        feat[c] = df[c].astype(np.float32)
+    feat["time_of_day_hhmm"] = df["time_of_day_hhmm"].astype(int).astype(np.float32)
+    feat["day_of_week"] = df["day_of_week"].astype(np.float32)
+    feat["side"] = df["side"].map(SIDE_MAP).astype(np.int8)
+    feat["stop_method"] = pd.Series(cid_int).map(cid_to_sm).astype(np.int8).values
+    feat["exit_on_opposite_signal"] = pd.Series(cid_int).map(cid_to_eo).astype(np.int8).values
+    rr_arr = pd.Series(cid_int).map(cid_to_rr).astype(np.float32).values
+    feat["candidate_rr"] = rr_arr
+    feat["abs_zscore_entry"] = feat["zscore_entry"].abs()
+    feat["rr_x_atr"] = (rr_arr * feat["atr_points"].values).astype(np.float32)
+    feat = feat[v2.ALL_FEATURES]
+    print(f"  v{v}: built features in {time.time()-t0:.1f}s", flush=True)
+
+    t0 = time.time()
+    pwin = model.predict(feat.values)
+    print(f"  v{v}: predicted pwin on {len(pwin):,} rows in {time.time()-t0:.1f}s", flush=True)
+    ev_all = pwin * rr_arr - (1.0 - pwin)
+    pnls_all = df["net_pnl_dollars"].to_numpy(dtype=np.float64)
+    wins_all = df["label_win"].to_numpy(dtype=np.int8)
+    rmul_all = df["r_multiple"].to_numpy(dtype=np.float64)
+
+    # Per-combo slice via argsort once (fast groupby)
+    t0 = time.time()
+    order = np.argsort(cid_int, kind="stable")
+    cid_sorted = cid_int[order]
+    unique_cids, starts = np.unique(cid_sorted, return_index=True)
+    ends = np.append(starts[1:], len(cid_sorted))
     n_done = 0
-    for cid, parts in acc.items():
-        combo = params.get(cid)
-        if combo is None:
+    for cid, st, en in zip(unique_cids, starts, ends):
+        cid = int(cid)
+        if cid not in keep_cids:
             continue
-        grp = pd.concat(parts, ignore_index=True) if len(parts) > 1 else parts[0]
-        if len(grp) < MIN_TRADES_COMBO:
-            continue
+        idx = order[st:en]
         try:
-            feats = build_feature_matrix(grp, combo)
-            pwin = model.predict(feats.values)
-            rr = float(combo["min_rr"])
-            ev = pwin * rr - (1.0 - pwin)
-            pnls = grp["net_pnl_dollars"].to_numpy(dtype=np.float64)
-            wins = grp["label_win"].to_numpy(dtype=np.int8)
-            rmul = grp["r_multiple"].to_numpy(dtype=np.float64)
-
+            ev = ev_all[idx]; pnls = pnls_all[idx]; wins = wins_all[idx]; rmul = rmul_all[idx]
             fixed = aggregate(pnls, wins, rmul)
             thr, filt, skip = pick_threshold(ev, pnls, wins, rmul)
-
             row = dict(filt)
             row["global_combo_id"] = f"v{v}_{cid}"
             row["optimal_threshold"] = thr
             row["filtered_n_trades"] = filt["n_trades"]
             row["skip_rate"] = skip
             fixed_sharpe = fixed.get("sharpe_ratio", 0.0)
-            lift = (filt["sharpe_ratio"] - fixed_sharpe) if np.isfinite(fixed_sharpe) else np.nan
-            row["filter_lift_sharpe"] = lift
+            row["filter_lift_sharpe"] = (filt["sharpe_ratio"] - fixed_sharpe) if np.isfinite(fixed_sharpe) else np.nan
             row["fixed_sharpe_ratio"] = fixed_sharpe
             row["fixed_n_trades"] = fixed["n_trades"]
             rows.append(row)
             n_done += 1
+            if n_done % 500 == 0:
+                print(f"    v{v}: {n_done}/{len(keep_cids)} combos aggregated", flush=True)
         except Exception as e:
             print(f"    [ERR] v{v}_{cid}: {e}", flush=True)
-    print(f"  v{v}: processed {n_done} combos", flush=True)
-    acc.clear()
+    print(f"  v{v}: processed {n_done} combos in {time.time()-t0:.1f}s", flush=True)
+    del df, feat, pwin, ev_all, pnls_all, wins_all, rmul_all
     gc.collect()
 
 
