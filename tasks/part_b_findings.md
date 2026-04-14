@@ -11,7 +11,7 @@ the takeaway from each. Anchor for the next round of decisions. Pairs with
 | ID  | Task | Status | Artifact(s) |
 |-----|------|--------|-------------|
 | B1  | Per-combo optimal filter threshold | Done | `data/ml/adaptive_rr_v2/filter_backtest_per_combo.json` |
-| B2  | Adaptive threshold — E[R] percentile | Done (result null) | `data/ml/adaptive_rr_v2/filter_backtest_percentile.json` |
+| B2  | Adaptive threshold — E[R] percentile | Done | `data/ml/adaptive_rr_v2/filter_backtest_percentile.json` |
 | B3  | Permutation test on ML#1 | Done | memory 1466 (signal confirmed > noise) |
 | B4  | Filter on surrogate top-50 | Done | `data/ml/adaptive_rr_v2/filter_backtest_surrogate.json` |
 | B5  | Re-train ML#1 on V2-filtered outcomes | Done | `data/ml/lgbm_results_v2filtered/` |
@@ -42,13 +42,26 @@ attribute).
 
 ## B2 — Adaptive threshold (E[R] percentile)
 
-- Grid: percentile 25 / 50 / 75 / 90 within each combo.
-- **No optimum rows populated** in the result file — the percentile pick
-  script produced entries but `optimum` was null for all combos. Needs a
-  second look; either the filter never met the min-trades guard or the
-  `pick_optimum` branch silently dropped results.
+- Grid: keep the top 25 / 50 / 75 / 90 percentile of E[R] trades within
+  each combo. 60 combos attempted, 48 evaluated (12 errored).
+- Script stored results under `top_Npct` keys directly; no `optimum` picker
+  step was implemented (cosmetic — summary is below).
 
-**Takeaway**: no conclusion. Re-run or audit before retrying this angle.
+| Percentile kept | wins vs fixed | median Sharpe lift |
+|---|---|---|
+| top_25pct | 38 / 48 | **+3.87** |
+| top_50pct | 44 / 48 | +2.66 |
+| top_75pct | 43 / 48 | +1.45 |
+| top_90pct | 40 / 48 | +0.50 |
+
+- **Best bucket per combo**: top_25pct wins on 34/48 combos (71%),
+  top_50pct on 9, top_75pct on 3, top_90pct on 2.
+- Means are distorted by a handful of degenerate zero-DD Sharpe blow-ups;
+  medians are the authoritative summary.
+
+**Takeaway**: percentile filtering works, and the aggressive top-25%
+variant is best for most combos. Consistent with B1: combos genuinely
+prefer per-combo quantile pruning over a global absolute threshold.
 
 ---
 
