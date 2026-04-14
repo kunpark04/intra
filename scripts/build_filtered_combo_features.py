@@ -163,8 +163,16 @@ def process_version(v: int, model, rows: list[dict]) -> None:
     print(f"  v{v}: built features in {time.time()-t0:.1f}s", flush=True)
 
     t0 = time.time()
-    pwin = model.predict(feat.values)
+    X = feat.values
+    CHUNK = 1_000_000
+    pwin = np.empty(len(X), dtype=np.float64)
+    for s in range(0, len(X), CHUNK):
+        e_ = min(s + CHUNK, len(X))
+        pwin[s:e_] = model.predict(X[s:e_], num_threads=3)
+        print(f"    v{v}: predicted {e_:,}/{len(X):,} "
+              f"({(e_)/(time.time()-t0+1e-9):.0f} rows/s)", flush=True)
     print(f"  v{v}: predicted pwin on {len(pwin):,} rows in {time.time()-t0:.1f}s", flush=True)
+    del X
     ev_all = pwin * rr_arr - (1.0 - pwin)
     pnls_all = df["net_pnl_dollars"].to_numpy(dtype=np.float64)
     wins_all = df["label_win"].to_numpy(dtype=np.int8)
