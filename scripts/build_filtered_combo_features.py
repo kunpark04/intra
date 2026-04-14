@@ -166,7 +166,7 @@ def process_version(v: int, model, rows: list[dict]) -> None:
         feat["rr_x_atr"] = (rr_arr * feat["atr_points"].values).astype(np.float32)
         X = feat[v2.ALL_FEATURES].values
 
-        pwin = model.predict(X, num_threads=3)
+        pwin = model.predict(X, num_threads=4)
         ev = pwin * rr_arr - (1.0 - pwin)
         pnls = chunk["net_pnl_dollars"].to_numpy(dtype=np.float64)
         wins = chunk["label_win"].to_numpy(dtype=np.int8)

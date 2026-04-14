@@ -236,14 +236,14 @@ All five rules below apply by **default** to any script in Part B (or any
 other ML training / backtest / parquet analysis in this repo). Set per user
 policy 2026-04-14.
 
-### Rule 2 — Cap LightGBM `num_threads=3`
-Every LightGBM call must set `num_threads=3` (or `n_jobs=3`) in `LGB_PARAMS`
-and in `model.predict(..., num_threads=3)`. Host is a 4-vCPU Kamatera VM;
-leaving one vCPU for the OS / pyarrow IO threads avoids context-switch
-thrash while still using 3/4 cores for compute. LightGBM's default
-"all cores" spawns 16+ threads per job and caused load avg ~8 with two
-concurrent jobs under the old 2-core host. Revised 2026-04-14 after the
-server was upgraded to 4 vCPU and concurrent jobs were retired.
+### Rule 2 — Cap LightGBM `num_threads=4`
+Every LightGBM call must set `num_threads=4` (or `n_jobs=4`) in `LGB_PARAMS`
+and in `model.predict(..., num_threads=4)`. Host is a 4-vCPU Kamatera VM;
+use all 4 cores since jobs are serialized (no concurrent ML jobs). LightGBM's
+default "all cores" spawns 16+ threads per job and caused load avg ~8 with
+two concurrent jobs under the old 2-core host — the explicit cap prevents
+that. Revised 2026-04-14 (second bump): lifted from 3 to 4 since the
+observed RAM headroom on B5 showed CPU was the bottleneck, not contention.
 
 ### Rule 3 — `systemd-run` resource limits on every long job
 ```
