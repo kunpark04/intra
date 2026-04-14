@@ -28,6 +28,9 @@ sys.path.insert(0, str(REPO / "scripts"))
 import adaptive_rr_model_v2 as v2
 import ml_optimizer as mlo
 
+SIDE_MAP = {"long": 0, "short": 1}
+STOP_METHOD_MAP = {"fixed": 0, "atr": 1, "swing": 2}
+
 DATA_DIR = REPO / "data/ml"
 OUTPUT_DIR = DATA_DIR / "lgbm_results_v2filtered"
 V2_MODEL_PATH = DATA_DIR / "adaptive_rr_v2" / "adaptive_rr_model.txt"
@@ -56,22 +59,24 @@ def load_manifest_params(version: int) -> dict[int, dict]:
 
 
 def build_feature_matrix(grp: pd.DataFrame, combo: dict) -> pd.DataFrame:
-    """Build the 20-column V2 feature matrix for a combo's trades."""
-    out = pd.DataFrame(index=grp.index)
-    for c in ENTRY_FEATS:
-        out[c] = grp[c] if c in grp.columns else np.nan
-    for c in COMBO_FEATS:
-        if c in grp.columns:
-            out[c] = grp[c]
-        else:
-            out[c] = combo.get(c)
-    out["candidate_rr"] = float(combo["min_rr"])
-    out["abs_zscore_entry"] = out["zscore_entry"].abs()
-    out["rr_x_atr"] = out["candidate_rr"] * out["atr_points"]
+    """Build the 20-column V2 feature matrix for a combo's trades.
 
-    for c in COMBO_FEATS:
-        if out[c].dtype == object:
-            out[c] = out[c].astype("category")
+    Replicates scripts/adaptive_vs_fixed_backtest.build_features dtype
+    conventions (int8 for side/stop_method/exit_on_opp, float32 elsewhere).
+    """
+    out = pd.DataFrame(index=grp.index)
+    float_feats = [c for c in ENTRY_FEATS
+                   if c not in ("side", "time_of_day_hhmm", "day_of_week")]
+    for c in float_feats:
+        out[c] = grp[c].astype(np.float32) if c in grp.columns else np.float32(np.nan)
+    out["time_of_day_hhmm"] = grp["time_of_day_hhmm"].astype(int).astype(np.float32)
+    out["day_of_week"] = grp["day_of_week"].astype(np.float32)
+    out["side"] = grp["side"].map(SIDE_MAP).astype(np.int8)
+    out["stop_method"] = np.int8(STOP_METHOD_MAP[str(combo["stop_method"])])
+    out["exit_on_opposite_signal"] = np.int8(int(bool(combo["exit_on_opposite_signal"])))
+    out["candidate_rr"] = np.float32(float(combo["min_rr"]))
+    out["abs_zscore_entry"] = out["zscore_entry"].abs()
+    out["rr_x_atr"] = (out["candidate_rr"] * out["atr_points"]).astype(np.float32)
     return out[v2.ALL_FEATURES]
 
 
@@ -137,7 +142,7 @@ def process_version(v: int, model, rows: list[dict]) -> None:
             continue
         try:
             feats = build_feature_matrix(grp, combo)
-            pwin = model.predict(feats)
+            pwin = model.predict(feats.values)
             rr = float(combo["min_rr"])
             ev = pwin * rr - (1.0 - pwin)
             pnls = grp["net_pnl_dollars"].to_numpy(dtype=np.float64)
