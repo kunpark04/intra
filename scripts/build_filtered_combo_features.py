@@ -1,0 +1,229 @@
+"""B5: Build filtered combo_features.parquet for ML#1 retraining.
+
+For each combo across v2-v10 mfe parquets:
+  1. Load its trades + V2 ENTRY_FEATURES columns.
+  2. Predict P(win | features, combo.min_rr) using V2 model.
+  3. Sweep absolute E[R] thresholds, pick the one maximising Sharpe with
+     guardrail (n_trades >= MIN_N, sharpe < MAX_SHARPE). Fallback: thr=0.
+  4. Aggregate filtered trades into combo-level metrics.
+
+Output: data/ml/lgbm_results_v2filtered/combo_features.parquet
+Next: run ml_optimizer.py --skip-aggregation --output-dir data/ml/lgbm_results_v2filtered
+"""
+from __future__ import annotations
+import gc
+import importlib.util
+import json
+import sys
+import time
+from collections import defaultdict
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "scripts"))
+
+import adaptive_rr_model_v2 as v2
+import ml_optimizer as mlo
+
+DATA_DIR = REPO / "data/ml"
+OUTPUT_DIR = DATA_DIR / "lgbm_results_v2filtered"
+V2_MODEL_PATH = DATA_DIR / "adaptive_rr_v2" / "adaptive_rr_model.txt"
+
+THRESHOLDS = np.round(np.arange(-0.5, 0.51, 0.1), 2).tolist()  # 11 points
+MIN_N_KEEP = 50           # guardrail on filtered trade count
+MAX_SHARPE = 1e10         # guardrail on degenerate zero-dd Sharpe
+MIN_TRADES_COMBO = 30     # same floor ml_optimizer uses
+
+ENTRY_FEATS = v2.ENTRY_FEATURES               # 15 direct
+COMBO_FEATS = v2.COMBO_FEATURES               # 2 (stop_method, exit_on_opposite_signal)
+READ_COLS_BASE = ["combo_id", "label_win", "net_pnl_dollars", "r_multiple"]
+READ_COLS = READ_COLS_BASE + [c for c in ENTRY_FEATS] + [c for c in COMBO_FEATS if c in ENTRY_FEATS + COMBO_FEATS]
+
+
+def load_manifest_params(version: int) -> dict[int, dict]:
+    path = DATA_DIR / "originals" / f"ml_dataset_v{version}_manifest.json"
+    out: dict[int, dict] = {}
+    if not path.exists():
+        return out
+    for entry in json.loads(path.read_text()):
+        if entry.get("status") != "completed":
+            continue
+        out[int(entry["combo_id"])] = entry
+    return out
+
+
+def build_feature_matrix(grp: pd.DataFrame, combo: dict) -> pd.DataFrame:
+    """Build the 20-column V2 feature matrix for a combo's trades."""
+    out = pd.DataFrame(index=grp.index)
+    for c in ENTRY_FEATS:
+        out[c] = grp[c] if c in grp.columns else np.nan
+    for c in COMBO_FEATS:
+        if c in grp.columns:
+            out[c] = grp[c]
+        else:
+            out[c] = combo.get(c)
+    out["candidate_rr"] = float(combo["min_rr"])
+    out["abs_zscore_entry"] = out["zscore_entry"].abs()
+    out["rr_x_atr"] = out["candidate_rr"] * out["atr_points"]
+
+    for c in COMBO_FEATS:
+        if out[c].dtype == object:
+            out[c] = out[c].astype("category")
+    return out[v2.ALL_FEATURES]
+
+
+def aggregate(pnls: np.ndarray, wins: np.ndarray, rmul: np.ndarray) -> dict:
+    return mlo._aggregate_single_combo(pnls, wins, rmul)
+
+
+def pick_threshold(ev: np.ndarray, pnls: np.ndarray, wins: np.ndarray,
+                   rmul: np.ndarray) -> tuple[float, dict, float]:
+    """Sweep thresholds, pick best Sharpe with guardrails. Returns (thr, metrics, skip_rate)."""
+    best = None
+    for thr in THRESHOLDS:
+        keep = ev >= thr
+        n_kept = int(keep.sum())
+        if n_kept < MIN_N_KEEP:
+            continue
+        m = aggregate(pnls[keep], wins[keep], rmul[keep])
+        s = m.get("sharpe_ratio", 0.0)
+        if not np.isfinite(s) or s >= MAX_SHARPE:
+            continue
+        if best is None or s > best[1]["sharpe_ratio"]:
+            best = (thr, m, float(1 - keep.mean()))
+    if best is not None:
+        return best
+    # Fallback: thr=0 unconditionally
+    keep = ev >= 0.0
+    if keep.sum() == 0:
+        keep = np.ones_like(ev, dtype=bool)
+    m = aggregate(pnls[keep], wins[keep], rmul[keep])
+    return (0.0, m, float(1 - keep.mean()))
+
+
+def process_version(v: int, model, rows: list[dict]) -> None:
+    path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
+    if not path.exists():
+        print(f"  [WARN] {path} missing", flush=True)
+        return
+    params = load_manifest_params(v)
+    print(f"  v{v}: reading {path.name} ({len(params)} combos in manifest)", flush=True)
+
+    import pyarrow.parquet as pq
+    pf = pq.ParquetFile(str(path))
+    cols = [c for c in READ_COLS if c in pf.schema_arrow.names]
+
+    # Accumulate per-combo arrays across row groups
+    acc: dict[int, list[pd.DataFrame]] = defaultdict(list)
+    t0 = time.time()
+    for rg in range(pf.metadata.num_row_groups):
+        chunk = pf.read_row_group(rg, columns=cols).to_pandas()
+        for cid, g in chunk.groupby("combo_id"):
+            acc[int(cid)].append(g)
+        del chunk
+    print(f"  v{v}: read {pf.metadata.num_rows:,} rows in {time.time()-t0:.1f}s, "
+          f"{len(acc)} combos", flush=True)
+
+    n_done = 0
+    for cid, parts in acc.items():
+        combo = params.get(cid)
+        if combo is None:
+            continue
+        grp = pd.concat(parts, ignore_index=True) if len(parts) > 1 else parts[0]
+        if len(grp) < MIN_TRADES_COMBO:
+            continue
+        try:
+            feats = build_feature_matrix(grp, combo)
+            pwin = model.predict(feats)
+            rr = float(combo["min_rr"])
+            ev = pwin * rr - (1.0 - pwin)
+            pnls = grp["net_pnl_dollars"].to_numpy(dtype=np.float64)
+            wins = grp["label_win"].to_numpy(dtype=np.int8)
+            rmul = grp["r_multiple"].to_numpy(dtype=np.float64)
+
+            fixed = aggregate(pnls, wins, rmul)
+            thr, filt, skip = pick_threshold(ev, pnls, wins, rmul)
+
+            row = dict(filt)
+            row["global_combo_id"] = f"v{v}_{cid}"
+            row["optimal_threshold"] = thr
+            row["filtered_n_trades"] = filt["n_trades"]
+            row["skip_rate"] = skip
+            fixed_sharpe = fixed.get("sharpe_ratio", 0.0)
+            lift = (filt["sharpe_ratio"] - fixed_sharpe) if np.isfinite(fixed_sharpe) else np.nan
+            row["filter_lift_sharpe"] = lift
+            row["fixed_sharpe_ratio"] = fixed_sharpe
+            row["fixed_n_trades"] = fixed["n_trades"]
+            rows.append(row)
+            n_done += 1
+        except Exception as e:
+            print(f"    [ERR] v{v}_{cid}: {e}", flush=True)
+    print(f"  v{v}: processed {n_done} combos", flush=True)
+    acc.clear()
+    gc.collect()
+
+
+def main() -> None:
+    import lightgbm as lgb
+    print(f"[B5] Loading V2 model: {V2_MODEL_PATH}", flush=True)
+    model = lgb.Booster(model_file=str(V2_MODEL_PATH))
+
+    rows: list[dict] = []
+    for v in range(2, 11):
+        process_version(v, model, rows)
+
+    print(f"\n[B5] Aggregated {len(rows)} combos total", flush=True)
+    metrics_df = pd.DataFrame(rows)
+
+    # Merge with parameter settings (reuse ml_optimizer's manifest loader logic)
+    print("[B5] Loading manifest params for merge...", flush=True)
+    param_rows = []
+    for v in range(2, 11):
+        mp = DATA_DIR / "originals" / f"ml_dataset_v{v}_manifest.json"
+        if not mp.exists():
+            continue
+        for entry in json.loads(mp.read_text()):
+            if entry.get("status") != "completed" or entry.get("n_trades", 0) == 0:
+                continue
+            gid = f"v{v}_{entry['combo_id']}"
+            row = {"global_combo_id": gid, "sweep_version": v}
+            for col in mlo.PARAM_COLS:
+                if col in entry:
+                    row[col] = entry[col]
+                elif col in mlo.ZSCORE_DEFAULTS:
+                    row[col] = mlo.ZSCORE_DEFAULTS[col]
+                elif col in mlo.V5_FILTER_DEFAULTS:
+                    row[col] = mlo.V5_FILTER_DEFAULTS[col]
+                else:
+                    row[col] = np.nan
+            param_rows.append(row)
+    params_df = pd.DataFrame(param_rows)
+
+    df = metrics_df.merge(params_df, on="global_combo_id", how="inner")
+    print(f"[B5] Final merged: {len(df):,} combos", flush=True)
+
+    for col in mlo.BOOLEAN_COLS:
+        if col in df.columns:
+            df[col] = df[col].astype(float).fillna(0).astype(int)
+    for col in mlo.CATEGORICAL_COLS:
+        if col in df.columns:
+            df[col] = df[col].astype(str)  # parquet-friendly; ml_optimizer re-casts
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = OUTPUT_DIR / "combo_features.parquet"
+    df.to_parquet(out_path, index=False)
+    print(f"[B5] Saved: {out_path} ({out_path.stat().st_size/1e6:.1f} MB)", flush=True)
+
+    # Quick summary
+    print("\n[B5] Threshold distribution:")
+    print(df["optimal_threshold"].value_counts().sort_index().to_string())
+    print(f"\n[B5] Median filter_lift_sharpe: {df['filter_lift_sharpe'].median():.3f}")
+    print(f"[B5] Combos where filter beats fixed: "
+          f"{(df['filter_lift_sharpe'] > 0).sum()}/{len(df)}")
+
+
+if __name__ == "__main__":
+    main()

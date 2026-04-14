@@ -158,6 +158,8 @@ def parse_args() -> argparse.Namespace:
                    help="Cross-validation folds (default: 5)")
     p.add_argument("--skip-aggregation", action="store_true",
                    help="Reuse cached combo_features.parquet instead of re-aggregating")
+    p.add_argument("--output-dir", type=str, default=None,
+                   help="Override output directory (default: data/ml/lgbm_results)")
     p.add_argument("--surrogate-candidates", type=int, default=50_000,
                    help="Number of random candidates for surrogate search (default: 50000)")
     p.add_argument("--seed", type=int, default=42,
@@ -885,6 +887,10 @@ def save_results(
 def main() -> None:
     args = parse_args()
     t_start = time.time()
+
+    global OUTPUT_DIR
+    if args.output_dir:
+        OUTPUT_DIR = Path(args.output_dir)
 
     # Build composite weight dict from CLI args
     weights = {
