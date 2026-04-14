@@ -169,6 +169,48 @@ edge combos need to stay at fixed 5%.
 
 ---
 
+## B5 feature importance + partial dependence (from retrained surrogate)
+
+From `data/ml/lgbm_results_v2filtered/feature_importance.png` and
+`partial_dependence.png` on the composite-score model.
+
+**Top features by gain**:
+1. `min_rr` (~1200)
+2. `swing_lookback` (~1150)
+3. `stop_fixed_pts` (~1000)
+4. `z_band_k` (~850)
+5. `atr_multiplier` (~450)
+6. `z_window`, `max_hold_bars` (~400 each)
+
+EMA lengths, session filters, and every `vol_regime_*` feature are near zero.
+
+**Preferred directions** (partial dependence on composite score):
+
+| Feature | Shape | Winning direction |
+|---|---|---|
+| `min_rr` | monotonic ↓ (0.53→0.38) | **lower R:R wins** |
+| `swing_lookback` | monotonic ↓ | tighter stops |
+| `stop_fixed_pts` | sharp ↓ | tight stops |
+| `z_band_k` | ↓ | lower band → more signals |
+| `atr_multiplier` | ↓ | smaller multipliers |
+| `z_window` | single peak ~15–20 | mid-window |
+| `max_hold_bars` | flat then ↓ past 400 | hold < 300 bars |
+| `ema_slow/fast` | slight ↑ | longer EMAs |
+| `zscore_confirmation` | off > on | disabled |
+| `vol_regime_*` | flat | irrelevant |
+
+**Note**: the retrained ML#1 prefers `min_rr ≈ 1.0`, consistent with B9.
+The project's original `MIN_RR = 1:3` default has been relaxed in
+`CLAUDE.md` (2026-04-14) — R:R is now a per-combo parameter driven by the
+data.
+
+**Takeaway**: winning stack under V2-filtered data is tight-stops +
+low-z-band + R:R near 1 + V2 filter. Confirms V5 filters were drag
+(already deprecated in v6+). Everything aligns with the B5 top-10 combo
+signature (WR 95–99%, n=120–240).
+
+---
+
 ## Cross-task synthesis
 
 1. **Two tools, one stack**: V2 is useful as a *filter*, not as an R:R

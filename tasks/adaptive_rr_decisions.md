@@ -105,3 +105,53 @@ combo settings.
 discriminative (AUC). A model with AUC=0.8 but poor calibration would suggest
 wrong R:R levels. The calibration curve reveals if P(win)=0.3 actually wins 30%
 of the time.
+
+---
+
+## D10: V2-as-R:R-picker is a dead path; V2-as-filter is the live path (2026-04-14)
+
+**Decision**: Do not use V2 to pick per-trade R:R. Use V2 to filter trades
+at the combo's own `min_rr`.
+
+**Reasoning**: The calibrated V2 model consistently prefers the smallest
+available R:R across its 17-step grid. B9 tested this with a monotonic
+constraint on `candidate_rr` (V2 retrained under `monotone_constraints`):
+overall CV metrics are identical to V2 (AUC 0.806, log-loss 0.340,
+Brier 0.105), and the optimal-R:R distribution still collapses
+(mean 1.023, median 1.0, only 33.8% of trades have positive E[R] at any
+R:R ≥ 1). The R:R=1 preference is a true property of calibrated P(win)
+under MNQ 1-minute economics, not a model artefact.
+
+**What works instead**: using P(win) at the combo's `min_rr` to compute
+E[R] and filter trades below a per-combo threshold. B1 finds the
+threshold is bimodal (heavy mass at ±0.5 guardrails and near zero).
+B2 finds top-25% percentile filtering lifts median Sharpe by +3.87.
+B5 retrain confirms 95% of 27,326 combos benefit from this filter.
+
+---
+
+## D11: Kelly-fraction sizing — cap at 5%, apply conditionally (2026-04-14)
+
+**Decision**: Default to `f = max(0, E[R] / R)` capped at 5%. Prefer
+full-Kelly-cap5 (best mean lift) or quarter-Kelly-cap5 (most robust) over
+uncapped Kelly. Do not apply universally — gate on combo profile.
+
+**Reasoning**: B10 evaluated 6 Kelly variants on 19 combos. Capped variants
+win: `kelly_full_cap5` mean Sharpe lift +5.31, `kelly_quarter_cap5` median
+lift +8.10. All three cap5 variants improve 14/19 combos with ~90% skip
+rate — Kelly acts as filter+sizer together because `f ≤ 0` → skip. Five
+combos are *harmed* by Kelly: ones whose edge comes from trade volume +
+high fixed-5% compounding rather than per-trade edge (e.g. v2f_surr_6,
+v2f_surr_8 where Sharpe dropped ~20–25 points). Conclusion: Kelly-cap5 is
+a net-positive sizing rule on average but needs combo-level gating before
+live use.
+
+---
+
+## D12: MIN_RR constraint relaxed (2026-04-14)
+
+**Decision**: `MIN_RR ≥ 3` is no longer a project floor. Combos run at the
+R:R their data supports, which is typically near 1:1 under V2 filter.
+
+**Reasoning**: Same as `tasks/ml_decisions.md` §D16. `CLAUDE.md` updated
+to reflect.

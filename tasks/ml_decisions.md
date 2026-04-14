@@ -211,3 +211,60 @@ both human-readable files (CSV, PNG, JSON) and machine-readable files (parquet, 
 **Reasoning**: `combo_id` starts at 0 in every sweep version. Without a global ID,
 combo 0 from v2 would collide with combo 0 from v10. The version prefix makes IDs
 unique and traceable back to their source dataset.
+
+---
+
+## D14: V2-filtered retrain (B5) replaces unfiltered top combos (2026-04-14)
+
+**Decision**: `data/ml/lgbm_results_v2filtered/` is the authoritative source for
+top combos, surrogate candidates, and feature importance. The original
+`data/ml/lgbm_results/` output is superseded for downstream use.
+
+**Reasoning**: Under V2 filter + best-Sharpe threshold per combo, 26,062 /
+27,326 combos (95%) improve; median Sharpe lift +0.849. Top-20 combo
+overlap between the two rankings is **zero** — this is a genuinely
+different population, not a perturbation. See
+`tasks/part_b_findings.md` for the full write-up.
+
+**Downstream**: all held-out (B16) and paper-trade (B17) evaluation must
+use `lgbm_results_v2filtered/top_combos.csv`.
+
+---
+
+## D15: Feature importance / PDP insights from B5 retrain (2026-04-14)
+
+**Decision**: Document what the retrained surrogate actually learned so
+future sweeps focus parameter ranges on high-signal knobs.
+
+**What matters**: top-5 features by gain are `min_rr`, `swing_lookback`,
+`stop_fixed_pts`, `z_band_k`, `atr_multiplier` — all stop-tightness and
+signal-gate parameters. These are ~2–3× more important than the rest.
+
+**What the model prefers** (from partial dependence on composite score):
+- `min_rr` monotonically lower → winning R:R is near 1:1
+- `swing_lookback`, `stop_fixed_pts`, `atr_multiplier` all monotonically
+  tighter
+- `z_band_k` lower (more signals let through)
+- `z_window` peaks around 15–20
+- `max_hold_bars` flat then drops past ~400 → hold < 300 bars
+- `zscore_confirmation` off beats on
+- EMA lengths weak; `vol_regime_*` flat (noise)
+
+**Reasoning**: All V5 volatility-regime filters remain near-zero
+importance even after retrain — confirms the v6+ decision to disable them
+was correct. Future sweeps should tighten ranges on the top-5 features and
+drop or fix the bottom-5.
+
+---
+
+## D16: MIN_RR constraint relaxed (2026-04-14)
+
+**Decision**: `MIN_RR = 1:3` is no longer treated as a project
+non-negotiable; R:R is a per-combo parameter the data chooses.
+
+**Reasoning**: Both B5's retrained ML#1 (this section, feature importance
++ PDP) and B9's monotonic ML#2 variant prefer `min_rr ≈ 1.0` on V2-filtered
+outcomes. The high-precision post-filter regime (WR 95–99%) makes small
+R:R targets rational — the filter is doing the selection work, so trades
+don't need a 3:1 payoff to be positive EV. `CLAUDE.md` updated to reflect
+this; MIN_RR is now per-combo, not a floor.

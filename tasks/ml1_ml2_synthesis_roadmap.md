@@ -297,10 +297,29 @@ discussed but **not** adopted as standing policy. Use only when re-requested.
 
 ## Pointers
 
-- ML#1 decisions: `tasks/ml_decisions.md`
-- ML#2 decisions: `tasks/adaptive_rr_decisions.md`
+- **Consolidated Part B findings**: `tasks/part_b_findings.md`
+- ML#1 decisions: `tasks/ml_decisions.md` (§D14–D16 cover B5 + MIN_RR)
+- ML#2 decisions: `tasks/adaptive_rr_decisions.md` (§D10–D12 cover B9/B10 + MIN_RR)
 - ML#2 phase-2 training plan (original): `tasks/adaptive_rr_phase2_plan.md`
 - Sweep monitor protocol: `tasks/v10_sweep_monitor_plan.md`
 - Reviewing-agent protocol: `CLAUDE.md` § Reviewing Agent Protocol
 - Train/test split policy: `CLAUDE.md` § Train / test split policy
   (80/20 chronological, test bars reserved for single final evaluation)
+
+---
+
+## Part E — Post-B5/B10 status (2026-04-14)
+
+Week 1 (B1/B2/B3/B4/B9) + Week 2 (B5/B10) tasks complete. Full results
+and cross-task synthesis in `tasks/part_b_findings.md`.
+
+**Stack that won on in-sample data**:
+1. ML#1-v2filtered combo ranking (`data/ml/lgbm_results_v2filtered/`)
+2. V2 used as a filter, not an R:R picker (B9 closed the picker path)
+3. Per-combo absolute-E[R] threshold (B1) or top-25% percentile (B2)
+4. Optional: Kelly-cap5 sizing on combos where it helps (B10)
+5. `MIN_RR` is per-combo; no 1:3 floor.
+
+**Outstanding (Week 3+)**: B6 temporal OOD for ML#2 · B7 walk-forward ·
+B8 feature engineering · B11–B15 tier 3 · B16 final held-out evaluation
+(gate for live) · B17 paper-trade.

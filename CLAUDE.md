@@ -13,7 +13,12 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   - Data is NQ price series; treat it as the underlying price path but use MNQ $/point for dollars.
 - **Starting equity**: **$50,000**.
 - **Risk model**: risk **5% of equity** per open position/trade.
-- **Minimum R:R**: **1:3** (planned reward distance must be ≥ 3× planned risk distance).
+- **Minimum R:R**: configurable per combo (was originally set at 1:3 as a
+  default). The 1:3 floor is **not** a non-negotiable — parameter sweeps
+  (v4–v10) and the retrained V2-filtered ML#1 surrogate (see
+  `tasks/part_b_findings.md`) both prefer R:R near 1:1 under MNQ economics,
+  and the calibrated ML#2 model (`adaptive_rr_v2`) confirms this. Use
+  whatever R:R the data supports for the chosen combo.
 - **Backtest mode first**: use CSV input; no live broker integration yet.
 - **Notebooks run in-place**: notebooks must run from repo root and write artifacts to the correct folders without manual path edits.
 
