@@ -1,0 +1,119 @@
+======================================================================
+Adaptive R:R Model — P(win | features, candidate_rr)
+======================================================================
+
+[load] Loading _mfe.parquet files for versions: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+  Target base trades post-load: 705,882
+  Per-version load budgets (target=705,882):
+    v2:   88,868  (0.64% sample of   13,877,398 rows)
+    v3:  176,470  (0.31% sample of   56,550,362 rows)
+    v4:   24,097  (2.04% sample of    1,180,187 rows)
+    v5:   21,698  (3.06% sample of      709,761 rows)
+    v6:   28,672  (1.38% sample of    2,076,949 rows)
+    v7:   20,862  (3.82% sample of      546,027 rows)
+    v8:   75,185  (0.67% sample of   11,195,086 rows)
+    v9:   93,558  (0.63% sample of   14,796,795 rows)
+    v10:  176,470  (0.47% sample of   37,444,146 rows)
+  Streaming v2 (p_keep=0.0064).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 88,968 trades, 2363 combos
+  Streaming v3 (p_keep=0.0031).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 176,291 trades, 2196 combos
+  Streaming v4 (p_keep=0.0204).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 24,215 trades, 2381 combos
+  Streaming v5 (p_keep=0.0306).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 21,712 trades, 2366 combos
+  Streaming v6 (p_keep=0.0138).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 28,506 trades, 2921 combos
+  Streaming v7 (p_keep=0.0382).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 21,167 trades, 2998 combos
+  Streaming v8 (p_keep=0.0067).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 75,050 trades, 1727 combos
+  Streaming v9 (p_keep=0.0063).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 93,077 trades, 3000 combos
+  Streaming v10 (p_keep=0.0047).../root/intra/scripts/adaptive_rr_model.py:240: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
+ 176,024 trades, 5780 combos
+/root/intra/scripts/adaptive_rr_model.py:250: Pandas4Warning: The copy keyword is deprecated and will be removed in a future version. Copy-on-Write is active in pandas since 3.0 which utilizes a lazy copy mechanism that defers copies until necessary. Use .copy() to make an eager copy if necessary.
+  combined = pd.concat(frames, ignore_index=True, copy=False)
+  Total after stream-subsample: 705,010 trades, 25732 combos
+  Filtered combos: 25732 -> 5538 (removed 20194 with <30 trades)
+  Filtered trades: 555,882
+
+[expand] Expanding 555,882 trades × 17 R:R levels...
+  Expanded dataset: 9,449,994 rows, ~0.83 GB in-memory
+  Win rate by R:R level:
+    R:R 1.00: 44.0%
+    R:R 1.25: 35.8%
+    R:R 1.50: 29.8%
+    R:R 1.75: 25.0%
+    R:R 2.00: 21.4%
+    R:R 2.25: 18.2%
+    R:R 2.50: 15.4%
+    R:R 2.75: 13.1%
+    R:R 3.00: 11.1%
+    R:R 3.25: 9.3%
+    R:R 3.50: 7.8%
+    R:R 3.75: 6.4%
+    R:R 4.00: 5.3%
+    R:R 4.25: 4.3%
+    R:R 4.50: 3.4%
+    R:R 4.75: 2.7%
+    R:R 5.00: 2.0%
+
+[train] Training on 9,449,994 rows, 5-fold CV...
+  Fold 0: log_loss=0.3994  AUC=0.7870  brier=0.1198  iters=5  (20s)
+  Fold 1: log_loss=0.4005  AUC=0.7850  brier=0.1202  iters=5  (20s)
+  Fold 2: log_loss=0.3998  AUC=0.7860  brier=0.1199  iters=5  (19s)
+  Fold 3: log_loss=0.4001  AUC=0.7868  brier=0.1200  iters=5  (18s)
+  Fold 4: log_loss=0.4004  AUC=0.7863  brier=0.1201  iters=5  (20s)
+
+  OOF: log_loss=0.4000  AUC=0.7862  brier=0.1200
+
+[optimal] Computing optimal R:R per trade...
+  Optimal R:R distribution:
+    R:R 2.50: 730 trades (0.1%)
+    R:R 2.75: 29,836 trades (5.4%)
+    R:R 3.00: 5,509 trades (1.0%)
+    R:R 3.25: 114,671 trades (20.6%)
+    R:R 3.50: 22,567 trades (4.1%)
+    R:R 3.75: 101,054 trades (18.2%)
+    R:R 4.00: 35,124 trades (6.3%)
+    R:R 4.25: 24,321 trades (4.4%)
+    R:R 4.50: 173 trades (0.0%)
+    R:R 4.75: 221 trades (0.0%)
+    R:R 5.00: 221,676 trades (39.9%)
+
+  Mean optimal R:R: 4.11
+  Mean best E[R]:   -0.1196
+  Trades with E[R] > 0: 40,054 (7.2%)
+
+[plots] Generating visualizations...
+  Saved calibration_curve.png
+  Saved pwin_vs_rr.png
+  Saved ev_by_rr.png
+  Saved feature_importance.png
+  Saved optimal_rr_distribution.png
+
+[save] Saving model and metadata...
+  Model saved: data/ml/adaptive_rr/adaptive_rr_model.txt
+  Metadata saved: data/ml/adaptive_rr/run_metadata.json
+
+======================================================================
+SUMMARY
+======================================================================
+  OOF Log-loss: 0.4000
+  OOF AUC:      0.7862
+  OOF Brier:    0.1200
+  Mean optimal R:R: 4.11
+  Trades with E[R] > 0: 7.2%
+  Runtime: 2.4 min
+  Output: data/ml/adaptive_rr
+======================================================================
