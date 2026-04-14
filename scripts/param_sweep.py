@@ -62,7 +62,7 @@ from src.backtest import (
 _DEFAULT_PARQUET  = Path("data/ml/ml_dataset.parquet")
 _DEFAULT_MANIFEST = Path("data/ml/sweep_manifest.json")
 STOP_FILE         = Path("stop_sweep.txt")
-BATCH_SIZE        = 20    # flush to disk every N completed combos
+BATCH_SIZE        = 100   # flush to disk every N completed combos
 LOG_INTERVAL      = 200   # print progress every N completed combos
 
 # Module-level references updated in main() after CLI parsing
@@ -1143,12 +1143,12 @@ def _merge_chunks() -> None:
 
     print(f"[sweep] Merging {len(chunk_files)} chunk files...", flush=True)
     dataset = ds.dataset(chunk_files, format="parquet")
-    # Write merged dataset — scanner streams rows without loading all at once
-    pq.write_table(
-        dataset.to_table(),
-        PARQUET_PATH,
-        compression="snappy",
-    )
+    # Stream rows via scanner — avoids loading all rows into memory at once
+    scanner = dataset.scanner()
+    with pq.ParquetWriter(PARQUET_PATH, scanner.projected_schema,
+                          compression="snappy") as writer:
+        for batch in scanner.to_batches():
+            writer.write_batch(batch)
     print(f"[sweep] Merged to {PARQUET_PATH} "
           f"({PARQUET_PATH.stat().st_size / 1e6:.0f} MB)", flush=True)
 
