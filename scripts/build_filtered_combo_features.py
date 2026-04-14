@@ -110,88 +110,101 @@ def pick_threshold(ev: np.ndarray, pnls: np.ndarray, wins: np.ndarray,
 
 
 def process_version(v: int, model, rows: list[dict]) -> None:
-    """Batched predict strategy: load whole version, build features for all
-    trades at once with per-row candidate_rr (from combo.min_rr), predict
-    once, then per-combo slice + threshold sweep + aggregate."""
+    """Row-group streaming: per-RG build features + predict, accumulate
+    (pnl, win, rmul, ev) per combo. Keeps peak memory low so 9 versions
+    fit in a 7 GB cgroup without OOM between versions."""
     path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
     if not path.exists():
         print(f"  [WARN] {path} missing", flush=True)
         return
     params = load_manifest_params(v)
-    print(f"  v{v}: reading {path.name} ({len(params)} combos in manifest)", flush=True)
+    print(f"  v{v}: streaming {path.name} ({len(params)} combos in manifest)",
+          flush=True)
 
     import pyarrow.parquet as pq
     pf = pq.ParquetFile(str(path))
     cols = [c for c in READ_COLS if c in pf.schema_arrow.names]
 
+    cid_to_rr = {cid: float(params[cid]["min_rr"]) for cid in params}
+    cid_to_sm = {cid: STOP_METHOD_MAP[str(params[cid]["stop_method"])]
+                 for cid in params}
+    cid_to_eo = {cid: int(bool(params[cid]["exit_on_opposite_signal"]))
+                 for cid in params}
+
+    # Per-combo arrays accumulated across row groups
+    acc_pnl: dict[int, list[np.ndarray]] = defaultdict(list)
+    acc_win: dict[int, list[np.ndarray]] = defaultdict(list)
+    acc_rmul: dict[int, list[np.ndarray]] = defaultdict(list)
+    acc_ev: dict[int, list[np.ndarray]] = defaultdict(list)
+
     t0 = time.time()
-    df = pf.read(columns=cols).to_pandas()
-    print(f"  v{v}: loaded {len(df):,} rows in {time.time()-t0:.1f}s", flush=True)
-
-    # Drop trades whose combo has <MIN_TRADES_COMBO rows in this parquet
-    counts = df.groupby("combo_id").size()
-    keep_cids = set(counts[counts >= MIN_TRADES_COMBO].index.astype(int).tolist())
-    keep_cids &= set(params.keys())
-    df = df[df["combo_id"].astype(int).isin(keep_cids)].reset_index(drop=True)
-    print(f"  v{v}: {len(keep_cids)} combos pass min_trades, {len(df):,} rows", flush=True)
-    if len(df) == 0:
-        return
-
-    # Build stacked feature matrix: per-row candidate_rr from combo's min_rr,
-    # stop_method / exit_on_opposite_signal / min_rr mapped per combo_id.
-    t0 = time.time()
-    cid_to_rr = {cid: float(params[cid]["min_rr"]) for cid in keep_cids}
-    cid_to_sm = {cid: STOP_METHOD_MAP[str(params[cid]["stop_method"])] for cid in keep_cids}
-    cid_to_eo = {cid: int(bool(params[cid]["exit_on_opposite_signal"])) for cid in keep_cids}
-
-    cid_int = df["combo_id"].astype(int).to_numpy()
-    feat = pd.DataFrame(index=df.index)
+    n_rows_total = 0
     float_feats = [c for c in ENTRY_FEATS
                    if c not in ("side", "time_of_day_hhmm", "day_of_week")]
-    for c in float_feats:
-        feat[c] = df[c].astype(np.float32)
-    feat["time_of_day_hhmm"] = df["time_of_day_hhmm"].astype(int).astype(np.float32)
-    feat["day_of_week"] = df["day_of_week"].astype(np.float32)
-    feat["side"] = df["side"].map(SIDE_MAP).astype(np.int8)
-    feat["stop_method"] = pd.Series(cid_int).map(cid_to_sm).astype(np.int8).values
-    feat["exit_on_opposite_signal"] = pd.Series(cid_int).map(cid_to_eo).astype(np.int8).values
-    rr_arr = pd.Series(cid_int).map(cid_to_rr).astype(np.float32).values
-    feat["candidate_rr"] = rr_arr
-    feat["abs_zscore_entry"] = feat["zscore_entry"].abs()
-    feat["rr_x_atr"] = (rr_arr * feat["atr_points"].values).astype(np.float32)
-    feat = feat[v2.ALL_FEATURES]
-    print(f"  v{v}: built features in {time.time()-t0:.1f}s", flush=True)
 
-    t0 = time.time()
-    X = feat.values
-    CHUNK = 1_000_000
-    pwin = np.empty(len(X), dtype=np.float64)
-    for s in range(0, len(X), CHUNK):
-        e_ = min(s + CHUNK, len(X))
-        pwin[s:e_] = model.predict(X[s:e_], num_threads=3)
-        print(f"    v{v}: predicted {e_:,}/{len(X):,} "
-              f"({(e_)/(time.time()-t0+1e-9):.0f} rows/s)", flush=True)
-    print(f"  v{v}: predicted pwin on {len(pwin):,} rows in {time.time()-t0:.1f}s", flush=True)
-    del X
-    ev_all = pwin * rr_arr - (1.0 - pwin)
-    pnls_all = df["net_pnl_dollars"].to_numpy(dtype=np.float64)
-    wins_all = df["label_win"].to_numpy(dtype=np.int8)
-    rmul_all = df["r_multiple"].to_numpy(dtype=np.float64)
+    for rg in range(pf.metadata.num_row_groups):
+        chunk = pf.read_row_group(rg, columns=cols).to_pandas()
+        cid_int = chunk["combo_id"].astype(int).to_numpy()
+        # Filter rows whose combo isn't in manifest
+        mask = np.array([cid in cid_to_rr for cid in cid_int])
+        if not mask.any():
+            del chunk; continue
+        chunk = chunk[mask].reset_index(drop=True)
+        cid_int = cid_int[mask]
 
-    # Per-combo slice via argsort once (fast groupby)
+        feat = pd.DataFrame(index=chunk.index)
+        for c in float_feats:
+            feat[c] = chunk[c].astype(np.float32)
+        feat["time_of_day_hhmm"] = chunk["time_of_day_hhmm"].astype(int).astype(np.float32)
+        feat["day_of_week"] = chunk["day_of_week"].astype(np.float32)
+        feat["side"] = chunk["side"].map(SIDE_MAP).astype(np.int8)
+        feat["stop_method"] = pd.Series(cid_int).map(cid_to_sm).astype(np.int8).values
+        feat["exit_on_opposite_signal"] = pd.Series(cid_int).map(cid_to_eo).astype(np.int8).values
+        rr_arr = pd.Series(cid_int).map(cid_to_rr).astype(np.float32).values
+        feat["candidate_rr"] = rr_arr
+        feat["abs_zscore_entry"] = feat["zscore_entry"].abs()
+        feat["rr_x_atr"] = (rr_arr * feat["atr_points"].values).astype(np.float32)
+        X = feat[v2.ALL_FEATURES].values
+
+        pwin = model.predict(X, num_threads=3)
+        ev = pwin * rr_arr - (1.0 - pwin)
+        pnls = chunk["net_pnl_dollars"].to_numpy(dtype=np.float64)
+        wins = chunk["label_win"].to_numpy(dtype=np.int8)
+        rmul = chunk["r_multiple"].to_numpy(dtype=np.float64)
+
+        # Scatter per combo via argsort
+        order = np.argsort(cid_int, kind="stable")
+        cid_sorted = cid_int[order]
+        uniq, starts = np.unique(cid_sorted, return_index=True)
+        ends = np.append(starts[1:], len(cid_sorted))
+        for cid, st, en in zip(uniq, starts, ends):
+            idx = order[st:en]
+            cid = int(cid)
+            acc_pnl[cid].append(pnls[idx])
+            acc_win[cid].append(wins[idx])
+            acc_rmul[cid].append(rmul[idx])
+            acc_ev[cid].append(ev[idx])
+
+        n_rows_total += len(chunk)
+        if (rg + 1) % 5 == 0 or rg == pf.metadata.num_row_groups - 1:
+            elapsed = time.time() - t0
+            print(f"    v{v}: rg {rg+1}/{pf.metadata.num_row_groups}, "
+                  f"{n_rows_total:,} rows, {n_rows_total/max(elapsed,1e-9):.0f} rows/s",
+                  flush=True)
+        del chunk, feat, X, pwin, ev, pnls, wins, rmul
+
+    print(f"  v{v}: streamed {n_rows_total:,} rows in {time.time()-t0:.1f}s, "
+          f"{len(acc_pnl)} combos", flush=True)
     t0 = time.time()
-    order = np.argsort(cid_int, kind="stable")
-    cid_sorted = cid_int[order]
-    unique_cids, starts = np.unique(cid_sorted, return_index=True)
-    ends = np.append(starts[1:], len(cid_sorted))
     n_done = 0
-    for cid, st, en in zip(unique_cids, starts, ends):
-        cid = int(cid)
-        if cid not in keep_cids:
+    for cid in list(acc_pnl.keys()):
+        pnls = np.concatenate(acc_pnl.pop(cid))
+        wins = np.concatenate(acc_win.pop(cid))
+        rmul = np.concatenate(acc_rmul.pop(cid))
+        ev = np.concatenate(acc_ev.pop(cid))
+        if len(pnls) < MIN_TRADES_COMBO:
             continue
-        idx = order[st:en]
         try:
-            ev = ev_all[idx]; pnls = pnls_all[idx]; wins = wins_all[idx]; rmul = rmul_all[idx]
             fixed = aggregate(pnls, wins, rmul)
             thr, filt, skip = pick_threshold(ev, pnls, wins, rmul)
             row = dict(filt)
@@ -206,11 +219,10 @@ def process_version(v: int, model, rows: list[dict]) -> None:
             rows.append(row)
             n_done += 1
             if n_done % 500 == 0:
-                print(f"    v{v}: {n_done}/{len(keep_cids)} combos aggregated", flush=True)
+                print(f"    v{v}: {n_done} combos aggregated", flush=True)
         except Exception as e:
             print(f"    [ERR] v{v}_{cid}: {e}", flush=True)
     print(f"  v{v}: processed {n_done} combos in {time.time()-t0:.1f}s", flush=True)
-    del df, feat, pwin, ev_all, pnls_all, wins_all, rmul_all
     gc.collect()
 
 
