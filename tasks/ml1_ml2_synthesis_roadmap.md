@@ -323,3 +323,13 @@ and cross-task synthesis in `tasks/part_b_findings.md`.
 **Outstanding (Week 3+)**: B6 temporal OOD for ML#2 · B7 walk-forward ·
 B8 feature engineering · B11–B15 tier 3 · B16 final held-out evaluation
 (gate for live) · B17 paper-trade.
+
+### B6 completed 2026-04-14
+
+- V2 ranking holds on the 20% test bars (AUC 0.8057 → 0.8014, Δ −0.004).
+- V2 raw probabilities are miscalibrated on unseen time (ECE 0.062;
+  mean_pred 0.175 vs mean_y 0.113).
+- See `tasks/part_b_findings.md` §B6 for detail. Winning stack statement
+  updated: percentile/rank thresholds (B2) transfer safely; absolute E[R]
+  thresholds and Kelly sizing need a rolling isotonic recalibrator before
+  live use.

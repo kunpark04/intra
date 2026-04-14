@@ -17,9 +17,10 @@ the takeaway from each. Anchor for the next round of decisions. Pairs with
 | B5  | Re-train ML#1 on V2-filtered outcomes | Done | `data/ml/lgbm_results_v2filtered/` |
 | B9  | Monotonic constraint on `candidate_rr` | Done | `data/ml/adaptive_rr_b9/` |
 | B10 | Kelly-fraction sizing from calibrated P(win) | Done | `data/ml/adaptive_rr_v2/kelly_backtest.json` |
+| B6  | Temporal OOD test for V2 (test-partition bars) | Done | `data/ml/adaptive_rr_v2/b6_temporal_ood.json` + `b6_reliability.png` |
 
-Outstanding: B6 temporal OOD · B7 walk-forward · B8 feature-eng · B11–B15
-tier-3 · B16 held-out · B17 paper-trade.
+Outstanding: B7 walk-forward · B8 feature-eng · B11–B15 tier-3 · B16 held-out
+· B17 paper-trade.
 
 ---
 
@@ -211,6 +212,55 @@ signature (WR 95–99%, n=120–240).
 
 ---
 
+## B6 — Temporal OOD test for V2
+
+- Ran a fresh 200-combo v10 sweep on the held-out 20% test partition
+  (512,499 bars, post 2024-10-22) using the new
+  `param_sweep.py --eval-partition test` flag → 118,985 test-bar trades →
+  2,022,745 expanded rows at 17 R:R levels.
+- Applied trained V2 booster (`adaptive_rr_model.txt`, trained on 80% train
+  bars) and compared AUC / log-loss / Brier / ECE vs training-split OOF
+  metrics in `run_metadata.json`.
+
+| Metric   | Train OOF | Test (B6) | Δ (test − train)  |
+|----------|-----------|-----------|-------------------|
+| AUC      | 0.8057    | 0.8014    | **−0.0042** (noise-level) |
+| LogLoss  | 0.3402    | 0.3095    | −0.0307 (lower → better) |
+| Brier    | 0.1048    | 0.0926    | −0.0122 (lower → better) |
+| ECE-20   | — (not in meta) | **0.0622** | — |
+
+- **Base-rate shift**: `mean_y` = 0.113 on test vs `mean_pred` = 0.175 —
+  **predictions are systematically ~55% too high in probability space**.
+  The test period (post-Oct-2024) has materially lower true win rates
+  across all R:R levels than the training period.
+- **LogLoss/Brier look "better"** only because test has fewer positives
+  overall (easier to be accurate when base rate is lower). Do not read
+  this as generalisation gain — read the ECE.
+- **Per-R:R AUC climbs with R:R**: 0.609 @ R:R=1.00 → 0.697 @ R:R=5.00.
+  Discrimination is weakest at low R:R (where MNQ noise dominates the
+  "did it hit TP?" signal) and strengthens at high R:R. Overall AUC of
+  0.80 is partly a mixture effect across the 17 R:R levels with very
+  different base rates.
+
+**Takeaway**:
+- **Ranking generalises**. AUC Δ of −0.004 is within fold variance.
+  Relative ordering of E[R] across trades holds on unseen time → B1's
+  threshold filter and B2's percentile filter will keep working.
+- **Calibration drifts**. Raw P(win) is materially overconfident on test
+  (ECE 0.062, mean-bias +6.2 pp). Two downstream consequences:
+  1. Absolute E[R] thresholds (B1 `thr ≥ 0.0`) will **over-pass** trades
+     on future-period data. Prefer percentile filtering (B2) or
+     recalibrated P(win) before live use.
+  2. **Kelly sizing (B10) needs recalibration**. Kelly fraction
+     `f = E[R]/R` with inflated P(win) over-sizes positions. A post-hoc
+     isotonic recalibrator trained on a rolling window of recent trades
+     is the cheapest mitigation.
+- **B6 is a pass with caveats.** The model transfers; the probability
+  scale doesn't. Gate B16 on a rolling-recalibration step, not on "apply
+  V2 as-is to test bars".
+
+---
+
 ## Cross-task synthesis
 
 1. **Two tools, one stack**: V2 is useful as a *filter*, not as an R:R
@@ -225,9 +275,12 @@ signature (WR 95–99%, n=120–240).
    is obsolete — zero overlap with the V2-filtered retrain. All downstream
    work (B16 final held-out, B17 paper-trade) should use
    `lgbm_results_v2filtered/top_combos.csv` as the candidate set.
-4. **Next big open question is temporal generalisation** (B6/B7/B16) —
-   all results above are in-sample on the 80% training bars. Without an
-   OOD test, any claimed Sharpe could be fragile.
+4. **Temporal generalisation update (B6 done)**: V2's **ranking** transfers
+   to unseen time (AUC Δ −0.004), but **calibration** drifts (ECE 0.062,
+   mean-bias +6.2 pp overconfident). Filter-based use stays valid if it
+   uses percentiles or rank thresholds; absolute-probability use (Kelly
+   sizing, `E[R] ≥ 0` thresholds) needs a rolling isotonic recalibrator
+   before live deployment. B7 walk-forward and B16 held-out remain open.
 
 ---
 

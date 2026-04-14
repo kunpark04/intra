@@ -155,3 +155,34 @@ R:R their data supports, which is typically near 1:1 under V2 filter.
 
 **Reasoning**: Same as `tasks/ml_decisions.md` §D16. `CLAUDE.md` updated
 to reflect.
+
+---
+
+## D13: V2 OOD calibration drift — use rank/percentile filters, recalibrate before Kelly (2026-04-14)
+
+**Decision**: Under current V2 as trained on the 80% training partition:
+
+- **Filter use (ranking)** — safe to deploy unchanged. Use B2 percentile
+  or B1 per-combo thresholds rather than a global absolute `E[R] ≥ 0`.
+- **Kelly sizing (B10)** — must be gated on a rolling isotonic
+  recalibrator trained on a recent window of realised trades before live
+  use. Raw V2 output is materially overconfident on unseen time.
+
+**Reasoning**: B6 tested V2 on a 200-combo v10 sweep run on the held-out
+20% test bars (post-2024-10-22, 118,985 base trades, 2M expanded rows).
+Ranking (AUC 0.8057 train → 0.8014 test, Δ −0.004) transferred cleanly —
+fold variance alone is ~0.005. Calibration did not: ECE 0.062, mean
+predicted 0.175 vs mean observed 0.113. The test period has lower true
+win rates across all R:R levels than the training period; raw P(win) is
+about +6 pp inflated.
+
+Consequences:
+- B1's absolute-E[R] threshold (`thr = 0.0`) would over-pass trades on
+  future bars. B2's percentile filter is drift-robust.
+- B10 Kelly `f = E[R] / R` with inflated P(win) systematically oversizes.
+- A post-hoc recalibrator rebuilt on a rolling window of recent trades
+  (e.g. last 6 months) is the cheapest fix. Do not retrain V2 from
+  scratch for this alone.
+
+See `tasks/part_b_findings.md` §B6 and
+`data/ml/adaptive_rr_v2/b6_temporal_ood.json`.
