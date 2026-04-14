@@ -1189,6 +1189,10 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--workers", type=int, default=1,
                    help="Parallel worker processes (default: 1). "
                         "Requires Linux (fork COW). 0 = auto (cpu_count - 1).")
+    p.add_argument("--eval-partition", choices=["train", "test"], default="train",
+                   help="Which chronological partition to sweep on. 'train' (default) "
+                        "= first 80% of bars (standard). 'test' = last 20% (B6 "
+                        "temporal-OOD eval — do not use for iteration backtests).")
     return p.parse_args()
 
 
@@ -1237,11 +1241,17 @@ def main() -> None:
           f"seed={args.seed}  range_mode={args.range_mode}",
           flush=True)
 
-    # 1. Load train partition once
+    # 1. Load chosen partition once
     print("[sweep] Loading data...", flush=True)
-    df_raw      = load_bars("data/NQ_1min.csv")
-    train_df, _ = split_train_test(df_raw, 0.8)
-    print(f"[sweep] Train bars: {len(train_df):,}", flush=True)
+    df_raw           = load_bars("data/NQ_1min.csv")
+    train_part, test_part = split_train_test(df_raw, 0.8)
+    if args.eval_partition == "test":
+        train_df = test_part  # reuse the same local name downstream; semantics: "the bars we backtest on"
+        print(f"[sweep] eval_partition=test  Test bars: {len(train_df):,} "
+              f"(B6 temporal-OOD eval)", flush=True)
+    else:
+        train_df = train_part
+        print(f"[sweep] eval_partition=train  Train bars: {len(train_df):,}", flush=True)
 
     # 2. Sample all combos upfront (deterministic via seed)
     all_combos = _sample_combos(args.combinations, rng_seed=args.seed,
