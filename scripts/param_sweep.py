@@ -931,6 +931,9 @@ def _run_backtest_light(df: pd.DataFrame, cfg) -> dict:
             "mae_points":        float(raw_mae[i]),
             "stop_distance_pts": stop_distance_pts,
             "hold_bars":         int(raw_hold_bars[i]),
+            # Partition-relative entry bar index (B7 walk-forward needs
+            # calendar date → map via partition df.iloc[entry_bar_idx].time).
+            "entry_bar_idx":     entry_bar_idx,
         })
 
     total_pnl = sum(t["net_pnl_dollars"] for t in trades)
