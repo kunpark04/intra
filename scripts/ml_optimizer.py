@@ -312,7 +312,7 @@ def build_combo_features(versions: list[int], min_trades: int) -> pd.DataFrame:
     cols_needed = ["combo_id", "net_pnl_dollars", "label_win", "r_multiple"]
 
     for v in versions:
-        parquet_path = DATA_DIR / f"ml_dataset_v{v}.parquet"
+        parquet_path = DATA_DIR / "originals" / f"ml_dataset_v{v}.parquet"
         if not parquet_path.exists():
             print(f"  [WARN] v{v} parquet not found, skipping.", flush=True)
             continue
@@ -362,7 +362,7 @@ def build_combo_features(versions: list[int], min_trades: int) -> pd.DataFrame:
     print("[ml] Loading parameter settings from manifests...", flush=True)
     param_rows = []
     for v in versions:
-        manifest_path = DATA_DIR / f"ml_dataset_v{v}_manifest.json"
+        manifest_path = DATA_DIR / "originals" / f"ml_dataset_v{v}_manifest.json"
         if not manifest_path.exists():
             continue
         manifest = json.loads(manifest_path.read_text())

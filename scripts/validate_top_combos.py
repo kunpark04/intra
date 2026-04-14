@@ -74,7 +74,7 @@ def load_resolved_stops() -> dict:
     resolved = {}
     data_dir = Path("data/ml")
     for v in range(2, 11):
-        manifest_path = data_dir / f"ml_dataset_v{v}_manifest.json"
+        manifest_path = data_dir / "originals" / f"ml_dataset_v{v}_manifest.json"
         if not manifest_path.exists():
             continue
         manifest = json.loads(manifest_path.read_text())

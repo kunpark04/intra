@@ -32,7 +32,7 @@ def load_combo_by_id(gcid: str) -> dict:
     combo_id = int(gcid.split("_")[1])
     combo = {"global_combo_id": gcid, "source_version": source_version,
              "combo_id": combo_id}
-    parq = REPO / f"data/ml/ml_dataset_v{source_version}_mfe.parquet"
+    parq = REPO / f"data/ml/mfe/ml_dataset_v{source_version}_mfe.parquet"
     df_c = pd.read_parquet(parq, filters=[("combo_id", "==", combo_id)])
     meta_cols = [
         "z_band_k", "z_window", "volume_zscore_window", "ema_fast", "ema_slow",

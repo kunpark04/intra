@@ -41,7 +41,7 @@ REQUIRED = [
 
 
 def validate_one(v: int) -> dict:
-    path = DATA_DIR / f"ml_dataset_v{v}_mfe.parquet"
+    path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
     if not path.exists():
         return {"version": v, "status": "MISSING", "critical": 1}
 

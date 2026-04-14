@@ -68,9 +68,11 @@ def check_version(v: dict) -> dict:
     total = v["combos"]
     suffix = v["suffix"]
 
-    manifest_path = ML_DIR / f"ml_dataset_{name}_{suffix}_manifest.json"
-    parquet_path = ML_DIR / f"ml_dataset_{name}_{suffix}.parquet"
-    chunks_dir = ML_DIR / f"ml_dataset_{name}_{suffix}_chunks"
+    subdir = "mfe" if suffix == "mfe" else "originals"
+    stem = f"ml_dataset_{name}_{suffix}" if suffix else f"ml_dataset_{name}"
+    manifest_path = ML_DIR / subdir / f"{stem}_manifest.json"
+    parquet_path = ML_DIR / subdir / f"{stem}.parquet"
+    chunks_dir = ML_DIR / subdir / f"{stem}_chunks"
 
     result = {"name": name, "total": total, "completed": 0, "errors": 0,
               "error_types": [], "chunks": 0, "merged": False,

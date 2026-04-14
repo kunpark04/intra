@@ -134,7 +134,7 @@ def load_mfe_parquets(versions: list[int]) -> pd.DataFrame:
     """Load _mfe.parquet files and concatenate."""
     frames = []
     for v in versions:
-        path = DATA_DIR / f"ml_dataset_v{v}_mfe.parquet"
+        path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
         if not path.exists():
             print(f"  WARN: {path} not found, skipping v{v}")
             continue

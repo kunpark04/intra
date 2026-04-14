@@ -176,7 +176,7 @@ def load_mfe_parquets(versions: list[int], target_base_trades: int) -> pd.DataFr
     # --- Compute per-version row counts to allocate budgets ---
     rows_per_v: dict[int, int] = {}
     for v in versions:
-        path = DATA_DIR / f"ml_dataset_v{v}_mfe.parquet"
+        path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
         if path.exists():
             rows_per_v[v] = pq.ParquetFile(path).metadata.num_rows
     if not rows_per_v:
@@ -210,7 +210,7 @@ def load_mfe_parquets(versions: list[int], target_base_trades: int) -> pd.DataFr
         if v not in rows_per_v:
             print(f"  WARN: v{v} parquet missing, skipping")
             continue
-        path = DATA_DIR / f"ml_dataset_v{v}_mfe.parquet"
+        path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
         pf = pq.ParquetFile(path)
         available = {f.name for f in pf.schema_arrow}
         cols = [c for c in PARQUET_COLUMNS if c in available]

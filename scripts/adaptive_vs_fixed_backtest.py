@@ -83,7 +83,7 @@ def load_top_combo() -> dict:
         "combo_id": combo_id,
     }
     # Full meta from parquet
-    parq = REPO / f"data/ml/ml_dataset_v{source_version}_mfe.parquet"
+    parq = REPO / f"data/ml/mfe/ml_dataset_v{source_version}_mfe.parquet"
     df_c = pd.read_parquet(parq, filters=[("combo_id", "==", combo_id)])
     meta_cols = [
         "z_band_k", "z_window", "volume_zscore_window", "ema_fast", "ema_slow",

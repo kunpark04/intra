@@ -10,12 +10,12 @@ Usage:
     python scripts/param_sweep.py --combinations 500
     python scripts/param_sweep.py --hours 7
     python scripts/param_sweep.py --start-combo 300 --combinations 600
-    python scripts/param_sweep.py --seed 1 --range-mode winrate --output data/ml_dataset_v2.parquet
+    python scripts/param_sweep.py --seed 1 --range-mode winrate --output data/ml/originals/ml_dataset_v2.parquet
 
 Range modes:
-    default   — original sweep ranges (seed=0 → data/ml_dataset.parquet)
+    default   — original sweep ranges (seed=0 → data/ml/originals/ml_dataset.parquet)
     winrate   — win-rate-biased ranges + breakeven/time-exit/z-confirmation modes
-                (seed=1 → data/ml_dataset_v2.parquet by convention)
+                (seed=1 → data/ml/originals/ml_dataset_v2.parquet by convention)
 
 Stop mechanisms (any one triggers clean flush + exit):
     Ctrl+C              — SIGINT caught; flushes current batch and exits

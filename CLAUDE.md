@@ -72,8 +72,15 @@ intra/
     NQ_1min.csv
     NQ_1min_gaps.csv
     ml/                               # parameter-sweep ML datasets (Parquet)
-      ml_dataset_v{N}.parquet         # one per sweep version (v2–v10)
-      ml_dataset_v{N}_manifest.json   # per-combo completion manifest
+      originals/                      # original sweep outputs (no MFE/MAE)
+        ml_dataset_v{N}.parquet       # one per sweep version (v2–v10)
+        ml_dataset_v{N}_manifest.json # per-combo completion manifest
+      mfe/                            # MFE/MAE-enriched re-runs (adaptive R:R input)
+        ml_dataset_v{N}_mfe.parquet
+        ml_dataset_v{N}_mfe_manifest.json
+      lgbm_results/                   # ML#1 combo-grain surrogate outputs
+      adaptive_rr/                    # adaptive R:R LightGBM model + artifacts
+      strategy.db                     # sqlite backfill of combos/trades
   src/
     __init__.py
     config.py
@@ -102,7 +109,7 @@ intra/
     exec_analysis.py                  # executes analysis.ipynb in-place
     create_notebooks.py
     rerun_and_benchmark.py            # reruns V1/V2 across Cython/Numba/NumPy tiers
-    param_sweep.py                    # parameter sweep → data/ml/ml_dataset_vN.parquet
+    param_sweep.py                    # parameter sweep → data/ml/originals/ml_dataset_vN.parquet (or mfe/ suffix variant)
   notebooks/
     01_backtest_and_log.ipynb
   iterations/
@@ -146,7 +153,7 @@ intra/
   - `gen_analysis_notebook.py`: generates 7-cell `analysis.ipynb` for each iteration folder.
   - `exec_analysis.py`: executes `analysis.ipynb` in-place via nbclient with correct cwd.
   - `rerun_and_benchmark.py`: reruns V1/V2 and benchmarks all three engine tiers.
-  - `param_sweep.py`: parameter sweep for Track-B ML training data; writes one row per closed trade to `data/ml/ml_dataset_v{N}.parquet`. Supports `--range-mode` `default | winrate | zscore_variants | v4 | v5 | v6 | v7 | v8 | v9 | v10`.
+  - `param_sweep.py`: parameter sweep for Track-B ML training data; writes one row per closed trade to `data/ml/originals/ml_dataset_v{N}.parquet` (or `data/ml/mfe/ml_dataset_v{N}_mfe.parquet` for MFE re-runs). Supports `--range-mode` `default | winrate | zscore_variants | v4 | v5 | v6 | v7 | v8 | v9 | v10`.
 - `notebooks/`: interactive analysis; must run from repo root and write outputs to `iterations/` and `evaluation/`.
 - `iterations/`: generated training backtest artifacts for canonical strategy versions (currently `V1/`, `V2/`, `V3/`). Sweep versions `v4`–`v10` are training-data generators for ML, not strategy iterations — they write Parquet to `data/ml/` rather than producing an `iterations/Vn/` folder.
 - `evaluation/`: generated artifacts for the **single final** hold-out evaluation (no `Vn` subfolders).
@@ -344,8 +351,9 @@ Optional:
 `scripts/param_sweep.py` generates a diverse ML training set by running the
 backtest core over thousands of randomly-sampled parameter combos. Each combo
 contributes its closed trades (feature + label columns) to a shared Parquet
-file at `data/ml/ml_dataset_v{N}.parquet`, with a sidecar
-`ml_dataset_v{N}_manifest.json` tracking per-combo status (enables resume).
+file at `data/ml/originals/ml_dataset_v{N}.parquet` (or
+`data/ml/mfe/ml_dataset_v{N}_mfe.parquet` for MFE re-runs), with a sidecar
+`_manifest.json` tracking per-combo status (enables resume).
 
 **Version history** (see `lessons.md` for per-version post-mortems):
 
@@ -367,7 +375,7 @@ is the dominant past failure mode; see the Pre-sweep gate below.
 
 ## Future scope (do not implement yet)
 
-- Track B: ML pipeline — train classifier on `data/ml/ml_dataset_v{N}.parquet` to predict `label_win` / per-setup R:R
+- Track B: ML pipeline — train classifier on `data/ml/originals/ml_dataset_v{N}.parquet` (or `data/ml/mfe/ml_dataset_v{N}_mfe.parquet`) to predict `label_win` / per-setup R:R
 - Live volume "bubbles"
 - DOM / Level 2 features
 - Broker execution adapters
