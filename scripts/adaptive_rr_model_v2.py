@@ -133,7 +133,7 @@ LGB_PARAMS = {
     "verbose": -1,
     "seed": 42,
     "n_estimators": 2000,
-    "num_threads": 2,
+    "num_threads": 3,
 }
 
 # Sweep version → range_mode mapping
