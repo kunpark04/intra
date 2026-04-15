@@ -539,6 +539,92 @@ Artifacts: `data/ml/adaptive_rr_v3/b6_rolling_recal.json`,
 
 ---
 
+### Phase 4b robustness tests — **3/5 gates pass, two informative failures**
+
+Three diagnostics on the Phase 4 rolling recalibrator, one pass over the
+held-out tail (80k base trades × 17 R:R = 1.36M rows). Artifact:
+`data/ml/adaptive_rr_v3/b6_phase4b.json` (runtime 296s).
+
+**Headline (reconfirmed from Phase 4)**
+
+| Calibration | Overall ECE |
+|---|---|
+| raw | 0.0260 |
+| static (V3 OOF) | 0.0336 |
+| rolling (5000, 500) | **0.0070** |
+
+#### 4b.1 — Regime split (chronological midpoint of sampled test tail)
+
+| Slice | n (expanded) | raw ECE | static ECE | rolling ECE | mean y |
+|---|---|---|---|---|---|
+| early half | 680k | 0.0284 | 0.0369 | 0.0086 | 0.1163 |
+| late half  | 680k | 0.0237 | 0.0303 | 0.0063 | 0.1096 |
+
+Late rolling ECE (0.0063) < early (0.0086) — rolling works cleanly in
+both halves. **Late static (0.0303) is actually better than early
+(0.0369)**, which inverts the "regime drift post-2024-10-22 makes
+static worse" story. Gate `static_worse_post_break` FAILS. The
+hypothesis needs revising: static is miscalibrated throughout the
+held-out tail (both halves worse than raw), not selectively worse
+after a break. Rolling still fixes it everywhere.
+
+#### 4b.2 — Bootstrap CI on rolling ECE (1000× resamples)
+
+| Metric | Value |
+|---|---|
+| mean ECE | 0.00704 |
+| median ECE | 0.00703 |
+| 95% CI | [0.00655, 0.00755] |
+| P(ECE < 0.015) | 1.000 |
+
+CI is tight (~0.001 wide) and fully clears the gate. The headline
+0.0070 is signal, not noise. Gate `bootstrap_p_below_gate_over_0_95`
+PASSES trivially.
+
+#### 4b.3 — Grid sweep (window × refit_every, 15 cells)
+
+Pass rate: 13/15 = **86.7%** (target 60%). Grid minimum ECE = 0.00353
+at (window=20000, refit_every=100).
+
+| window \\ refit | 100 | 500 | 2000 |
+|---|---|---|---|
+| 1000  | 0.0077 | 0.0119 | 0.0201 ✗ |
+| 2500  | 0.0066 | 0.0096 | 0.0151 ✗ |
+| 5000  | 0.0050 | **0.0070** (default) | 0.0110 |
+| 10000 | 0.0043 | 0.0054 | 0.0083 |
+| 20000 | 0.0035 | 0.0039 | 0.0057 |
+
+ECE decreases **monotonically** with larger window and smaller
+refit_every across every cell. Only the two smallest-window +
+slowest-refit corners miss the gate (1000/2000, 2500/2000).
+
+Default (5000, 500) sits 0.0035 above the grid minimum, failing the
+`default_within_0_002_of_min` gate. This is not a bug — it's a
+legitimate shift in production recommendation: **use
+(window=20000, refit_every=100)** for deployment, ECE 0.0035, or
+(10000, 100) at 0.0043 if compute-constrained.
+
+#### Gate verdict
+
+| Gate | Result |
+|---|---|
+| regime_late_rolling_under_0_02 | PASS (0.0063) |
+| static_worse_post_break | FAIL — static is worse in early half |
+| bootstrap_p_below_gate_over_0_95 | PASS (1.000) |
+| grid_pass_rate_over_0_60 | PASS (0.867) |
+| default_within_0_002_of_min | FAIL — larger windows dominate |
+
+Both failures are scientific findings: (a) regime-drift mechanism is
+weaker than hypothesized — static is uniformly miscalibrated across
+the tail, not selectively post-break; (b) the 5000/500 default is
+suboptimal — bigger is better on this distribution.
+
+**Production recommendation change**: switch rolling calibrator config
+from (5000, 500) to **(20000, 100)** before B16. 4.7× more compute per
+refit (~33s total vs 2.5s) but halves ECE (0.0070 → 0.0035).
+
+---
+
 ## Pointers
 
 - Numerical details per task: the JSON files listed in the Scoreboard.
