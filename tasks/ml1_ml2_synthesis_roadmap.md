@@ -320,8 +320,23 @@ and cross-task synthesis in `tasks/part_b_findings.md`.
 4. Optional: Kelly-cap5 sizing on combos where it helps (B10)
 5. `MIN_RR` is per-combo; no 1:3 floor.
 
-**Outstanding (Week 3+)**: B11–B15 tier 3 ·
+**Outstanding (Week 3+)**: Full-9.5M V2 retrain on Family A features
+(green-lit by B8-SHAP; ML#2 production booster update) · B11–B15 tier 3 ·
 B16 final held-out evaluation (gate for live) · B17 paper-trade.
+
+### B8-SHAP audit completed 2026-04-15
+
+- Single fold-0 Family-A booster (200k base trades / 3.4M expanded rows,
+  800 rounds). TreeSHAP on 100k val rows / 69 combos via
+  `model.predict(pred_contrib=True)`.
+- Within-combo vs between-combo SHAP std ratios: `prior_r_ma10` 1.77
+  (dynamic), `prior_wr_10` 1.32 (dynamic), `has_history_50` 0.91
+  (partial), `prior_wr_50` 0.78 (partial). **No identity_proxy**.
+- Green-lights full-9.5M production retrain. To guard against
+  `prior_wr_50`'s partial baseline component, retrain will add `combo_id`
+  as an explicit categorical feature so LightGBM absorbs static
+  combo-quality signal there rather than through the autocorr features.
+- See `tasks/part_b_findings.md` §B8 "B8-SHAP followup".
 
 ### B8 completed 2026-04-15
 

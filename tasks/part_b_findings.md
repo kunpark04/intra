@@ -1,4 +1,4 @@
-# Part B — Consolidated Findings (as of 2026-04-14)
+# Part B — Consolidated Findings (as of 2026-04-15)
 
 Running log of every Part B task completed, their key numerical results, and
 the takeaway from each. Anchor for the next round of decisions. Pairs with
@@ -20,8 +20,10 @@ the takeaway from each. Anchor for the next round of decisions. Pairs with
 | B6  | Temporal OOD test for V2 (test-partition bars) | Done | `data/ml/adaptive_rr_v2/b6_temporal_ood.json` + `b6_reliability.png` |
 | B7  | Walk-forward validation (expanding + rolling) | Done | `data/ml/adaptive_rr_v2/b7_walk_forward.json` + `b7_walk_forward.png` |
 | B8  | Feature engineering ablation (autocorr/recency/regime) | Done | `data/ml/adaptive_rr_v2/b8_feature_eng.json` |
+| B8-SHAP | Identity-leakage audit on Family A | Done | `data/ml/adaptive_rr_v2/b8_shap_audit.json` + 3 PNGs |
 
-Outstanding: B11–B15 tier-3 · B16 held-out · B17 paper-trade.
+Outstanding: Full-9.5M V2 retrain on Family A · B11–B15 tier-3 ·
+B16 held-out · B17 paper-trade.
 
 ---
 
@@ -447,9 +449,14 @@ Artifacts: `data/ml/adaptive_rr_v2/b8_shap_audit.json`,
 5. **Discrimination ceiling lifted (B8)**: Family A autocorrelation features
    (`prior_wr_50` etc.) lift V2 discrimination from OOF AUC 0.8072 → 0.8406
    on the 1.18M-trade testbed — roughly 6× the decision gate. Recency (B)
-   and regime (C) add nothing on top. Before retraining the production
-   booster, a SHAP check on the A features is needed to confirm the lift
-   isn't pure combo-ID proxying via `prior_wr_N`.
+   and regime (C) add nothing on top.
+6. **Family A validated (B8-SHAP)**: TreeSHAP within/between-combo std
+   ratios clear the identity-proxy concern — `prior_r_ma10` (1.77) and
+   `prior_wr_10` (1.32) are dynamic; `prior_wr_50` (0.78) and
+   `has_history_50` (0.91) are partial; **none pure identity_proxy**.
+   Production retrain on the full 9.5M training parquet with Family A +
+   `combo_id` as explicit categorical (to absorb `prior_wr_50`'s partial
+   baseline-WR component) is green-lit.
 
 ---
 
