@@ -384,6 +384,40 @@ LightGBM Dataset — 5G cap would have OOM'd; the second launch used 8G).
   needs new calibrator, touches downstream filter scripts). Gated by SHAP
   confirmation that the lift isn't pure combo-ID leakage.
 
+### B8-SHAP followup (identity-leakage audit)
+
+Trained a single fold-0 Family-A LightGBM (200k base trades → 3.4M expanded
+rows; 800 rounds) and computed TreeSHAP via `pred_contrib=True` on 100k
+validation rows across 69 combos. For each Family-A feature we measured
+within-combo vs between-combo SHAP std; ratio ≥ 1.0 → dynamic signal,
+0.3–1.0 → partial, < 0.3 → pure combo-ID proxy.
+
+| Feature         | ratio | mean \|SHAP\| | verdict        |
+|-----------------|-------|--------------|----------------|
+| `prior_r_ma10`  | 1.77  | 0.239        | **dynamic**    |
+| `prior_wr_10`   | 1.32  | 0.273        | **dynamic**    |
+| `has_history_50`| 0.91  | 0.019        | partial        |
+| `prior_wr_50`   | 0.78  | 0.494        | partial        |
+
+Verdict: **no identity_proxy features**. The two short-window features
+(`prior_wr_10`, `prior_r_ma10`) are genuine time-local signal — their
+within-combo variance exceeds between-combo variance, meaning the model
+uses them to track recent dynamics, not as baseline-WR lookups. The
+highest-impact feature (`prior_wr_50`, mean |SHAP| 0.49) is partial: ~56%
+of its SHAP variance is between-combo, so it partly proxies stable combo
+quality but still carries 44% dynamic content. `has_history_50` is a
+low-impact gating indicator (partial is expected and benign).
+
+**Production decision**: green-light the full-9.5M retrain on Family A.
+To defend against the partial identity component in `prior_wr_50`, the
+retrain will include `combo_id` as an explicit categorical feature —
+forcing LightGBM to absorb the static combo-quality signal there and
+leaving `prior_wr_50` to carry only residual dynamics.
+
+Artifacts: `data/ml/adaptive_rr_v2/b8_shap_audit.json`,
+`b8_shap_summary.png`, `b8_shap_prior_wr_50_dependence.png`,
+`b8_shap_per_combo_boxplot.png`. Runtime 590s on sweep-runner-1.
+
 ---
 
 ## Cross-task synthesis
