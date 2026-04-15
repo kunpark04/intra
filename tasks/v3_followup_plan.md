@@ -269,3 +269,63 @@ Phases 1 → 2 → 3 are strictly sequential (each depends on the previous).
 Phase 4 can run in parallel with Phase 3 (different compute, different
 artifacts). Phase 5 depends on Phase 3 winner + Phase 4 rolling
 calibrator. Phase 6 runs continuously as each phase closes.
+
+---
+
+## Phase 4b — Post-Phase-4 robustness tests (pre-B16)
+
+Phase 4 passed the static gate (rolling ECE 0.0070 vs 0.015). Before
+committing to B16 final eval, validate the result with three tests:
+
+### 4b.1 — Per-regime ECE decomposition
+
+Split the held-out tail at the 2024-10-22 regime boundary (or the
+chronological midpoint if exact date unavailable in the test parquet).
+Report raw / static / rolling ECE separately for each slice.
+
+- **Goal**: confirm static degrades post-break while rolling recovers
+  — the mechanistic claim behind Phase 4.
+- **Output**: `data/ml/adaptive_rr_v3/b6_regime_split_ece.json` +
+  section in `part_b_findings.md`.
+- **Runtime**: ~2 minutes (reuses Phase 4 pipeline, adds split).
+- **Gate**: rolling ECE in post-break slice < 0.02 (allowing slack
+  for smaller n). Static ECE in post-break should be visibly worse
+  than pre-break, else the drift story is wrong.
+
+### 4b.2 — Bootstrap CI on Phase 4 ECE
+
+1000× bootstrap resamples of the held-out expanded rows; compute
+rolling ECE per resample; report 95% CI and probability(ECE < 0.015).
+
+- **Goal**: quantify how much of the 2.1× margin is signal vs noise.
+- **Output**: `data/ml/adaptive_rr_v3/b6_rolling_ece_bootstrap.json`.
+- **Runtime**: ~15 minutes local (no booster predict; reuse cached
+  p_rolling / y arrays — dump these from Phase 4 first).
+- **Gate**: P(ECE < 0.015) > 0.95.
+
+### 4b.3 — 4-hour test: **Rolling window × refit_every grid sweep**
+
+Full Phase 4 rerun over the grid:
+
+- `window ∈ {1000, 2500, 5000, 10000, 20000}`
+- `refit_every ∈ {100, 500, 2000}`
+
+→ 15 configs × ~90s ≈ 25 min compute, but with SFTP round-trips,
+logging, per-run Family A recomputation, and sensitivity-report
+generation the whole loop is ~3–4 hrs wall clock.
+
+- **Goal**: map the ECE surface; verify 5000/500 wasn't a lucky
+  pick; find the robust plateau for productionization.
+- **Implementation**: extend `scripts/b6_rolling_recal_v3.py` to
+  accept a `--grid` JSON arg, loop over configs, emit one row per
+  config to `data/ml/adaptive_rr_v3/b6_rolling_grid.json`. Remote
+  launcher mirrors Phase 4's pattern.
+- **Output**: heatmap (window × refit) of rolling ECE + markdown
+  table in `part_b_findings.md`.
+- **Gate**: ≥ 60% of grid cells satisfy ECE < 0.015, and the
+  5000/500 cell is within 0.002 of the grid minimum. If 5000/500
+  is a sharp spike, redo Phase 4 with the new robust optimum.
+
+Sequence: 4b.1 and 4b.2 are cheap — run them first. 4b.3 is the
+~4hr test; only launch after 4b.1/4b.2 confirm the headline number
+is real.
