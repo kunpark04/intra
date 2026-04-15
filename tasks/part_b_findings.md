@@ -19,8 +19,9 @@ the takeaway from each. Anchor for the next round of decisions. Pairs with
 | B10 | Kelly-fraction sizing from calibrated P(win) | Done | `data/ml/adaptive_rr_v2/kelly_backtest.json` |
 | B6  | Temporal OOD test for V2 (test-partition bars) | Done | `data/ml/adaptive_rr_v2/b6_temporal_ood.json` + `b6_reliability.png` |
 | B7  | Walk-forward validation (expanding + rolling) | Done | `data/ml/adaptive_rr_v2/b7_walk_forward.json` + `b7_walk_forward.png` |
+| B8  | Feature engineering ablation (autocorr/recency/regime) | Done | `data/ml/adaptive_rr_v2/b8_feature_eng.json` |
 
-Outstanding: B8 feature-eng · B11–B15 tier-3 · B16 held-out · B17 paper-trade.
+Outstanding: B11–B15 tier-3 · B16 held-out · B17 paper-trade.
 
 ---
 
@@ -322,6 +323,69 @@ signature (WR 95–99%, n=120–240).
 
 ---
 
+## B8 — Feature engineering ablation
+
+**Completed**: 2026-04-15. Testbed: 1.18M-trade v10 training-partition sweep
+(418 combos). 5-fold `StratifiedGroupKFold` on `combo_id`, seed-fixed so deltas
+are apples-to-apples. LightGBM 800 rounds, identical V2 hyperparameters.
+Decision gate: ΔAUC ≥ +0.005.
+
+Three feature families added base-trade-level (`shift(1)` before any rolling,
+per-combo only, no future leakage):
+- **A** autocorr: `prior_wr_10`, `prior_wr_50`, `prior_r_ma10`, `has_history_50`
+- **B** recency: `bars_since_last_trade`, `log1p_bars_since_last_trade`
+- **C** regime: `atr_regime_rank_500`, `parkinson_regime_rank_500`
+  (within-combo Gaussian-CDF percentile rank over last 500 trades).
+
+| Config | Features | OOF AUC | ΔAUC | OOF ECE | Verdict |
+|--------|----------|---------|------|---------|---------|
+| baseline | 20 V2 | 0.8072 | — | 0.0086 | — |
+| +A | 24 | **0.8406** | **+0.0333** | 0.0036 | **ADOPT** |
+| +B | 22 | 0.8069 | −0.0003 | 0.0088 | null |
+| +C | 22 | 0.8089 | +0.0017 | 0.0076 | null |
+| +ABC | 28 | 0.8400 | +0.0327 | 0.0039 | ≈ A |
+
+**Key findings**:
+1. **A carries the entire lift**. ABC matches A within 0.0006 AUC; B and C add
+   nothing on top. Final recommendation: adopt A only, keep model simple
+   (24 features vs 28).
+2. **A also improves calibration**: raw ECE 0.0086 → 0.0036, plus a modest
+   cold-bias shift (mean_pred 0.127 → 0.123 vs mean_y 0.126) — the model
+   remains well-centred.
+3. **Feature importance (config A)**: `prior_wr_50` becomes the **#2** feature
+   after `candidate_rr`, above `stop_method`. `prior_r_ma10` #5 and
+   `prior_wr_10` #8. This is large: `prior_wr_50` displaced 2+M gain from
+   other features. Decision gate passed ~6× over.
+4. **Temporal stability preserved**: A's per-fold AUCs span 0.833–0.848,
+   tighter than baseline's 0.778–0.827. Fold 3 (hardest for baseline) lifts
+   the most (+0.055), suggesting the autocorr signal is specifically
+   compensating for regime shifts the baseline features miss.
+5. **Caveat — combo-identity leakage**: `prior_wr_N` partly encodes combo
+   identity (each combo has a stable baseline WR). Since CV groups on
+   `combo_id`, the validation fold's combos are unseen, which bounds the
+   leakage, but some of the lift may be "learn the combo's historical WR"
+   rather than a pure time-local signal. Recommend SHAP follow-up before
+   production rollout; phase-2 Category D (prior-trade residual) would
+   disentangle identity from local dynamics.
+6. **B/C null not surprising**: `bars_since_last_trade` is largely a function
+   of combo trading frequency (already captured by combo_id partitioning in
+   CV). Regime ranks overlap with existing `parkinson_vol_pct` / `atr_points`.
+
+**Runtime**: ~4h 20m on sweep-runner-1 (MemoryMax=8G, CPUQuota=400%), 5 configs
+× 5 folds × ~610-700s per fold. Memory peak ~6.3 GB during ABC (28-feature
+LightGBM Dataset — 5G cap would have OOM'd; the second launch used 8G).
+
+**What's not covered and why**:
+- Category D (prior-trade P(win) residual) was deferred — requires 2-stage
+  training and only makes sense once A is productionised.
+- **No production-booster retrain** in this task. B8 is a discrimination
+  ablation on the 1.18M-trade testbed; retraining the full 9.5M-row V2
+  booster with Family-A features is a separate decision (adds disk/memory,
+  needs new calibrator, touches downstream filter scripts). Gated by SHAP
+  confirmation that the lift isn't pure combo-ID leakage.
+
+---
+
 ## Cross-task synthesis
 
 1. **Two tools, one stack**: V2 is useful as a *filter*, not as an R:R
@@ -346,6 +410,12 @@ signature (WR 95–99%, n=120–240).
    before any absolute-probability use (Kelly sizing, `E[R] ≥ 0` thresholds).
    Filter-based use (B2 percentile, B1 per-combo rank) stays valid. B16
    held-out remains open.
+5. **Discrimination ceiling lifted (B8)**: Family A autocorrelation features
+   (`prior_wr_50` etc.) lift V2 discrimination from OOF AUC 0.8072 → 0.8406
+   on the 1.18M-trade testbed — roughly 6× the decision gate. Recency (B)
+   and regime (C) add nothing on top. Before retraining the production
+   booster, a SHAP check on the A features is needed to confirm the lift
+   isn't pure combo-ID proxying via `prior_wr_N`.
 
 ---
 

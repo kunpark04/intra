@@ -320,8 +320,21 @@ and cross-task synthesis in `tasks/part_b_findings.md`.
 4. Optional: Kelly-cap5 sizing on combos where it helps (B10)
 5. `MIN_RR` is per-combo; no 1:3 floor.
 
-**Outstanding (Week 3+)**: B8 feature engineering · B11–B15 tier 3 ·
+**Outstanding (Week 3+)**: B11–B15 tier 3 ·
 B16 final held-out evaluation (gate for live) · B17 paper-trade.
+
+### B8 completed 2026-04-15
+
+- 5-config ablation (baseline, +A autocorr, +B recency, +C regime, +ABC)
+  on the 1.18M-trade v10 training-partition testbed, 5-fold
+  `StratifiedGroupKFold` on `combo_id`.
+- Family A wins: OOF AUC 0.8072 → 0.8406 (Δ +0.033, ~6× the +0.005 gate);
+  OOF ECE 0.0086 → 0.0036. `prior_wr_50` is the #2 feature after
+  `candidate_rr`.
+- Families B (recency) and C (regime) null; ABC matches A → B/C add nothing.
+- Adopt Family A only; production retrain gated on a SHAP check that the
+  lift isn't pure combo-ID proxying via `prior_wr_N`.
+- See `tasks/part_b_findings.md` §B8.
 
 ### B7 completed 2026-04-14
 
