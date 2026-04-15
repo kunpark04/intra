@@ -460,6 +460,41 @@ Artifacts: `data/ml/adaptive_rr_v2/b8_shap_audit.json`,
 
 ---
 
+### V3 filter backtest lift (Phase 3) — null result
+
+V3 booster (V2 features + Family A autocorr + `global_combo_id` as LightGBM
+categorical) was evaluated against V2 on the three established filter
+benchmarks using identical combo sets and fixed seeds. V3 does **not**
+improve downstream filter performance.
+
+| Benchmark | Baseline (V2) | V3 | V3 > V2 |
+|---|---|---|---|
+| **B1 per-combo best threshold** (40 combos, min 20 trades) | median Sharpe **14.35** | **13.00** (lift **−1.69**) | **8/40** (20%) |
+| **B2 top-25% percentile** (46 combos) | median Sharpe **7.33**; top_25 beats fixed **36/46** (median lift over fixed **+3.78**) | **7.15** (V3 lift over V2 **−1.42**); top_25 beats fixed **33/46** (median lift over fixed **+2.26**) | **8/46** (17%) |
+| **B4 surrogate filter_ev_ge_0.0** (35 combos) | median Sharpe **3.87** (lift over fixed **+2.13**) | **4.72** (lift over fixed **+1.66**) | **12/35** (34%) |
+
+**Verdict per variant**
+- **per_combo**: V3 worse. Median best-Sharpe falls 14.35 → 13.00; V3 wins on only 20% of combos.
+- **percentile**: V3 worse. V3 top_25 still beats fixed more often than not (33/46), but median lift over fixed drops from V2's +3.78 to +2.26.
+- **surrogate**: V3 higher absolute Sharpe in filter_0.0 (3.87 → 4.72) but **smaller lift over fixed** (+2.13 → +1.66); only 12/35 surrogates show V3 > V2.
+
+**Interpretation.** Family A lifted OOF AUC (+0.033 on the 1.18M-trade
+testbed per B8; retrain OOF AUC 0.8077) but that discrimination gain
+does not translate into extra Sharpe at the downstream EV-filter step.
+Most of V2's filter lift already came from the `candidate_rr` + volume
+features; the autocorr priors refine probability ordering in regions
+where the existing filter was already catching the EV-positive trades.
+Calibration rather than discrimination is the binding constraint on
+live use (B6 ECE 0.062 on the post-2024-10-22 tail), which Phase 4
+(rolling isotonic recalibrator) targets directly. V3 remains the
+correct base booster for Phase 4 because its OOF calibration (ECE
+9.3e-7 cal) and AUC (0.8077) are not worse than V2's — it simply
+fails to add filter-lift on top.
+
+Artifacts: `data/ml/adaptive_rr_v3/filter_backtest_{per_combo,percentile,surrogate}_v3.json`.
+
+---
+
 ## Pointers
 
 - Numerical details per task: the JSON files listed in the Scoreboard.
