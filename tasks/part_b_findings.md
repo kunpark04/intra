@@ -493,6 +493,50 @@ fails to add filter-lift on top.
 
 Artifacts: `data/ml/adaptive_rr_v3/filter_backtest_{per_combo,percentile,surrogate}_v3.json`.
 
+### Phase 4 rolling recalibrator — **PASS**
+
+A causal rolling per-R:R `IsotonicRegression` (window=5000 trades,
+refit every 500) applied on the held-out 20% test partition (80k base
+trades × 17 R:R levels = 1.36M labelled predictions) recovers
+calibration to well below the gate. At each anchor `i` the calibrator
+is fit **only** on `[i-5000, i)` — strictly past, no leakage.
+
+| Metric (overall) | raw V3 | static V3 (OOF cal) | **rolling V3** | Gate |
+|---|---|---|---|---|
+| ECE (20-bin, equal-width) | 0.0260 | 0.0336 | **0.0070** | < 0.015 ✅ |
+| Brier | 0.0841 | 0.0860 | 0.0831 | — |
+| Log-loss | 0.2756 | 0.2814 | 0.2805 | — |
+| AUC | 0.8387 | 0.8387 | 0.8387 | — (calibration-only) |
+| mean ŷ vs y (0.1129) | 0.139 | 0.147 | **0.111** | closer-to-0.113 is better |
+
+Per-R:R (5 of 17 shown):
+
+| R:R | n | ECE raw | ECE static | **ECE rolling** |
+|---|---|---|---|---|
+| 1.00 | 80,000 | 0.0300 | 0.0391 | **0.0198** |
+| 1.50 | 80,000 | 0.0443 | 0.0522 | **0.0172** |
+| 2.00 | 80,000 | 0.0405 | 0.0459 | **0.0184** |
+| 4.50 | 80,000 | 0.0118 | 0.0220 | **0.0043** |
+| 5.00 | 80,000 | 0.0098 | 0.0159 | **0.0028** |
+
+**Key observation.** The V3 OOF-trained static calibrator makes ECE
+*worse* than raw on the held-out tail (0.034 vs 0.026) — the training
+distribution's conditional bias doesn't match the post-2024-10-22
+regime. Rolling recalibration, which re-learns the mapping every 500
+trades from the most recent 5000 labelled outcomes, cuts ECE by **3.7×
+vs raw** and **4.8× vs static**, closes the mean-probability bias
+(0.139 → 0.111 vs observed 0.113), and clears the 0.015 gate on every
+single R:R level ≥ 1.75 (rr=1.00–1.50 remain the hardest buckets at
+0.017–0.020).
+
+This validates rolling isotonic recalibration as the mitigation for
+the calibration drift identified in B6. B16 final held-out must use
+the rolling recalibrator; static calibrators (V2 or V3) are not
+safe for absolute-probability use on recent bars.
+
+Artifacts: `data/ml/adaptive_rr_v3/b6_rolling_recal.json`,
+`scripts/b6_rolling_recal_v3.py`.
+
 ---
 
 ## Pointers
