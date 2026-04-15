@@ -169,9 +169,55 @@ or after paper-trade.
 
 ---
 
+## 9. V3 retrain complete (2026-04-15)
+
+Full-set (1.2M base trades × 17 R:R → 10M expanded rows, 588k combos after
+stratified subsample) retrain on V2's 20 features + Family A + `global_combo_id`
+as categorical. 5-fold `StratifiedGroupKFold` on `global_combo_id`. Runtime 66.9 min.
+
+| Metric | V2 | V3 | Δ |
+|---|---|---|---|
+| OOF AUC | 0.8057 | **0.8077** | +0.0020 |
+| OOF Brier (raw) | 0.1048 | 0.1057 | +0.0009 |
+| OOF Brier (cal) | 0.1048 | **0.1053** | +0.0005 |
+| OOF ECE (raw) | — | 0.0073 | — |
+| OOF ECE (cal) | 0.004 | **≈ 0** (9.3e-07) | −0.004 |
+
+**Top-10 features by gain**: `candidate_rr` (20.3M), `global_combo_id` (16.3M),
+`atr_points` (3.0M), `prior_wr_50` (2.8M), `stop_method` (1.8M), `rr_x_atr`
+(1.4M), `bar_range_points` (1.3M), `parkinson_vol_pct` (0.9M), `prior_r_ma10`
+(0.7M), `prior_wr_10` (0.5M). Family A: 3 of 4 in top-10, but only `prior_wr_50`
+cracks top-5.
+
+### Verdict
+
+- **AUC lift is muted**. B8 testbed showed +0.033; full-set shows +0.002. The
+  regularisation re-tune on 10M rows absorbed most of the gain. Consistent
+  with the cross-analysis §7 "medium-confidence" row that the full retrain
+  "will retain most of the lift" — it didn't. The ranking signal is still
+  dominated by `candidate_rr` + `global_combo_id`.
+- **Calibration is excellent**. Post-isotonic ECE is ~1e-6, a full decimal
+  better than V2's 0.004. Matters for Kelly/absolute-threshold use.
+- **`global_combo_id` dominates #2**. As predicted by the "unseen in CV"
+  flag — gain is driven by in-fold-training splits on combos the validation
+  fold has never seen. Its CV contribution understates production value;
+  **for held-out eval (B16) the unseen-combo subset will show what it
+  actually buys us**.
+- **Family A survived full-set training** but lost most of its testbed
+  punch. Still in the top-10, still providing signal, just not the ceiling
+  we'd hoped for.
+- **Go/no-go**: V3 is a net upgrade (better calibration, marginal AUC,
+  Family A + combo_id added without regressions). Proceeding with Phase 2
+  (v3_inference helper) and Phase 3 (filter backtest re-runs) per
+  `tasks/v3_followup_plan.md`. AUC gate was aspirational; calibration and
+  feature lineup are the real wins.
+
+---
+
 ## Pointers
 
 - Per-task numerical detail: `tasks/part_b_findings.md`
 - Task sequencing / roadmap: `tasks/ml1_ml2_synthesis_roadmap.md`
 - ML#1 decisions: `tasks/ml_decisions.md`
 - ML#2 decisions: `tasks/adaptive_rr_decisions.md`
+- V3 integration plan: `tasks/v3_followup_plan.md`
