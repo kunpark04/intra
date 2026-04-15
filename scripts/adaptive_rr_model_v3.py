@@ -148,8 +148,8 @@ def add_family_a(df: pd.DataFrame) -> pd.DataFrame:
     combo_rank = g.cumcount()
     df["has_history_50"] = (combo_rank >= 25).astype(np.int8)
 
-    print(f"  Family A computed: prior_wr_10 μ={df['prior_wr_10'].mean():.3f}, "
-          f"prior_wr_50 μ={df['prior_wr_50'].mean():.3f}, "
+    print(f"  Family A computed: prior_wr_10 mean={df['prior_wr_10'].mean():.3f}, "
+          f"prior_wr_50 mean={df['prior_wr_50'].mean():.3f}, "
           f"has_history_50 rate={df['has_history_50'].mean():.3f}")
     return df
 
