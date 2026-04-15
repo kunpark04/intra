@@ -18,9 +18,9 @@ the takeaway from each. Anchor for the next round of decisions. Pairs with
 | B9  | Monotonic constraint on `candidate_rr` | Done | `data/ml/adaptive_rr_b9/` |
 | B10 | Kelly-fraction sizing from calibrated P(win) | Done | `data/ml/adaptive_rr_v2/kelly_backtest.json` |
 | B6  | Temporal OOD test for V2 (test-partition bars) | Done | `data/ml/adaptive_rr_v2/b6_temporal_ood.json` + `b6_reliability.png` |
+| B7  | Walk-forward validation (expanding + rolling) | Done | `data/ml/adaptive_rr_v2/b7_walk_forward.json` + `b7_walk_forward.png` |
 
-Outstanding: B7 walk-forward · B8 feature-eng · B11–B15 tier-3 · B16 held-out
-· B17 paper-trade.
+Outstanding: B8 feature-eng · B11–B15 tier-3 · B16 held-out · B17 paper-trade.
 
 ---
 
@@ -261,6 +261,67 @@ signature (WR 95–99%, n=120–240).
 
 ---
 
+## B7 — Walk-forward validation (expanding + rolling)
+
+- Regenerated a 500-combo v10 sweep on the 80% training partition with the
+  newly-persisted `entry_bar_idx` (1,182,624 trades; bars map to 2019-01-01 →
+  2024-10-22). Years ≥5,000 trades: 2019-2024 (6 usable years).
+- Trained fresh V2-clone LightGBM boosters (800 rounds, same hyperparams,
+  400k base-trade cap per fold) under two split modes:
+  - **Expanding** (5 folds): fold k trains on years[:k+1], tests on years[k+1].
+  - **Rolling** (4 folds, window=2): fold k trains on 2-year window, tests next.
+
+**Expanding**:
+
+| Test year | AUC    | LogLoss | Brier  | ECE-20 | mean_y | mean_p |
+|-----------|--------|---------|--------|--------|--------|--------|
+| 2020      | 0.8108 | 0.3213  | 0.0986 | 0.0216 | 0.135  | 0.115  |
+| 2021      | 0.8274 | 0.2915  | 0.0891 | 0.0036 | 0.123  | 0.123  |
+| 2022      | 0.8141 | 0.3393  | 0.1060 | 0.0075 | 0.152  | 0.145  |
+| 2023      | 0.8241 | 0.2914  | 0.0888 | 0.0034 | 0.121  | 0.124  |
+| 2024*     | 0.8208 | 0.3123  | 0.0962 | 0.0029 | 0.135  | 0.135  |
+
+**Rolling (window=2)**:
+
+| Test year | AUC    | LogLoss | Brier  | ECE-20 | mean_y | mean_p |
+|-----------|--------|---------|--------|--------|--------|--------|
+| 2021      | 0.8274 | 0.2915  | 0.0891 | 0.0036 | 0.123  | 0.123  |
+| 2022      | 0.8138 | 0.3396  | 0.1061 | 0.0079 | 0.152  | 0.146  |
+| 2023      | 0.8236 | 0.2918  | 0.0888 | 0.0039 | 0.121  | 0.125  |
+| 2024*     | 0.8191 | 0.3136  | 0.0965 | 0.0051 | 0.135  | 0.133  |
+
+*2024 fold covers Jan-Oct only (pre-test-cutoff).
+
+**Key observations**:
+1. **AUC is remarkably stable**: 0.811–0.827 range, Δ(max-min) ≈ 0.017 —
+   within expected CV fold variance. No monotonic decay with recency and no
+   weak year.
+2. **Rolling ≈ expanding**: 2-year rolling window produces identical AUC and
+   near-identical ECE to expanding. More training data does not help past ~2
+   years → signal is local-in-time, not a multi-year aggregation effect.
+3. **Calibration within-training is fine**: ECE 0.003–0.022 (median 0.0037).
+   mean_pred tracks mean_y to within ~1 pp on most folds. First fold
+   (train=2019 alone, 1 year only, test=2020) is the worst at ECE 0.022 —
+   consistent with small-sample calibration noise.
+4. **Per-fold time 2.7-4.9 min** on 4 cores, 800 rounds each; full 9-fold
+   run completed in ~40 min wall.
+
+**Takeaway**:
+- V2's signal is **temporally stationary inside the 80% training partition**.
+  Rolling edges match expanding edges — no "recent data is more informative"
+  effect, no "old data hurts" effect.
+- The B6 calibration drift (ECE 0.062) is **specifically a
+  post-2024-10-22 phenomenon** — i.e. the held-out 20% tail, not a gradual
+  drift we could see inside training. This sharpens the B6 interpretation:
+  the drift is a regime-shift event, not a continuous decay. A rolling
+  isotonic recalibrator trained on the last N months of realised trades is
+  still the correct mitigation before live use; walk-forward does not
+  invalidate the B6 warning, but it constrains where drift lives.
+- **No reason to invalidate V2** for ranking-based filter use (B2 percentile,
+  B1 per-combo threshold) on in-training-period data.
+
+---
+
 ## Cross-task synthesis
 
 1. **Two tools, one stack**: V2 is useful as a *filter*, not as an R:R
@@ -275,12 +336,16 @@ signature (WR 95–99%, n=120–240).
    is obsolete — zero overlap with the V2-filtered retrain. All downstream
    work (B16 final held-out, B17 paper-trade) should use
    `lgbm_results_v2filtered/top_combos.csv` as the candidate set.
-4. **Temporal generalisation update (B6 done)**: V2's **ranking** transfers
-   to unseen time (AUC Δ −0.004), but **calibration** drifts (ECE 0.062,
-   mean-bias +6.2 pp overconfident). Filter-based use stays valid if it
-   uses percentiles or rank thresholds; absolute-probability use (Kelly
-   sizing, `E[R] ≥ 0` thresholds) needs a rolling isotonic recalibrator
-   before live deployment. B7 walk-forward and B16 held-out remain open.
+4. **Temporal generalisation update (B6 + B7 done)**: V2's **ranking** transfers
+   to unseen time (B6 AUC Δ −0.004) and is stable inside training (B7 walk-
+   forward AUC 0.811–0.827 across 2020-2024). **Calibration** is fine
+   within-training (B7 ECE 0.003–0.022) but drifts sharply on the post
+   2024-10-22 tail (B6 ECE 0.062, mean-bias +6.2 pp). The drift is a
+   regime-shift event on the held-out tail, not continuous decay — a rolling
+   isotonic recalibrator on recent realised trades is the correct mitigation
+   before any absolute-probability use (Kelly sizing, `E[R] ≥ 0` thresholds).
+   Filter-based use (B2 percentile, B1 per-combo rank) stays valid. B16
+   held-out remains open.
 
 ---
 

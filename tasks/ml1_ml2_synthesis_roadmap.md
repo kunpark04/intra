@@ -320,9 +320,21 @@ and cross-task synthesis in `tasks/part_b_findings.md`.
 4. Optional: Kelly-cap5 sizing on combos where it helps (B10)
 5. `MIN_RR` is per-combo; no 1:3 floor.
 
-**Outstanding (Week 3+)**: B6 temporal OOD for ML#2 · B7 walk-forward ·
-B8 feature engineering · B11–B15 tier 3 · B16 final held-out evaluation
-(gate for live) · B17 paper-trade.
+**Outstanding (Week 3+)**: B8 feature engineering · B11–B15 tier 3 ·
+B16 final held-out evaluation (gate for live) · B17 paper-trade.
+
+### B7 completed 2026-04-14
+
+- 9-fold walk-forward (5 expanding + 4 rolling window=2) across test years
+  2020-2024 on a 500-combo v10 training-partition sweep (1.18M trades).
+- AUC 0.811-0.827 across all folds (Δ ≈ 0.017, within CV fold variance);
+  ECE 0.003-0.022 (median 0.0037). Rolling ≈ expanding → signal is local
+  in time, not built by multi-year aggregation.
+- Combined with B6: the B6 calibration drift (ECE 0.062) is specifically a
+  post 2024-10-22 regime-shift phenomenon, not continuous decay across the
+  training window. Rolling isotonic recalibrator on recent realised trades
+  remains the correct mitigation before any absolute-probability use.
+- See `tasks/part_b_findings.md` §B7.
 
 ### B6 completed 2026-04-14
 
