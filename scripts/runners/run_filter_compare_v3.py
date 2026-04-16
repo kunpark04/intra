@@ -30,7 +30,7 @@ set -u
 for job in per_combo percentile surrogate; do
   echo "=== $(date -Is) starting $job ==="
   systemd-run --scope -p MemoryMax=5G -p CPUQuota=400% \\
-      python3 scripts/filter_backtest_${job}_v3.py \\
+      python3 scripts/backtests/filter_backtest_${job}_v3.py \\
       > logs/v3_${job}.log 2>&1
   rc=$?
   echo "=== $(date -Is) $job exit=$rc ==="

@@ -61,7 +61,7 @@ def load_manifest_params(version: int) -> dict[int, dict]:
 def build_feature_matrix(grp: pd.DataFrame, combo: dict) -> pd.DataFrame:
     """Build the 20-column V2 feature matrix for a combo's trades.
 
-    Replicates scripts/adaptive_vs_fixed_backtest_v1.build_features dtype
+    Replicates scripts/backtests/adaptive_vs_fixed_backtest_v1.build_features dtype
     conventions (int8 for side/stop_method/exit_on_opp, float32 elsewhere).
     """
     out = pd.DataFrame(index=grp.index)
