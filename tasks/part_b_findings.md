@@ -887,6 +887,81 @@ This is the stack to ship for B16.
 
 ---
 
+### Phase 5A+5B — Productionized calibrator + filter threshold reopt
+
+**Status:** Null result. Per-combo calibration's theoretical ECE win does NOT
+translate to better filter-threshold Sharpe, and in the cleanest comparisons
+it actively *hurts*.
+
+**What shipped (Phase 5B, `data/ml/adaptive_rr_v3/per_combo_calibrators_v3.json`):**
+
+- 7,309 per-combo isotonic calibrators fitted on V3 booster predictions over
+  10M expanded training rows (~588k base trades × 17 R:R levels).
+- 402 combos fell back (< 300 rows or single-class labels).
+- 17 pooled per-R:R isotonic calibrators as the fallback tier.
+- 13.2 MB JSON artifact; runtime 13.7 min on sweep-runner-1.
+
+**What the filter reopt ran (Phase 5A, `filter_backtest_reopt_v3.json`):**
+
+- 60 combos: 10 high/low-freq existing + 50 surrogate, 21-point E[R]
+  threshold grid [-0.5, +0.5] step 0.05.
+- 48 completed, 12 surrogate combos produced no trades.
+- **Only 3 of the 10 existing combos** had per-combo calibrators
+  (v10_7649, v10_9264, v6_1676). The other 7 existing combos and all 50
+  surrogates fell back to pooled per-R:R — surrogates are synthetic
+  combinations never in sweep training data, so this is expected.
+
+**Directly comparable cases (per-combo calibrator available):**
+
+| combo      | fixed Sharpe | cal Sharpe | simple Sharpe | Δ cal − simple |
+|------------|-------------:|-----------:|--------------:|---------------:|
+| v10_7649   |        21.33 |      25.39 |         26.31 |          -0.92 |
+| v10_9264   |        39.47 |      39.52 |         49.98 |         -10.45 |
+| v6_1676    |         4.59 |      17.10 |  INF (100% WR n=46) |    N/A |
+
+For v10_7649 and v10_9264, the per-combo calibrator produced *lower* Sharpe
+at the optimal threshold than the simple per-R:R calibrator. v6_1676's
+"simple" optimum had 100% WR on 46 trades — numerically degenerate, not a
+real comparison.
+
+**Fallback combos:** 45 combos show `cal Sharpe == simple Sharpe` by
+construction (same pooled calibrator applied either way), so they add no
+signal either direction.
+
+**Why the null result makes sense:**
+
+- Filter threshold optimization picks the E[R]-max-Sharpe point, which
+  depends on the *ordering* of predicted P(win), not the absolute
+  calibration level. Isotonic is monotonic, so per-combo vs simple both
+  preserve ordering — they just shift the E[R] values the thresholds are
+  measured against.
+- When the threshold grid is dense (21 points over [-0.5, +0.5]), shifts
+  in absolute E[R] get absorbed by re-picking a nearby threshold. The
+  Sharpe-optimal *set of trades kept* is close to identical between the
+  two calibrators.
+- Per-combo calibration's real value (lower ECE) would pay off for
+  *Kelly sizing* — where you multiply by P(win) directly — not for
+  threshold-keep/skip decisions.
+
+**Implications for B16:**
+
+- Don't block B16 on per-combo calibration. The production stack for
+  threshold-filtered trading can keep the simple per-R:R isotonic
+  (existing `isotonic_calibrators_v3.json`).
+- Per-combo calibrators remain useful for *Kelly sizing* (Phase 5C
+  portfolio sim) — that's where absolute P(win) quality matters.
+- This is now the second null result for V3 improvements (Phase 3 was
+  the first): V3's discrimination gain and two-stage calibration both
+  fail to improve threshold-filtered Sharpe. The V3 stack is still the
+  right production choice (better raw P(win) for Kelly, same downstream
+  Sharpe for filters), but we should stop expecting ECE gains to
+  cascade into backtest gains.
+
+**Artifacts:** `data/ml/adaptive_rr_v3/per_combo_calibrators_v3.json`,
+`data/ml/adaptive_rr_v3/filter_backtest_reopt_v3.json`.
+
+---
+
 ## Pointers
 
 - Numerical details per task: the JSON files listed in the Scoreboard.

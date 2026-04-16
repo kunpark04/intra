@@ -41,6 +41,26 @@ REPO = Path(__file__).resolve().parents[1]
 V3_DIR = REPO / "data/ml/adaptive_rr_v3"
 V3_BOOSTER = V3_DIR / "booster_v3.txt"
 V3_CALIBRATORS = V3_DIR / "isotonic_calibrators_v3.json"
+V3_PER_COMBO_CALIBRATORS = V3_DIR / "per_combo_calibrators_v3.json"
+
+
+def _load_per_combo_calibrators(
+    path: Path = V3_PER_COMBO_CALIBRATORS,
+) -> dict[str, dict[str, tuple[np.ndarray, np.ndarray]]]:
+    """Load the two-stage calibrator exported by export_calibrators_v3.py.
+
+    Returns dict with keys 'per_combo' and 'pooled_per_rr', each mapping
+    to {key: (X_knots, y_knots)}.
+    """
+    raw = json.loads(path.read_text())
+    result: dict[str, dict[str, tuple[np.ndarray, np.ndarray]]] = {}
+    for stage in ("per_combo", "pooled_per_rr"):
+        result[stage] = {
+            k: (np.asarray(v["X"], dtype=np.float64),
+                np.asarray(v["y"], dtype=np.float64))
+            for k, v in raw[stage].items()
+        }
+    return result
 
 
 def _load_calibrators(path: Path = V3_CALIBRATORS) -> dict[str, tuple[np.ndarray, np.ndarray]]:
@@ -171,6 +191,60 @@ def predict_pwin_v3_at_rr(
     raw = booster.predict(base[ALL_FEATURES])
     knots = calibrators.get(f"{float(rr):.2f}")
     return _apply_calibrator(raw, knots)
+
+
+def predict_pwin_v3_calibrated_at_rr(
+    feats: pd.DataFrame,
+    trades: dict,
+    global_combo_id: str,
+    stop_pts: float,
+    rr: float,
+    booster: lgb.Booster | None = None,
+    two_stage: dict | None = None,
+) -> np.ndarray:
+    """Two-stage calibrated P(win) — per-combo isotonic if available, else pooled per-R:R.
+
+    Drop-in replacement for predict_pwin_v3_at_rr that uses the Phase 4f
+    production calibrator instead of the simple per-R:R isotonic.
+
+    Args:
+        two_stage: output of _load_per_combo_calibrators(). If None, loaded
+            from V3_PER_COMBO_CALIBRATORS.
+
+    Returns:
+        1-D array of calibrated P(win), one per trade.
+    """
+    if booster is None:
+        booster = lgb.Booster(model_file=str(V3_BOOSTER))
+    if two_stage is None:
+        two_stage = _load_per_combo_calibrators()
+
+    label_win, r_multiple = _derive_labels_from_trades(trades, stop_pts)
+    base = feats.copy()
+    base["label_win"] = label_win
+    base["r_multiple"] = r_multiple
+    base["global_combo_id"] = global_combo_id
+
+    base = add_family_a(base)
+
+    rr32 = np.float32(rr)
+    base[RR_FEATURE] = rr32
+    if "abs_zscore_entry" not in base.columns:
+        base["abs_zscore_entry"] = np.abs(base["zscore_entry"].to_numpy())
+    base["rr_x_atr"] = rr32 * base["atr_points"].to_numpy()
+    for col in CATEGORICAL_COLS:
+        if col in base.columns and not pd.api.types.is_categorical_dtype(base[col]):
+            base[col] = base[col].astype("category")
+
+    raw = booster.predict(base[ALL_FEATURES])
+
+    # Two-stage calibration: prefer per-combo, fall back to pooled per-R:R.
+    combo_knots = two_stage["per_combo"].get(global_combo_id)
+    if combo_knots is not None:
+        return _apply_calibrator(raw, combo_knots)
+    else:
+        rr_knots = two_stage["pooled_per_rr"].get(f"{float(rr):.2f}")
+        return _apply_calibrator(raw, rr_knots)
 
 
 if __name__ == "__main__":
