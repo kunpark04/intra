@@ -38,12 +38,14 @@ def main() -> None:
     ssh.connect(HOST, username=USER, password=PASS, timeout=15)
     sftp = ssh.open_sftp()
 
+    # Ensure remote scripts/analysis/ + evaluation/ dirs exist (post-reorg).
+    ssh.exec_command(
+        f"mkdir -p {REMOTE_DIR}/scripts/analysis {REMOTE_DIR}/evaluation"
+    )[1].channel.recv_exit_status()
+
     print(f"  Uploading {LOCAL_SCRIPT.relative_to(REPO)}...", end=" ", flush=True)
     sftp.put(str(LOCAL_SCRIPT), REMOTE_SCRIPT)
     print("OK")
-
-    # Ensure remote evaluation/ dir exists.
-    ssh.exec_command(f"mkdir -p {REMOTE_DIR}/evaluation")[1].channel.recv_exit_status()
 
     cmd = f"cd {REMOTE_DIR} && python3 scripts/analysis/extract_top_combos_by_freq.py {extra_args}".strip()
     print(f"  Running: {cmd}")

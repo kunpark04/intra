@@ -43,19 +43,34 @@ def load_bars(csv_path) -> pd.DataFrame:
     df = df.sort_values("time").reset_index(drop=True)
     return df
 
-def split_train_test(df: pd.DataFrame, train_ratio: float = 0.8):
+def split_train_test(df: pd.DataFrame, train_ratio: float = 0.8,
+                     train_end=None):
     """Chronologically split a bar series into training and test partitions.
 
-    The split preserves bar order — rows `[0, floor(N*train_ratio))` go to
-    training; the remainder goes to test. Never shuffles.
+    Two modes — never shuffles:
+      • `train_end` provided (preferred for production eval): training is
+        rows where `time <= train_end`; test is the remainder. Locks the
+        boundary even as new bars are appended over time.
+      • `train_end` is None: rows `[0, floor(N*train_ratio))` go to training;
+        the remainder goes to test.
 
     Args:
         df: Bar DataFrame, already time-sorted (e.g. from `load_bars`).
-        train_ratio: Fraction of rows to assign to training. Default 0.8.
+        train_ratio: Fraction of rows to assign to training when
+            `train_end` is None. Default 0.8.
+        train_end: Optional timestamp (string or `pd.Timestamp`) that
+            freezes the training partition's right edge. When set,
+            overrides `train_ratio`.
 
     Returns:
         Tuple `(train, test)` — both DataFrames with fresh RangeIndex.
     """
+    if train_end is not None:
+        cutoff = pd.Timestamp(train_end)
+        train = df[df["time"] <= cutoff].reset_index(drop=True)
+        test = df[df["time"] > cutoff].reset_index(drop=True)
+        return train, test
+
     split_idx = int(len(df) * train_ratio)
     train = df.iloc[:split_idx].reset_index(drop=True)
     test = df.iloc[split_idx:].reset_index(drop=True)

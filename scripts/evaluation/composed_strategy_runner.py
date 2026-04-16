@@ -37,15 +37,20 @@ TEST_BARS_CSV = REPO / "data" / "NQ_1min.csv"
 # ── Test partition loader ────────────────────────────────────────────────────
 
 def load_test_bars() -> pd.DataFrame:
-    """Load 1-minute bars and return the 20% chronological test partition.
+    """Load 1-minute bars and return the held-out test partition.
+
+    Uses the frozen training cutoff (`base_cfg.TRAIN_END_FROZEN`) so the
+    test partition automatically grows as fresh bars are appended via
+    `scripts/data_pipeline/update_bars_yfinance.py`. The training partition
+    stays locked, preserving the held-out integrity of the V3 production
+    stack's evaluation.
 
     Returns:
         DataFrame with canonical columns (`time`, `open`, `high`, `low`,
-        `close`, `volume`, `session_break`), chronologically sorted, covering
-        the test 20% of the full series.
+        `close`, `volume`, `session_break`), chronologically sorted.
     """
     bars = load_bars(TEST_BARS_CSV)
-    _, test = split_train_test(bars)
+    _, test = split_train_test(bars, train_end=base_cfg.TRAIN_END_FROZEN)
     return test.reset_index(drop=True)
 
 

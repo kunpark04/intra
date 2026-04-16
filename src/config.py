@@ -75,6 +75,12 @@ TOD_EXIT_HOUR          = 0       # force close open position at this hour (0 = d
 
 # ── Train / test ──────────────────────────────────────────────────────────────
 TRAIN_RATIO = 0.8
+# Frozen training cutoff: bars at or before this timestamp are training; bars
+# after it are test. Locks the partition boundary even as new bars are appended
+# to data/NQ_1min.csv via scripts/data_pipeline/update_bars_yfinance.py, so the
+# V3 production stack keeps being evaluated on truly held-out future data.
+# Value matches the 80% chronological boundary at the time V3 was trained.
+TRAIN_END_FROZEN = "2024-10-22 05:07:00"
 
 # ── Monte Carlo ───────────────────────────────────────────────────────────────
 MC_N_SIMS = 10_000
