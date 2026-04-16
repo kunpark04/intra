@@ -14,7 +14,6 @@ Usage:
 """
 
 import argparse
-import hashlib
 import json
 import sys
 import time
@@ -30,7 +29,7 @@ except ImportError:
     sys.exit(1)
 
 try:
-    from sklearn.model_selection import StratifiedGroupKFold
+    from sklearn.model_selection import StratifiedKFold
     from sklearn.metrics import (
         log_loss, roc_auc_score, brier_score_loss,
         precision_recall_curve, average_precision_score,
@@ -47,7 +46,7 @@ import matplotlib.pyplot as plt
 # ── Constants ────────────────────────────────────────────────────────────────
 
 DATA_DIR = Path("data/ml")
-OUTPUT_DIR = DATA_DIR / "adaptive_rr_v2"
+OUTPUT_DIR = DATA_DIR / "adaptive_rr"
 
 # 15 entry features from the sweep trade dicts
 ENTRY_FEATURES = [
@@ -78,41 +77,7 @@ DERIVED_FEATURES = [
 
 ALL_FEATURES = ENTRY_FEATURES + COMBO_FEATURES + [RR_FEATURE] + DERIVED_FEATURES
 
-
-def shared_cache_path() -> Path:
-    # Key cache by features + R:R grid so schema drift invalidates automatically.
-    key = json.dumps({"features": ALL_FEATURES, "rr_levels": RR_LEVELS}, sort_keys=True)
-    h = hashlib.sha1(key.encode()).hexdigest()[:12]
-    return DATA_DIR / f"adaptive_rr_cache_{h}.parquet"
-
 CATEGORICAL_COLS = ["stop_method", "side"]
-
-# Columns to read from parquet (only what's needed downstream) — avoids
-# loading 49 cols × ~2 GB per file. Keeps peak RAM manageable on a 10 GB host.
-PARQUET_COLUMNS = [
-    "combo_id",
-    # label inputs
-    "mfe_points", "mae_points", "stop_distance_pts",
-    # numeric entry features
-    "zscore_entry", "zscore_prev", "zscore_delta",
-    "volume_zscore", "ema_spread",
-    "bar_body_points", "bar_range_points",
-    "atr_points", "parkinson_vol_pct", "parkinson_vs_atr",
-    "time_of_day_hhmm", "day_of_week",
-    "distance_to_ema_fast_points", "distance_to_ema_slow_points",
-    # categoricals / booleans
-    "side", "stop_method", "exit_on_opposite_signal",
-]
-
-# Numeric feature columns (float32 at load)
-NUMERIC_FEATURE_COLS = [
-    "zscore_entry", "zscore_prev", "zscore_delta",
-    "volume_zscore", "ema_spread",
-    "bar_body_points", "bar_range_points",
-    "atr_points", "parkinson_vol_pct", "parkinson_vs_atr",
-    "time_of_day_hhmm", "day_of_week",
-    "distance_to_ema_fast_points", "distance_to_ema_slow_points",
-]
 
 # 17 candidate R:R levels from 1.0 to 5.0 in 0.25 steps
 RR_LEVELS = np.round(np.arange(1.0, 5.25, 0.25), 2).tolist()
@@ -122,18 +87,18 @@ LGB_PARAMS = {
     "objective": "binary",
     "metric": "binary_logloss",
     "boosting_type": "gbdt",
-    "num_leaves": 63,
-    "learning_rate": 0.02,
+    "num_leaves": 63,        # more complex than combo-level model (many more rows)
+    "learning_rate": 0.05,
     "feature_fraction": 0.8,
     "bagging_fraction": 0.8,
     "bagging_freq": 5,
-    "min_child_samples": 20,
+    "min_child_samples": 100,  # higher floor for huge dataset
     "reg_alpha": 0.1,
     "reg_lambda": 1.0,
     "verbose": -1,
     "seed": 42,
-    "n_estimators": 2000,
-    "num_threads": 4,
+    "n_estimators": 1000,
+    "is_unbalance": True,     # handle win/loss imbalance at high R:R
 }
 
 # Sweep version → range_mode mapping
@@ -158,103 +123,35 @@ def parse_args() -> argparse.Namespace:
                    help="Skip combos with fewer trades (default: 30)")
     p.add_argument("--n-folds", type=int, default=5,
                    help="CV folds (default: 5)")
-    p.add_argument("--no-cache", action="store_true",
-                   help="Skip shared cache lookup + save (force rebuild, don't persist)")
+    p.add_argument("--skip-expansion", action="store_true",
+                   help="Reuse cached expanded dataset")
     return p.parse_args()
 
 
 # ── Data Loading ─────────────────────────────────────────────────────────────
 
-def load_mfe_parquets(versions: list[int], target_base_trades: int) -> pd.DataFrame:
-    """Stream-subsample _mfe.parquet files at load time (memory-bounded).
-
-    Reads each file in row-group batches via pyarrow.iter_batches, applies
-    Bernoulli sampling with probability `budget_v / rows_v` per batch, and
-    accumulates only the sampled rows. Peak RAM ≈ one row group (~10 MB)
-    plus the growing sample — never materializes the full file.
-
-    Per-version budget is proportional to row count but capped so no single
-    version exceeds 25% of the total (prevents v10/v3 dominance).
-    """
-    import pyarrow.parquet as pq
-
-    # --- Compute per-version row counts to allocate budgets ---
-    rows_per_v: dict[int, int] = {}
+def load_mfe_parquets(versions: list[int]) -> pd.DataFrame:
+    """Load _mfe.parquet files and concatenate."""
+    frames = []
     for v in versions:
         path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
-        if path.exists():
-            rows_per_v[v] = pq.ParquetFile(path).metadata.num_rows
-    if not rows_per_v:
+        if not path.exists():
+            print(f"  WARN: {path} not found, skipping v{v}")
+            continue
+        print(f"  Loading v{v}...", end="", flush=True)
+        df = pd.read_parquet(path)
+        df["sweep_version"] = v
+        # Add global combo ID
+        df["global_combo_id"] = df["combo_id"].apply(lambda cid: f"v{v}_{cid}")
+        print(f" {len(df):,} trades, {df['combo_id'].nunique()} combos")
+        frames.append(df)
+
+    if not frames:
         print("ERROR: No _mfe.parquet files found. Run sweeps first.")
         sys.exit(1)
 
-    total_rows = sum(rows_per_v.values())
-    budgets: dict[int, int] = {}
-    cap = int(target_base_trades * 0.25)  # no single version > 25%
-    for v, nv in rows_per_v.items():
-        prop = int(round(target_base_trades * nv / total_rows))
-        budgets[v] = min(prop, cap)
-    # Redistribute any shortfall from capped versions back to the others
-    shortfall = target_base_trades - sum(budgets.values())
-    if shortfall > 0:
-        uncapped = [v for v in budgets if budgets[v] < cap]
-        for v in uncapped:
-            budgets[v] += shortfall // max(len(uncapped), 1)
-
-    print(f"  Per-version load budgets (target={target_base_trades:,}):")
-    for v, b in budgets.items():
-        print(f"    v{v}: {b:>8,}  ({b/rows_per_v[v]*100:.2f}% sample of "
-              f"{rows_per_v[v]:>12,} rows)")
-
-    rng = np.random.default_rng(42)
-    f32_cols_set = set(NUMERIC_FEATURE_COLS + [
-        "mfe_points", "mae_points", "stop_distance_pts"])
-
-    frames = []
-    for v in versions:
-        if v not in rows_per_v:
-            print(f"  WARN: v{v} parquet missing, skipping")
-            continue
-        path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
-        pf = pq.ParquetFile(path)
-        available = {f.name for f in pf.schema_arrow}
-        cols = [c for c in PARQUET_COLUMNS if c in available]
-        p_keep = budgets[v] / rows_per_v[v]
-        print(f"  Streaming v{v} (p_keep={p_keep:.4f})...", end="", flush=True)
-
-        kept_batches: list[pd.DataFrame] = []
-        for batch in pf.iter_batches(batch_size=65536, columns=cols):
-            df_b = batch.to_pandas()
-            # Per-row Bernoulli mask
-            mask = rng.random(len(df_b)) < p_keep
-            if mask.any():
-                df_b = df_b.loc[mask]
-                # Downcast immediately while the batch is small
-                dtype_map = {c: np.float32 for c in f32_cols_set if c in df_b.columns}
-                if dtype_map:
-                    df_b = df_b.astype(dtype_map)
-                if "exit_on_opposite_signal" in df_b.columns:
-                    df_b["exit_on_opposite_signal"] = df_b[
-                        "exit_on_opposite_signal"].astype(np.int8)
-                kept_batches.append(df_b)
-            del batch, df_b
-
-        if not kept_batches:
-            print(" (empty sample, skipping)")
-            continue
-        df_v = pd.concat(kept_batches, ignore_index=True, copy=False)
-        del kept_batches
-
-        df_v["sweep_version"] = np.int8(v)
-        df_v["global_combo_id"] = (
-            "v" + str(v) + "_" + df_v["combo_id"].astype(str)
-        )
-        print(f" {len(df_v):,} trades, {df_v['combo_id'].nunique()} combos")
-        frames.append(df_v)
-
-    combined = pd.concat(frames, ignore_index=True, copy=False)
-    del frames
-    print(f"  Total after stream-subsample: {len(combined):,} trades, "
+    combined = pd.concat(frames, ignore_index=True)
+    print(f"  Total: {len(combined):,} trades, "
           f"{combined['global_combo_id'].nunique()} combos")
     return combined
 
@@ -274,111 +171,70 @@ def filter_combos(df: pd.DataFrame, min_trades: int) -> pd.DataFrame:
 
 # ── Synthetic Label Expansion ────────────────────────────────────────────────
 
-def _stratified_subsample(df: pd.DataFrame, sample_n: int,
-                          rng: np.random.Generator) -> pd.DataFrame:
-    """Subsample stratified by sweep_version (proportional to row share).
-
-    Prevents v10 (37M rows, ~44% of total) from dominating. Uses reset_index
-    to avoid carrying original index around.
-    """
-    counts = df["sweep_version"].value_counts()
-    total = counts.sum()
-    picks = []
-    for v, cnt in counts.items():
-        n_v = int(round(sample_n * cnt / total))
-        idx = np.where(df["sweep_version"].to_numpy() == v)[0]
-        if len(idx) > n_v:
-            idx = rng.choice(idx, size=n_v, replace=False)
-        picks.append(idx)
-    picks = np.concatenate(picks)
-    rng.shuffle(picks)
-    return df.iloc[picks].reset_index(drop=True)
-
-
 def expand_rr_levels(df: pd.DataFrame, rr_levels: list[float],
                      max_rows: int) -> pd.DataFrame:
-    """Vectorized, dtype-preserving R:R expansion (no object-dtype DataFrame).
-
-    For each base trade, produces 17 rows with synthetic label:
+    """
+    For each trade, create 17 rows (one per R:R level) with synthetic label:
       would_win = (mfe_points >= candidate_rr * stop_distance_pts)
 
-    Column order: features expand via np.repeat(arr, 17); candidate_rr via
-    np.tile(rr, n). That gives row layout:
-      trade0_rr0, trade0_rr1, ..., trade0_rr16, trade1_rr0, ...
-    which matches reshape(n_trades, 17) used downstream for E[R].
+    This answers: "If we had set the take-profit at candidate_rr × risk,
+    would the price have reached it before the trade ended?"
     """
     print(f"\n[expand] Expanding {len(df):,} trades × {len(rr_levels)} R:R levels...")
 
-    rng = np.random.default_rng(42)
-    n_rr = len(rr_levels)
-    rr_arr = np.array(rr_levels, dtype=np.float32)
+    # Pre-compute: only keep needed columns to save memory
+    keep_cols = (ENTRY_FEATURES + COMBO_FEATURES +
+                 ["mfe_points", "mae_points", "stop_distance_pts",
+                  "hold_bars", "global_combo_id"])
+    df_slim = df[keep_cols].copy()
 
-    # Base subsample cap (stratified by sweep_version) so we don't blow up RAM
-    sample_n = max_rows // n_rr
-    if len(df) > sample_n:
-        print(f"  Subsampling stratified by sweep_version: "
-              f"{len(df):,} -> {sample_n:,} base trades")
-        df = _stratified_subsample(df, sample_n, rng)
-    else:
-        df = df.reset_index(drop=True)
+    # Subsample base trades if expansion would exceed max_rows
+    n_base = len(df_slim)
+    n_expanded = n_base * len(rr_levels)
+    if n_expanded > max_rows:
+        sample_n = max_rows // len(rr_levels)
+        print(f"  Subsampling: {n_base:,} -> {sample_n:,} base trades "
+              f"(expanded would be {n_expanded:,} > {max_rows:,})")
+        df_slim = df_slim.sample(n=sample_n, random_state=42).reset_index(drop=True)
+        n_base = len(df_slim)
 
-    n_base = len(df)
-    n_expanded = n_base * n_rr
+    # Vectorized expansion: repeat each trade row len(rr_levels) times
+    rr_arr = np.array(rr_levels, dtype=np.float64)
+    n_rr = len(rr_arr)
 
-    # --- Build expanded frame column-by-column in correct dtype ---
-    # Using np.repeat on each column's .to_numpy() preserves dtype (no object
-    # dtype trap from pd.DataFrame(np.repeat(df.values, ...))).
-    out: dict[str, np.ndarray] = {}
+    # Tile the dataframe
+    expanded = pd.DataFrame(
+        np.repeat(df_slim.values, n_rr, axis=0),
+        columns=df_slim.columns,
+    )
+    # Assign candidate_rr
+    expanded[RR_FEATURE] = np.tile(rr_arr, n_base)
 
-    # Numeric features → float32, repeated 17×
-    for col in NUMERIC_FEATURE_COLS:
-        if col in df.columns:
-            out[col] = np.repeat(df[col].to_numpy(dtype=np.float32), n_rr)
+    # Ensure numeric types survived the repeat
+    for col in ["mfe_points", "stop_distance_pts", RR_FEATURE]:
+        expanded[col] = pd.to_numeric(expanded[col], errors="coerce")
 
-    # Categoricals → repeat the underlying array (pandas will re-categorize later)
-    for col in CATEGORICAL_COLS:
-        if col in df.columns:
-            out[col] = np.repeat(df[col].to_numpy(), n_rr)
+    # Synthetic label: would the trade have hit this R:R target?
+    target_pts = expanded[RR_FEATURE] * expanded["stop_distance_pts"]
+    expanded["would_win"] = (expanded["mfe_points"] >= target_pts).astype(np.int8)
 
-    # Booleans / small ints
-    if "exit_on_opposite_signal" in df.columns:
-        out["exit_on_opposite_signal"] = np.repeat(
-            df["exit_on_opposite_signal"].to_numpy(dtype=np.int8), n_rr)
+    # Derived features
+    expanded["abs_zscore_entry"] = pd.to_numeric(
+        expanded["zscore_entry"], errors="coerce").abs()
+    expanded["rr_x_atr"] = (
+        expanded[RR_FEATURE] *
+        pd.to_numeric(expanded["atr_points"], errors="coerce")
+    )
 
-    # Group key for CV (kept as object array; only ~n_expanded strings)
-    out["global_combo_id"] = np.repeat(df["global_combo_id"].to_numpy(), n_rr)
-    out["sweep_version"] = np.repeat(
-        df["sweep_version"].to_numpy(dtype=np.int8), n_rr)
-
-    # candidate_rr via tile (trade0 gets [1.0..5.0], trade1 gets [1.0..5.0], ...)
-    out[RR_FEATURE] = np.tile(rr_arr, n_base)
-
-    # --- Synthetic label via 2-D broadcast (no per-row python) ---
-    mfe = df["mfe_points"].to_numpy(dtype=np.float32)
-    stop = df["stop_distance_pts"].to_numpy(dtype=np.float32)
-    # (n_base, n_rr) bool then ravel — peak = (n_base × 17) bytes
-    would_win_2d = mfe[:, None] >= rr_arr[None, :] * stop[:, None]
-    out["would_win"] = would_win_2d.ravel().astype(np.int8)
-
-    # Derived features (computed post-expansion to keep dtypes clean)
-    if "zscore_entry" in out:
-        out["abs_zscore_entry"] = np.abs(out["zscore_entry"])
-    if "atr_points" in out:
-        out["rr_x_atr"] = out[RR_FEATURE] * out["atr_points"]
-
-    # Free the 2D label buffer explicitly
-    del would_win_2d, mfe, stop
-
-    expanded = pd.DataFrame(out, copy=False)
-    # Re-apply categorical dtype after expansion
-    for col in CATEGORICAL_COLS:
+    # Ensure all numeric columns are proper types
+    numeric_cols = [c for c in ENTRY_FEATURES if c not in CATEGORICAL_COLS + ["side"]]
+    for col in numeric_cols:
         if col in expanded.columns:
-            expanded[col] = expanded[col].astype("category")
+            expanded[col] = pd.to_numeric(expanded[col], errors="coerce")
 
-    print(f"  Expanded dataset: {len(expanded):,} rows, "
-          f"~{expanded.memory_usage(deep=True).sum() / 1e9:.2f} GB in-memory")
+    print(f"  Expanded dataset: {len(expanded):,} rows")
     print(f"  Win rate by R:R level:")
-    wr_by_rr = expanded.groupby(RR_FEATURE, observed=True)["would_win"].mean()
+    wr_by_rr = expanded.groupby(RR_FEATURE)["would_win"].mean()
     for rr, wr in wr_by_rr.items():
         print(f"    R:R {rr:.2f}: {wr:.1%}")
 
@@ -391,36 +247,41 @@ def train_model(df: pd.DataFrame, n_folds: int) -> dict:
     """Train LightGBM binary classifier with stratified CV."""
     print(f"\n[train] Training on {len(df):,} rows, {n_folds}-fold CV...")
 
-    # Prepare features (view, not copy — columns already in correct dtype from expand)
+    # Prepare features
     feature_cols = [c for c in ALL_FEATURES if c in df.columns]
-    X = df[feature_cols]
-    y = df["would_win"].to_numpy(dtype=np.int8)
-    groups = df["global_combo_id"].to_numpy()
+    X = df[feature_cols].copy()
+    y = df["would_win"].values.astype(np.int32)
 
-    # Group-aware stratified CV: splits by combo_id, not by row.
-    # This is critical — each base trade contributes 17 rows (one per R:R),
-    # and each combo contributes many base trades. Row-level KFold would
-    # leak the same trade (and same combo) across train/val, inflating AUC.
-    sgkf = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=42)
+    # Encode categoricals
+    for col in CATEGORICAL_COLS:
+        if col in X.columns:
+            X[col] = X[col].astype("category")
 
-    oof_preds = np.zeros(len(X), dtype=np.float32)
+    # Ensure boolean columns are int
+    for col in ["exit_on_opposite_signal"]:
+        if col in X.columns:
+            X[col] = X[col].astype(int)
+
+    skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=42)
+
+    oof_preds = np.zeros(len(X))
     fold_metrics = []
     models = []
 
-    for fold_i, (train_idx, val_idx) in enumerate(sgkf.split(X, y, groups)):
+    for fold_i, (train_idx, val_idx) in enumerate(skf.split(X, y)):
         t0 = time.time()
         X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
 
         train_data = lgb.Dataset(X_train, label=y_train,
                                  categorical_feature=CATEGORICAL_COLS,
-                                 free_raw_data=True)
+                                 free_raw_data=False)
         val_data = lgb.Dataset(X_val, label=y_val,
                                categorical_feature=CATEGORICAL_COLS,
-                               free_raw_data=True)
+                               free_raw_data=False)
 
         callbacks = [
-            lgb.early_stopping(stopping_rounds=100, verbose=False),
+            lgb.early_stopping(stopping_rounds=50, verbose=False),
             lgb.log_evaluation(period=0),
         ]
 
@@ -650,30 +511,29 @@ def main() -> None:
     print("Adaptive R:R Model — P(win | features, candidate_rr)")
     print("=" * 70)
 
-    expanded_path = shared_cache_path()
+    expanded_path = OUTPUT_DIR / "expanded_dataset.parquet"
 
-    # Cache is keyed by hash(ALL_FEATURES + RR_LEVELS); any schema drift lands
-    # on a new path, so a hit here is always safe. --no-cache forces rebuild.
-    if expanded_path.exists() and not args.no_cache:
-        print(f"\n[cache] Hit: {expanded_path.name}")
+    if args.skip_expansion and expanded_path.exists():
+        print("\n[load] Loading cached expanded dataset...")
         expanded = pd.read_parquet(expanded_path)
         print(f"  Loaded: {len(expanded):,} rows")
     else:
-        target_base = args.max_rows // len(RR_LEVELS)
-        target_load = int(target_base * 1.2)
+        # Step 1: Load MFE parquets
         print(f"\n[load] Loading _mfe.parquet files for versions: {args.versions}")
-        print(f"  Target base trades post-load: {target_load:,}")
-        df = load_mfe_parquets(args.versions, target_load)
+        df = load_mfe_parquets(args.versions)
 
+        # Step 2: Filter combos with too few trades
         df = filter_combos(df, args.min_trades_per_combo)
 
+        # Step 3: Expand with synthetic labels at each R:R level
         expanded = expand_rr_levels(df, RR_LEVELS, args.max_rows)
-        del df
 
-        if not args.no_cache:
-            print(f"\n[cache] Saving to shared cache: {expanded_path}")
-            expanded.to_parquet(expanded_path, compression="snappy", index=False)
-            print(f"  Saved: {expanded_path.stat().st_size / 1e9:.2f} GB")
+        # Cache the expanded dataset
+        print(f"\n[cache] Saving expanded dataset to {expanded_path}...")
+        expanded.to_parquet(expanded_path, compression="snappy", index=False)
+        print(f"  Saved: {expanded_path} ({expanded_path.stat().st_size / 1e9:.2f} GB)")
+
+        del df
 
     # Step 4: Train model
     result = train_model(expanded, args.n_folds)

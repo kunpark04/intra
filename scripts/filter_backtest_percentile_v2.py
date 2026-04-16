@@ -1,4 +1,9 @@
-"""B2 V3 variant: top-X% E[R] per combo using V3 booster + Family A."""
+"""B2: Adaptive filter — percentile of E[R] per combo rather than fixed threshold.
+
+For each combo, keep top-X% of trades by E[R]. Tests percentiles [25, 50, 75, 90].
+This adapts the filter to each combo's E[R] distribution, so low-freq combos
+don't get over-filtered.
+"""
 import importlib.util, json, sys, traceback
 from pathlib import Path
 import numpy as np
@@ -8,21 +13,20 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 spec = importlib.util.spec_from_file_location("fb", REPO / "scripts/filter_backtest_v2.py")
-fb = importlib.util.module_from_spec(spec); spec.loader.exec_module(fb)
+fb = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(fb)
 
 spec2 = importlib.util.spec_from_file_location("fbs", REPO / "scripts/filter_backtest_surrogate_v2.py")
-fbs = importlib.util.module_from_spec(spec2); spec2.loader.exec_module(fbs)
+fbs = importlib.util.module_from_spec(spec2)
+spec2.loader.exec_module(fbs)
 
-spec3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/inference_v3.py")
-v3inf = importlib.util.module_from_spec(spec3); spec3.loader.exec_module(v3inf)
-
-OUT = REPO / "data/ml/adaptive_rr_v3/filter_backtest_percentile_v3.json"
+OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_percentile.json"
 SURROGATE_CSV = REPO / "data/ml/lgbm_results/surrogate_top_combos.csv"
 
-PERCENTILES = [25, 50, 75, 90]
+PERCENTILES = [25, 50, 75, 90]  # keep top-X% by E[R]
 
 
-def backtest_one_pct_v3(gcid: str, combo: dict, booster, cals) -> dict:
+def backtest_one_pct(gcid: str, combo: dict, model) -> dict:
     avf = fb.avf
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -39,8 +43,7 @@ def backtest_one_pct_v3(gcid: str, combo: dict, booster, cals) -> dict:
     feats = avf.build_features(trades, df_sig, stop_pts,
                                str(combo["stop_method"]),
                                bool(combo["exit_on_opposite_signal"]))
-    pwin = v3inf.predict_pwin_v3_at_rr(feats, trades, gcid, stop_pts, rr,
-                                       booster=booster, calibrators=cals)
+    pwin = fb.predict_pwin_at_rr(feats, model, rr)
     ev = pwin * rr - (1.0 - pwin)
 
     fixed_res = avf.simulate_fixed(trades)
@@ -72,15 +75,15 @@ def main():
     low_freq = ["v10_9955", "v5_158", "v5_2904", "v7_2114", "v7_215"]
     existing = high_freq + low_freq
 
-    booster = lgb.Booster(model_file=str(v3inf.V3_BOOSTER))
-    cals = v3inf._load_calibrators()
-    all_results = {"model": "v3", "percentiles": PERCENTILES, "combos": []}
+    model = lgb.Booster(model_file=str(fb.V2_MODEL))
+    all_results = {"model": "v2", "percentiles": PERCENTILES, "combos": []}
 
+    # Existing combos
     for gcid in existing:
         print(f"\n=== {gcid} ===")
         try:
             combo = fb.load_combo_by_id(gcid)
-            r = backtest_one_pct_v3(gcid, combo, booster, cals)
+            r = backtest_one_pct(gcid, combo, model)
         except Exception as e:
             r = {"global_combo_id": gcid, "error": str(e), "tb": traceback.format_exc()[:400]}
             print(f"  ERROR: {e}")
@@ -93,13 +96,14 @@ def main():
                 if "skipped" in f: continue
                 print(f"  top_{pct}%: ret={f.get('total_return_pct',0):.1f}% sharpe={f.get('sharpe_ratio',0):.2f} skip={f.get('skip_rate',0):.1%}")
 
+    # Surrogate combos
     surrogate = pd.read_csv(SURROGATE_CSV)
     for i, row in surrogate.iterrows():
         gcid = f"surrogate_{i}"
         print(f"\n=== {gcid} ===")
         combo = fbs.row_to_combo(i, row)
         try:
-            r = backtest_one_pct_v3(gcid, combo, booster, cals)
+            r = backtest_one_pct(gcid, combo, model)
         except Exception as e:
             r = {"global_combo_id": gcid, "error": str(e), "tb": traceback.format_exc()[:400]}
             print(f"  ERROR: {e}")

@@ -14,7 +14,6 @@ Usage:
 """
 
 import argparse
-import hashlib
 import json
 import sys
 import time
@@ -47,7 +46,8 @@ import matplotlib.pyplot as plt
 # ── Constants ────────────────────────────────────────────────────────────────
 
 DATA_DIR = Path("data/ml")
-OUTPUT_DIR = DATA_DIR / "adaptive_rr_v2"
+OUTPUT_DIR = DATA_DIR / "adaptive_rr_heldout"
+HELDOUT_COMBO_ID = "v10_9955"
 
 # 15 entry features from the sweep trade dicts
 ENTRY_FEATURES = [
@@ -77,13 +77,6 @@ DERIVED_FEATURES = [
 ]
 
 ALL_FEATURES = ENTRY_FEATURES + COMBO_FEATURES + [RR_FEATURE] + DERIVED_FEATURES
-
-
-def shared_cache_path() -> Path:
-    # Key cache by features + R:R grid so schema drift invalidates automatically.
-    key = json.dumps({"features": ALL_FEATURES, "rr_levels": RR_LEVELS}, sort_keys=True)
-    h = hashlib.sha1(key.encode()).hexdigest()[:12]
-    return DATA_DIR / f"adaptive_rr_cache_{h}.parquet"
 
 CATEGORICAL_COLS = ["stop_method", "side"]
 
@@ -158,8 +151,10 @@ def parse_args() -> argparse.Namespace:
                    help="Skip combos with fewer trades (default: 30)")
     p.add_argument("--n-folds", type=int, default=5,
                    help="CV folds (default: 5)")
-    p.add_argument("--no-cache", action="store_true",
-                   help="Skip shared cache lookup + save (force rebuild, don't persist)")
+    p.add_argument("--skip-expansion", action="store_true",
+                   help="Reuse cached expanded dataset (requires --cache-expanded on a prior run)")
+    p.add_argument("--cache-expanded", action="store_true",
+                   help="Cache expanded dataset to disk after building (off by default to save RAM)")
     return p.parse_args()
 
 
@@ -650,30 +645,42 @@ def main() -> None:
     print("Adaptive R:R Model — P(win | features, candidate_rr)")
     print("=" * 70)
 
-    expanded_path = shared_cache_path()
+    expanded_path = OUTPUT_DIR / "expanded_dataset.parquet"
 
-    # Cache is keyed by hash(ALL_FEATURES + RR_LEVELS); any schema drift lands
-    # on a new path, so a hit here is always safe. --no-cache forces rebuild.
-    if expanded_path.exists() and not args.no_cache:
-        print(f"\n[cache] Hit: {expanded_path.name}")
+    if args.skip_expansion and expanded_path.exists():
+        print("\n[load] Loading cached expanded dataset...")
         expanded = pd.read_parquet(expanded_path)
         print(f"  Loaded: {len(expanded):,} rows")
     else:
+        # Step 1: Load MFE parquets — stream-subsample per version at load
+        # time so peak RAM stays bounded regardless of source file size.
         target_base = args.max_rows // len(RR_LEVELS)
+        # Oversample by 20% so filter_combos + stratified picks still have headroom
         target_load = int(target_base * 1.2)
         print(f"\n[load] Loading _mfe.parquet files for versions: {args.versions}")
         print(f"  Target base trades post-load: {target_load:,}")
         df = load_mfe_parquets(args.versions, target_load)
 
+        # Step 2: Filter combos with too few trades
         df = filter_combos(df, args.min_trades_per_combo)
 
-        expanded = expand_rr_levels(df, RR_LEVELS, args.max_rows)
-        del df
+        # Step 2b: Hold out target combo from training
+        n_before = len(df)
+        df = df[df["global_combo_id"] != HELDOUT_COMBO_ID].copy()
+        print(f"  Held out {HELDOUT_COMBO_ID}: "
+              f"{n_before - len(df):,} rows removed; {len(df):,} remain")
 
-        if not args.no_cache:
-            print(f"\n[cache] Saving to shared cache: {expanded_path}")
+        # Step 3: Expand with synthetic labels at each R:R level
+        expanded = expand_rr_levels(df, RR_LEVELS, args.max_rows)
+        del df  # release pre-expansion frame before training allocates LGB dataset
+
+        # Cache only if explicitly requested (expanded frame can be ~2 GB at 10M rows;
+        # serialization temporarily doubles memory). Default: skip the cache.
+        if args.cache_expanded:
+            print(f"\n[cache] Saving expanded dataset to {expanded_path}...")
             expanded.to_parquet(expanded_path, compression="snappy", index=False)
-            print(f"  Saved: {expanded_path.stat().st_size / 1e9:.2f} GB")
+            print(f"  Saved: {expanded_path} "
+                  f"({expanded_path.stat().st_size / 1e9:.2f} GB)")
 
     # Step 4: Train model
     result = train_model(expanded, args.n_folds)

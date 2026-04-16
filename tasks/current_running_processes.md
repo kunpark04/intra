@@ -13,7 +13,7 @@ file when jobs start/finish.
 | PID   | Started  | Elapsed | CPU  | RSS    | Script                              | Part B item |
 |-------|----------|---------|------|--------|-------------------------------------|-------------|
 | 27951 | 04:42    | ~1h08m  | 187% | 282 MB | `scripts/permutation_test_ml1.py`   | **B3** — Permutation test on ML#1 (shuffle target labels → retrain → confirm AUC collapses) |
-| 28016 | 04:42    | ~1h08m  | 184% | 4.03 GB | `scripts/adaptive_rr_model_b9.py`  | **B9** — Monotonic constraint on `candidate_rr` + `rr_x_atr` (wraps V2 with LightGBM `monotone_constraints=-1`) |
+| 28016 | 04:42    | ~1h08m  | 184% | 4.03 GB | `scripts/adaptive_rr_model_monotonic_v2.py`  | **B9** — Monotonic constraint on `candidate_rr` + `rr_x_atr` (wraps V2 with LightGBM `monotone_constraints=-1`) |
 
 Both processes are `Rl` (running, multi-threaded). `b9` has not yet written
 artifacts to `data/ml/adaptive_rr_b9/` — expected; the V2-with-constraint

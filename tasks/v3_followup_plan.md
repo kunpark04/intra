@@ -23,24 +23,24 @@ self-contained enough to execute in a fresh chat context.
 
 | Script | Load site | Output |
 |---|---|---|
-| `scripts/filter_backtest.py` | L22 `V2_MODEL = ...adaptive_rr_v2/adaptive_rr_model.txt` | `filter_backtest.json` |
-| `scripts/filter_backtest_per_combo.py` | Imports `V2_MODEL` from `filter_backtest.py`; L78 `lgb.Booster(...)` | `filter_backtest_per_combo.json` |
-| `scripts/filter_backtest_percentile.py` | Imports `V2_MODEL`; L78 `lgb.Booster(...)` | `filter_backtest_percentile.json` |
-| `scripts/filter_backtest_surrogate.py` | Imports `V2_MODEL`; L89 `lgb.Booster(...)` | `filter_backtest_surrogate.json` |
-| `scripts/b6_heldout_time_eval.py` | L82 `default=...adaptive_rr_v2/adaptive_rr_model.txt` | `b6_temporal_ood.json` |
+| `scripts/filter_backtest_v2.py` | L22 `V2_MODEL = ...adaptive_rr_v2/adaptive_rr_model.txt` | `filter_backtest_v2.json` |
+| `scripts/filter_backtest_per_combo_v2.py` | Imports `V2_MODEL` from `filter_backtest_v2.py`; L78 `lgb.Booster(...)` | `filter_backtest_per_combo_v2.json` |
+| `scripts/filter_backtest_percentile_v2.py` | Imports `V2_MODEL`; L78 `lgb.Booster(...)` | `filter_backtest_percentile_v2.json` |
+| `scripts/filter_backtest_surrogate_v2.py` | Imports `V2_MODEL`; L89 `lgb.Booster(...)` | `filter_backtest_surrogate_v2.json` |
+| `scripts/heldout_time_eval_v2.py` | L82 `default=...adaptive_rr_v2/adaptive_rr_model.txt` | `b6_temporal_ood.json` |
 
 ### Existing calibrator
 
-- `scripts/recalibrate_adaptive_rr.py` — L47–58 trains **static** per-R:R
+- `scripts/recalibrate_adaptive_rr_v1.py` — L47–58 trains **static** per-R:R
   `IsotonicRegression` from OOF predictions. **Not time-rolling.**
 
 ### Known baselines (pre-V3)
 
-- B1 (`filter_backtest_per_combo.json`): bimodal threshold distribution,
+- B1 (`filter_backtest_per_combo_v2.json`): bimodal threshold distribution,
   WR×threshold ρ=0.341.
-- B2 (`filter_backtest_percentile.json`): top-25% wins 34/48 combos,
+- B2 (`filter_backtest_percentile_v2.json`): top-25% wins 34/48 combos,
   median Sharpe lift **+3.87**.
-- B4 (`filter_backtest_surrogate.json`): median Sharpe lift **+2.65** across
+- B4 (`filter_backtest_surrogate_v2.json`): median Sharpe lift **+2.65** across
   50 surrogate combos × 3 thresholds.
 - B6 (`b6_temporal_ood.json`): test AUC 0.8014 (Δ −0.004 vs train), but
   **ECE 0.062** — calibration drift is the gating blocker for B16.
@@ -49,12 +49,12 @@ self-contained enough to execute in a fresh chat context.
 
 - Do **not** re-run the V2 scripts with V3 artifacts by string-replacing
   paths. V3's feature matrix has Family A + `global_combo_id`; V2's
-  `build_feature_matrix` in `filter_backtest.py` does not compute these.
+  `build_feature_matrix` in `filter_backtest_v2.py` does not compute these.
   Always add V3-specific feature construction, don't pretend the models
   are drop-in.
 - Do **not** invent LightGBM APIs — V3 uses the documented
   `lgb.Booster(model_file=...)` load + `.predict(df)` pattern. Confirm in
-  existing `filter_backtest.py::predict_pwin()` before mirroring.
+  existing `filter_backtest_v2.py::predict_pwin()` before mirroring.
 - `global_combo_id` **unseen at inference** falls back to LightGBM's
   default category. For held-out eval (B16/B6), unseen combos are
   expected; report both "seen" and "unseen" subset metrics.
@@ -106,7 +106,7 @@ isotonic. Needed by Phases 3 and 4.
 
 ### What to do
 
-1. Open `scripts/filter_backtest.py` and copy its `predict_pwin()` /
+1. Open `scripts/filter_backtest_v2.py` and copy its `predict_pwin()` /
    `build_feature_matrix()` pattern. The V3 version must additionally:
    - Before prediction: call a `compute_family_a(df)` that mirrors
      `scripts/adaptive_rr_model_v3.py::add_family_a` (same sort key, same
@@ -116,7 +116,7 @@ isotonic. Needed by Phases 3 and 4.
      dict of R:R → `IsotonicRegression` (fit via
      `iso.X_thresholds_ = np.array(X)` / `iso.y_thresholds_ = np.array(y)`
      pattern; check `sklearn.isotonic` source if unsure), apply per-R:R.
-2. Save as `scripts/v3_inference.py` with a single exported function
+2. Save as `scripts/inference_v3.py` with a single exported function
    `predict_pwin_v3(base_trade_df, rr_levels) -> np.ndarray` returning a
    calibrated P(win) matrix shape `(n_trades, len(rr_levels))`.
 3. Unit-test by round-tripping the OOF predictions:
@@ -126,7 +126,7 @@ isotonic. Needed by Phases 3 and 4.
 
 ### Verification
 
-- `python -c "from v3_inference import predict_pwin_v3; ..."` returns
+- `python -c "from inference_v3 import predict_pwin_v3; ..."` returns
   expected shape and values close to OOF.
 
 ### Anti-patterns
@@ -146,12 +146,12 @@ benchmarks. Only proceed if Phase 1 passed the AUC/ECE gates.
 
 ### What to do
 
-1. For each of `filter_backtest_per_combo.py`, `filter_backtest_percentile.py`,
-   `filter_backtest_surrogate.py`:
+1. For each of `filter_backtest_per_combo_v2.py`, `filter_backtest_percentile_v2.py`,
+   `filter_backtest_surrogate_v2.py`:
    - Copy the file to a `_v3.py` variant.
    - Replace the `V2_MODEL` constant with
      `V3_MODEL = REPO / "data/ml/adaptive_rr_v3/booster_v3.txt"`.
-   - Swap the `predict_pwin` call for `v3_inference.predict_pwin_v3`.
+   - Swap the `predict_pwin` call for `inference_v3.predict_pwin_v3`.
    - Change output JSON path to
      `data/ml/adaptive_rr_v3/filter_backtest_<name>_v3.json`.
 2. Run each on sweep-runner-1 under `systemd-run -p MemoryMax=5G
@@ -185,7 +185,7 @@ the post-2024-10-22 regime shift; a time-rolling recalibrator does.
 
 ### What to do
 
-1. Open `scripts/recalibrate_adaptive_rr.py` L47–58. The existing pattern
+1. Open `scripts/recalibrate_adaptive_rr_v1.py` L47–58. The existing pattern
    fits one `IsotonicRegression` per R:R on all OOF data. Extend it:
    - Add a `--window` arg (trades, default 5000) and `--refit-every` arg
      (trades, default 500).
@@ -196,7 +196,7 @@ the post-2024-10-22 regime shift; a time-rolling recalibrator does.
 2. Output to
    `data/ml/adaptive_rr_v3/rolling_calibrators/{ts}_rr_{rr}.joblib` +
    a manifest `rolling_manifest.json`.
-3. Update `scripts/v3_inference.py` (Phase 2) to optionally use the
+3. Update `scripts/inference_v3.py` (Phase 2) to optionally use the
    rolling calibrators.
 
 ### Verification
@@ -223,9 +223,9 @@ the post-2024-10-22 regime shift; a time-rolling recalibrator does.
 
 ### What to do
 
-1. Copy `scripts/b6_heldout_time_eval.py` to `scripts/b16_final_eval.py`.
+1. Copy `scripts/heldout_time_eval_v2.py` to `scripts/final_holdout_eval_v3.py`.
 2. Update model load path to V3 (`booster_v3.txt`) and integrate
-   `v3_inference.predict_pwin_v3` + rolling calibrator from Phase 4.
+   `inference_v3.predict_pwin_v3` + rolling calibrator from Phase 4.
 3. Run the top stack (ML#1-v2filtered top combos + V3 filter + per-combo
    or percentile threshold from Phase 3 winner) on the 20% test bars.
 4. Report: AUC, ECE (static + rolling), Sharpe / DD / WR / total return
@@ -316,7 +316,7 @@ generation the whole loop is ~3–4 hrs wall clock.
 
 - **Goal**: map the ECE surface; verify 5000/500 wasn't a lucky
   pick; find the robust plateau for productionization.
-- **Implementation**: extend `scripts/b6_rolling_recal_v3.py` to
+- **Implementation**: extend `scripts/rolling_recal_v3.py` to
   accept a `--grid` JSON arg, loop over configs, emit one row per
   config to `data/ml/adaptive_rr_v3/b6_rolling_grid.json`. Remote
   launcher mirrors Phase 4's pattern.

@@ -190,7 +190,7 @@ Before trusting for deployment:
 3. Run `python scripts/sweep_status.py` — confirm all DONE.
 4. Write + run `scripts/validate_mfe_parquets.py` (Phase 1). Report result.
 5. STOP if Phase 1 fails; investigate.
-6. Write `scripts/adaptive_rr_model.py` (Phase 2 training).
+6. Write `scripts/adaptive_rr_model_v1.py` (Phase 2 training).
    - **Spawn a reviewing agent** after writing, before running (per
      CLAUDE.md "Reviewing Agent Protocol"). This is a new non-trivial
      module touching labels + CV split — review required.

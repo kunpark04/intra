@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS validation_results (
     run_timestamp       TEXT NOT NULL
 );
 
--- ML optimizer run metadata (one row per ml_optimizer.py execution).
+-- ML optimizer run metadata (one row per ml1_surrogate.py execution).
 CREATE TABLE IF NOT EXISTS ml_runs (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     run_timestamp           TEXT NOT NULL,

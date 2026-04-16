@@ -11,7 +11,7 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-spec = importlib.util.spec_from_file_location("mlo", REPO / "scripts/ml_optimizer.py")
+spec = importlib.util.spec_from_file_location("mlo", REPO / "scripts/ml1_surrogate.py")
 mlo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mlo)
 
@@ -21,7 +21,7 @@ OUT = REPO / "data/ml/lgbm_results/permutation_test.json"
 def main():
     cached = mlo.OUTPUT_DIR / "combo_features.parquet"
     if not cached.exists():
-        print(f"Missing {cached}; run ml_optimizer first.")
+        print(f"Missing {cached}; run ml1_surrogate first.")
         sys.exit(1)
     df = pd.read_parquet(cached)
     for col in mlo.CATEGORICAL_COLS:

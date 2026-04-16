@@ -12,7 +12,7 @@ and `tasks/ml1_ml2_synthesis_roadmap.md` (task sequencing).
 
 | | **ML#1** (combo-grain ranker) | **ML#2** (trade-grain P(win)) |
 |---|---|---|
-| Script | `scripts/ml_optimizer.py` | `scripts/adaptive_rr_model_v2.py` |
+| Script | `scripts/ml1_surrogate.py` | `scripts/adaptive_rr_model_v2.py` |
 | Grain | One row per parameter combo (~33k) | One row per trade × R:R level (~10M) |
 | Target | Composite score (Sharpe, return, DD, WR, count) | Binary `would_win` from MFE/MAE synthetic label |
 | CV | 5-fold KFold on combos | StratifiedGroupKFold on `global_combo_id` |
@@ -208,7 +208,7 @@ cracks top-5.
   we'd hoped for.
 - **Go/no-go**: V3 is a net upgrade (better calibration, marginal AUC,
   Family A + combo_id added without regressions). Proceeding with Phase 2
-  (v3_inference helper) and Phase 3 (filter backtest re-runs) per
+  (inference_v3 helper) and Phase 3 (filter backtest re-runs) per
   `tasks/v3_followup_plan.md`. AUC gate was aspirational; calibration and
   feature lineup are the real wins.
 

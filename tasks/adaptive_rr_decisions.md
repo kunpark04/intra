@@ -1,6 +1,6 @@
 # Adaptive R:R Model Decisions
 
-Key design choices for `scripts/adaptive_rr_model.py`.
+Key design choices for `scripts/adaptive_rr_model_v1.py`.
 
 ---
 
@@ -8,7 +8,7 @@ Key design choices for `scripts/adaptive_rr_model.py`.
 
 **Decision**: Each row is one trade at one candidate R:R level, predicting P(win).
 
-**Reasoning**: Unlike ml_optimizer.py which answers "which combo settings are best?",
+**Reasoning**: Unlike ml1_surrogate.py which answers "which combo settings are best?",
 this model answers "for THIS specific trade setup, what R:R maximizes expected value?"
 Trade-level granularity is necessary because different market conditions within the
 same combo warrant different R:R selections.

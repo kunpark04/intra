@@ -18,7 +18,7 @@ the takeaway from each. Anchor for the next round of decisions. Pairs with
 | B9  | Monotonic constraint on `candidate_rr` | Done | `data/ml/adaptive_rr_b9/` |
 | B10 | Kelly-fraction sizing from calibrated P(win) | Done | `data/ml/adaptive_rr_v2/kelly_backtest.json` |
 | B6  | Temporal OOD test for V2 (test-partition bars) | Done | `data/ml/adaptive_rr_v2/b6_temporal_ood.json` + `b6_reliability.png` |
-| B7  | Walk-forward validation (expanding + rolling) | Done | `data/ml/adaptive_rr_v2/b7_walk_forward.json` + `b7_walk_forward.png` |
+| B7  | Walk-forward validation (expanding + rolling) | Done | `data/ml/adaptive_rr_v2/b7_walk_forward.json` + `walk_forward_v2.png` |
 | B8  | Feature engineering ablation (autocorr/recency/regime) | Done | `data/ml/adaptive_rr_v2/b8_feature_eng.json` |
 | B8-SHAP | Identity-leakage audit on Family A | Done | `data/ml/adaptive_rr_v2/b8_shap_audit.json` + 3 PNGs |
 
@@ -221,7 +221,7 @@ signature (WR 95–99%, n=120–240).
   (512,499 bars, post 2024-10-22) using the new
   `param_sweep.py --eval-partition test` flag → 118,985 test-bar trades →
   2,022,745 expanded rows at 17 R:R levels.
-- Applied trained V2 booster (`adaptive_rr_model.txt`, trained on 80% train
+- Applied trained V2 booster (`adaptive_rr_model_v1.txt`, trained on 80% train
   bars) and compared AUC / log-loss / Brier / ECE vs training-split OOF
   metrics in `run_metadata.json`.
 
@@ -535,7 +535,7 @@ the rolling recalibrator; static calibrators (V2 or V3) are not
 safe for absolute-probability use on recent bars.
 
 Artifacts: `data/ml/adaptive_rr_v3/b6_rolling_recal.json`,
-`scripts/b6_rolling_recal_v3.py`.
+`scripts/rolling_recal_v3.py`.
 
 ---
 
@@ -1030,7 +1030,7 @@ Phase 5C is a **third null-to-negative result for the per-combo two-stage calibr
 
 ## Phase 5D — B16 FINAL held-out eval (test partition, 20% OOS)
 
-**Script:** `scripts/b16_final_eval.py`
+**Script:** `scripts/final_holdout_eval_v3.py`
 **Artifact:** `data/ml/adaptive_rr_v3/b16_final_eval.json`
 **Combos:** 10 total — top-5 high-freq (v10_7649, v10_8617, v10_9264, v10_9393, v6_1676) + bottom-5 low-freq (v10_9955, v5_158, v5_2904, v7_2114, v7_215)
 **Partition:** 20% of bars held out from training (post-2018-ish chronological test)

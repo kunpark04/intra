@@ -24,10 +24,10 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-spec_fb = importlib.util.spec_from_file_location("fb", REPO / "scripts/filter_backtest.py")
+spec_fb = importlib.util.spec_from_file_location("fb", REPO / "scripts/filter_backtest_v2.py")
 fb = importlib.util.module_from_spec(spec_fb); spec_fb.loader.exec_module(fb)
 
-spec_v3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/v3_inference.py")
+spec_v3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/inference_v3.py")
 v3inf = importlib.util.module_from_spec(spec_v3); spec_v3.loader.exec_module(v3inf)
 
 OUT = REPO / "data/ml/adaptive_rr_v3/portfolio_sim_v3.json"

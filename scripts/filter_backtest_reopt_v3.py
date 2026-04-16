@@ -20,13 +20,13 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-spec = importlib.util.spec_from_file_location("fb", REPO / "scripts/filter_backtest.py")
+spec = importlib.util.spec_from_file_location("fb", REPO / "scripts/filter_backtest_v2.py")
 fb = importlib.util.module_from_spec(spec); spec.loader.exec_module(fb)
 
-spec2 = importlib.util.spec_from_file_location("fbs", REPO / "scripts/filter_backtest_surrogate.py")
+spec2 = importlib.util.spec_from_file_location("fbs", REPO / "scripts/filter_backtest_surrogate_v2.py")
 fbs = importlib.util.module_from_spec(spec2); spec2.loader.exec_module(fbs)
 
-spec3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/v3_inference.py")
+spec3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/inference_v3.py")
 v3inf = importlib.util.module_from_spec(spec3); spec3.loader.exec_module(v3inf)
 
 OUT = REPO / "data/ml/adaptive_rr_v3/filter_backtest_reopt_v3.json"

@@ -1,4 +1,8 @@
-"""B4 V3 variant: 50-surrogate-combo filter backtest using V3 booster + Family A."""
+"""B4: Filter backtest on all 50 surrogate combos from ML#1.
+
+Surrogate combos are novel parameter samples (no existing sweep runs), so we
+build the combo dict directly from the CSV row and run the normal pipeline.
+"""
 import importlib.util, json, sys, traceback
 from pathlib import Path
 import numpy as np
@@ -8,19 +12,35 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 spec = importlib.util.spec_from_file_location("fb", REPO / "scripts/filter_backtest_v2.py")
-fb = importlib.util.module_from_spec(spec); spec.loader.exec_module(fb)
-
-spec2 = importlib.util.spec_from_file_location("fbs", REPO / "scripts/filter_backtest_surrogate_v2.py")
-fbs = importlib.util.module_from_spec(spec2); spec2.loader.exec_module(fbs)
-
-spec3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/inference_v3.py")
-v3inf = importlib.util.module_from_spec(spec3); spec3.loader.exec_module(v3inf)
+fb = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(fb)
 
 SURROGATE_CSV = REPO / "data/ml/lgbm_results/surrogate_top_combos.csv"
-OUT = REPO / "data/ml/adaptive_rr_v3/filter_backtest_surrogate_v3.json"
+OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_surrogate.json"
+
+META_COLS = [
+    "z_band_k", "z_window", "volume_zscore_window", "ema_fast", "ema_slow",
+    "stop_method", "stop_fixed_pts", "atr_multiplier", "swing_lookback",
+    "min_rr", "exit_on_opposite_signal", "use_breakeven_stop", "max_hold_bars",
+    "zscore_confirmation", "z_input", "z_anchor", "z_denom", "z_type",
+    "z_window_2", "z_window_2_weight", "volume_entry_threshold",
+    "vol_regime_lookback", "vol_regime_min_pct", "vol_regime_max_pct",
+    "session_filter_mode", "tod_exit_hour",
+]
 
 
-def backtest_one_surrogate_v3(gcid: str, combo: dict, booster, cals) -> dict:
+def row_to_combo(i: int, row: pd.Series) -> dict:
+    combo = {"global_combo_id": f"surrogate_{i}", "source_version": -1, "combo_id": i}
+    for c in META_COLS:
+        if c in row.index:
+            v = row[c]
+            combo[c] = None if (isinstance(v, (float, np.floating)) and pd.isna(v)) else v
+        else:
+            combo[c] = None
+    return combo
+
+
+def backtest_one_surrogate(gcid: str, combo: dict, model) -> dict:
     avf = fb.avf
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -37,8 +57,7 @@ def backtest_one_surrogate_v3(gcid: str, combo: dict, booster, cals) -> dict:
     feats = avf.build_features(trades, df_sig, stop_pts,
                                str(combo["stop_method"]),
                                bool(combo["exit_on_opposite_signal"]))
-    pwin = v3inf.predict_pwin_v3_at_rr(feats, trades, gcid, stop_pts, rr,
-                                       booster=booster, calibrators=cals)
+    pwin = fb.predict_pwin_at_rr(feats, model, rr)
     ev = pwin * rr - (1.0 - pwin)
 
     fixed_res = avf.simulate_fixed(trades)
@@ -66,16 +85,15 @@ def backtest_one_surrogate_v3(gcid: str, combo: dict, booster, cals) -> dict:
 def main():
     import lightgbm as lgb
     surrogate = pd.read_csv(SURROGATE_CSV)
-    print(f"Running V3 filter on {len(surrogate)} surrogate combos")
-    booster = lgb.Booster(model_file=str(v3inf.V3_BOOSTER))
-    cals = v3inf._load_calibrators()
-    all_results = {"model": "v3", "combos": []}
+    print(f"Running filter on {len(surrogate)} surrogate combos")
+    model = lgb.Booster(model_file=str(fb.V2_MODEL))
+    all_results = {"model": "v2", "combos": []}
     for i, row in surrogate.iterrows():
         gcid = f"surrogate_{i}"
         print(f"\n[{i+1}/{len(surrogate)}] {gcid} min_rr={row['min_rr']:.2f}")
-        combo = fbs.row_to_combo(i, row)
+        combo = row_to_combo(i, row)
         try:
-            r = backtest_one_surrogate_v3(gcid, combo, booster, cals)
+            r = backtest_one_surrogate(gcid, combo, model)
         except Exception as e:
             r = {"global_combo_id": gcid, "error": str(e), "tb": traceback.format_exc()[:500]}
             print(f"  ERROR: {e}")
