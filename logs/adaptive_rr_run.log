@@ -103,8 +103,8 @@ Adaptive R:R Model — P(win | features, candidate_rr)
   Saved optimal_rr_distribution.png
 
 [save] Saving model and metadata...
-  Model saved: data/ml/adaptive_rr/adaptive_rr_model.txt
-  Metadata saved: data/ml/adaptive_rr/run_metadata.json
+  Model saved: data/ml/adaptive_rr_v1/adaptive_rr_model.txt
+  Metadata saved: data/ml/adaptive_rr_v1/run_metadata.json
 
 ======================================================================
 SUMMARY
@@ -115,5 +115,5 @@ SUMMARY
   Mean optimal R:R: 4.11
   Trades with E[R] > 0: 7.2%
   Runtime: 2.4 min
-  Output: data/ml/adaptive_rr
+  Output: data/ml/adaptive_rr_v1
 ======================================================================

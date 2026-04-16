@@ -15,7 +15,7 @@ v2 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(v2)
 
 # Override output dir
-v2.OUTPUT_DIR = v2.DATA_DIR / "adaptive_rr_b9"
+v2.OUTPUT_DIR = v2.DATA_DIR / "adaptive_rr_monotonic_v2"
 v2.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Build monotone constraints list aligned with ALL_FEATURES order.

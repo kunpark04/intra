@@ -30,11 +30,11 @@ import pandas as pd
 # ── Paths ───────────────────────────────────────────────────────────────────
 
 DEFAULT_DB_PATH = Path("data/ml/strategy.db")
-COMBO_FEATURES_PATH = Path("data/ml/lgbm_results/combo_features.parquet")
-TOP_COMBOS_PATH = Path("data/ml/lgbm_results/top_combos.csv")
-VALIDATION_DIR = Path("data/ml/lgbm_results/validation")
-RUN_METADATA_PATH = Path("data/ml/lgbm_results/run_metadata.json")
-CV_RESULTS_PATH = Path("data/ml/lgbm_results/cv_results.json")
+COMBO_FEATURES_PATH = Path("data/ml/ml1_results/combo_features.parquet")
+TOP_COMBOS_PATH = Path("data/ml/ml1_results/top_combos.csv")
+VALIDATION_DIR = Path("data/ml/ml1_results/validation")
+RUN_METADATA_PATH = Path("data/ml/ml1_results/run_metadata.json")
+CV_RESULTS_PATH = Path("data/ml/ml1_results/cv_results.json")
 ML_DATA_DIR = Path("data/ml")
 
 # ── Parameter columns in combo_features.parquet ────────────────────────────

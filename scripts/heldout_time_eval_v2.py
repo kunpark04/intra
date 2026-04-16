@@ -83,7 +83,7 @@ def parse_args() -> argparse.Namespace:
                    help="V2 LightGBM model file")
     p.add_argument("--output-dir", type=Path,
                    default=REPO_ROOT / "data/ml/adaptive_rr_v2",
-                   help="Where to write b6_temporal_ood.json + reliability PNG")
+                   help="Where to write heldout_time_eval_v2.json + reliability PNG")
     p.add_argument("--max-base-trades", type=int, default=500_000,
                    help="Cap base trades before R:R expansion (default: 500k "
                         "→ 8.5M expanded rows)")
@@ -242,7 +242,7 @@ def main() -> None:
                  f"ECE={overall['ece_20bin']:.3f})")
     ax.legend()
     ax.grid(alpha=0.3)
-    png_path = args.output_dir / "b6_reliability.png"
+    png_path = args.output_dir / "heldout_time_reliability_v2.png"
     fig.savefig(png_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"[b6] Saved {png_path}")
@@ -264,7 +264,7 @@ def main() -> None:
         "per_rr": per_rr,
         "runtime_seconds": time.time() - t0,
     }
-    out_path = args.output_dir / "b6_temporal_ood.json"
+    out_path = args.output_dir / "heldout_time_eval_v2.json"
     out_path.write_text(json.dumps(result, indent=2, default=str))
     print(f"[b6] Saved {out_path}")
 

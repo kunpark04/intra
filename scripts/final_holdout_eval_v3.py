@@ -10,7 +10,7 @@ Scope:
 - Warm cohort (>=300 trades) vs cold cohort split
 - Decision verdict: % of warm combos where kelly_twostage Sharpe > fixed5 Sharpe
 
-Output: data/ml/adaptive_rr_v3/b16_final_eval.json
+Output: data/ml/adaptive_rr_v3/final_holdout_eval_v3.json
 """
 from __future__ import annotations
 import importlib.util, json, math, sys, time, traceback
@@ -27,7 +27,7 @@ fb = importlib.util.module_from_spec(spec_fb); spec_fb.loader.exec_module(fb)
 spec_v3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/inference_v3.py")
 v3inf = importlib.util.module_from_spec(spec_v3); spec_v3.loader.exec_module(v3inf)
 
-OUT = REPO / "data/ml/adaptive_rr_v3/b16_final_eval.json"
+OUT = REPO / "data/ml/adaptive_rr_v3/final_holdout_eval_v3.json"
 
 HIGH_FREQ = ["v10_7649", "v10_8617", "v10_9264", "v10_9393", "v6_1676"]
 LOW_FREQ = ["v10_9955", "v5_158", "v5_2904", "v7_2114", "v7_215"]

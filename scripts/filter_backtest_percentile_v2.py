@@ -20,8 +20,8 @@ spec2 = importlib.util.spec_from_file_location("fbs", REPO / "scripts/filter_bac
 fbs = importlib.util.module_from_spec(spec2)
 spec2.loader.exec_module(fbs)
 
-OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_percentile.json"
-SURROGATE_CSV = REPO / "data/ml/lgbm_results/surrogate_top_combos.csv"
+OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_percentile_v2.json"
+SURROGATE_CSV = REPO / "data/ml/ml1_results/surrogate_top_combos.csv"
 
 PERCENTILES = [25, 50, 75, 90]  # keep top-X% by E[R]
 

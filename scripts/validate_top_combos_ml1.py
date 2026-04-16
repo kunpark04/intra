@@ -43,8 +43,8 @@ from src.strategy import generate_signals
 # ── Constants ────────────────────────────────────────────────────────────────
 
 STARTING_EQUITY = 50_000.0
-TOP_COMBOS_PATH = Path("data/ml/lgbm_results/top_combos.csv")
-OUTPUT_DIR = Path("data/ml/lgbm_results/validation")
+TOP_COMBOS_PATH = Path("data/ml/ml1_results/top_combos.csv")
+OUTPUT_DIR = Path("data/ml/ml1_results/validation")
 
 # ── CLI ──────────────────────────────────────────────────────────────────────
 

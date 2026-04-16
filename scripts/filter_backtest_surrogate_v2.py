@@ -15,8 +15,8 @@ spec = importlib.util.spec_from_file_location("fb", REPO / "scripts/filter_backt
 fb = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fb)
 
-SURROGATE_CSV = REPO / "data/ml/lgbm_results/surrogate_top_combos.csv"
-OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_surrogate.json"
+SURROGATE_CSV = REPO / "data/ml/ml1_results/surrogate_top_combos.csv"
+OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_surrogate_v2.json"
 
 META_COLS = [
     "z_band_k", "z_window", "volume_zscore_window", "ema_fast", "ema_slow",

@@ -8,7 +8,7 @@ variable risk fraction per trade. Compare full / half / quarter Kelly
 (each optionally capped at 5% = current fixed baseline) vs the fixed 5%
 baseline.
 
-Output: data/ml/adaptive_rr_v2/kelly_backtest.json
+Output: data/ml/adaptive_rr_v2/kelly_backtest_v2.json
 """
 from __future__ import annotations
 import importlib.util
@@ -33,8 +33,8 @@ fbs_ok = (REPO / "scripts/filter_backtest_surrogate_v2.py").exists()
 if fbs_ok:
     fbs = importlib.util.module_from_spec(spec2); spec2.loader.exec_module(fbs)
 
-OUT = REPO / "data/ml/adaptive_rr_v2/kelly_backtest.json"
-SURROGATE_CSV = REPO / "data/ml/lgbm_results_v2filtered/surrogate_top_combos.csv"
+OUT = REPO / "data/ml/adaptive_rr_v2/kelly_backtest_v2.json"
+SURROGATE_CSV = REPO / "data/ml/ml1_results_v2filtered/surrogate_top_combos.csv"
 
 # Kelly fraction multipliers to test; None = no multiplier (full Kelly).
 KELLY_VARIANTS = [

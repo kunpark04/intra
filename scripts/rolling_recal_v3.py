@@ -13,7 +13,7 @@ Gate (from tasks/v3_followup_plan.md §Phase 4): rolling ECE < 0.015 on the
 held-out bars (static baseline 0.062). If that holds, rolling recalibration
 addresses the post-2024-10-22 regime drift; if not, document the null.
 
-Output: data/ml/adaptive_rr_v3/b6_rolling_recal.json
+Output: data/ml/adaptive_rr_v3/rolling_recal_v3.json
 """
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ from inference_v3 import _apply_calibrator, _load_calibrators  # noqa: E402
 V3_DIR = REPO / "data/ml/adaptive_rr_v3"
 V3_BOOSTER = V3_DIR / "booster_v3.txt"
 V3_CALIBRATORS = V3_DIR / "isotonic_calibrators_v3.json"
-OUT_PATH = V3_DIR / "b6_rolling_recal.json"
+OUT_PATH = V3_DIR / "rolling_recal_v3.json"
 
 PARQUET_COLUMNS = [
     "combo_id", "mfe_points", "stop_distance_pts",

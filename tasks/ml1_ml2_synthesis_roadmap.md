@@ -13,7 +13,7 @@ for future sessions — read this before proposing new ML work.
 ### ML #1 (combo-grain)
 
 - **Script**: `scripts/ml1_surrogate.py`
-- **Output**: `data/ml/lgbm_results/`
+- **Output**: `data/ml/ml1_results/`
 - **Purpose**: rank parameter configurations by predicted composite score
   (Sharpe 0.25 + return 0.25 + DD 0.20 + WR 0.15 + trade count 0.15).
 - **Data**: ~33K combos from sweeps v2–v10, aggregated from ~80M trades to
@@ -34,7 +34,7 @@ for future sessions — read this before proposing new ML work.
 
 - **Script**: `scripts/adaptive_rr_model_v1.py` → V1 (broken)
   and `scripts/adaptive_rr_model_v2.py` → V2 (fixed)
-- **Output**: `data/ml/adaptive_rr/` and `data/ml/adaptive_rr_v2/`
+- **Output**: `data/ml/adaptive_rr_v1/` and `data/ml/adaptive_rr_v2/`
 - **Purpose**: predict P(win) for each trade at each of 17 R:R levels
   (1.0 → 5.0, step 0.25); use for R:R selection or filtering.
 - **Data**: ~10M expanded rows (~600K base trades × 17 R:R levels) subsampled
@@ -300,7 +300,7 @@ discussed but **not** adopted as standing policy. Use only when re-requested.
 - **Consolidated Part B findings**: `tasks/part_b_findings.md`
 - ML#1 decisions: `tasks/ml_decisions.md` (§D14–D16 cover B5 + MIN_RR)
 - ML#2 decisions: `tasks/adaptive_rr_decisions.md` (§D10–D12 cover B9/B10 + MIN_RR)
-- ML#2 phase-2 training plan (original): `tasks/adaptive_rr_phase2_plan.md`
+- ML#2 phase-2 training plan (original): `tasks/adaptive_rr_plan.md`
 - Sweep monitor protocol: `tasks/v10_sweep_monitor_plan.md`
 - Reviewing-agent protocol: `CLAUDE.md` § Reviewing Agent Protocol
 - Train/test split policy: `CLAUDE.md` § Train / test split policy
@@ -314,7 +314,7 @@ Week 1 (B1/B2/B3/B4/B9) + Week 2 (B5/B10) tasks complete. Full results
 and cross-task synthesis in `tasks/part_b_findings.md`.
 
 **Stack that won on in-sample data**:
-1. ML#1-v2filtered combo ranking (`data/ml/lgbm_results_v2filtered/`)
+1. ML#1-v2filtered combo ranking (`data/ml/ml1_results_v2filtered/`)
 2. V2 used as a filter, not an R:R picker (B9 closed the picker path)
 3. Per-combo absolute-E[R] threshold (B1) or top-25% percentile (B2)
 4. Optional: Kelly-cap5 sizing on combos where it helps (B10)

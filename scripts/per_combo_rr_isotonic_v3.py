@@ -6,7 +6,7 @@ This test keys the expanding isotonic on (combo_id, R:R): fit on each
 combo's own past trades at that R:R. Fall back to pooled-per-R:R
 expanding isotonic when the combo has fewer than MIN_FIT past trades.
 
-Output: data/ml/adaptive_rr_v3/b6_phase4e.json
+Output: data/ml/adaptive_rr_v3/per_combo_rr_isotonic_v3.json
 """
 from __future__ import annotations
 

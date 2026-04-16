@@ -83,8 +83,8 @@ intra/
       mfe/                            # MFE/MAE-enriched re-runs (adaptive R:R input)
         ml_dataset_v{N}_mfe.parquet
         ml_dataset_v{N}_mfe_manifest.json
-      lgbm_results/                   # ML#1 combo-grain surrogate outputs
-      adaptive_rr/                    # adaptive R:R LightGBM model + artifacts
+      ml1_results/                    # ML#1 combo-grain surrogate outputs
+      adaptive_rr_v1/                 # adaptive R:R LightGBM model + artifacts
       strategy.db                     # sqlite backfill of combos/trades
   src/
     __init__.py

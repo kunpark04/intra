@@ -6,7 +6,7 @@ Runs three diagnostics in one pass (shares the expensive booster predict):
   4b.2  bootstrap CI on rolling ECE at default (5000, 500) config
   4b.3  grid sweep: window x refit_every, report rolling ECE per cell
 
-Output: data/ml/adaptive_rr_v3/b6_phase4b.json
+Output: data/ml/adaptive_rr_v3/recal_robustness_v3.json
 """
 from __future__ import annotations
 

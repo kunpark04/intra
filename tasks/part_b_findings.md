@@ -10,17 +10,17 @@ the takeaway from each. Anchor for the next round of decisions. Pairs with
 
 | ID  | Task | Status | Artifact(s) |
 |-----|------|--------|-------------|
-| B1  | Per-combo optimal filter threshold | Done | `data/ml/adaptive_rr_v2/filter_backtest_per_combo.json` |
-| B2  | Adaptive threshold — E[R] percentile | Done | `data/ml/adaptive_rr_v2/filter_backtest_percentile.json` |
+| B1  | Per-combo optimal filter threshold | Done | `data/ml/adaptive_rr_v2/filter_backtest_per_combo_v2.json` |
+| B2  | Adaptive threshold — E[R] percentile | Done | `data/ml/adaptive_rr_v2/filter_backtest_percentile_v2.json` |
 | B3  | Permutation test on ML#1 | Done | memory 1466 (signal confirmed > noise) |
-| B4  | Filter on surrogate top-50 | Done | `data/ml/adaptive_rr_v2/filter_backtest_surrogate.json` |
-| B5  | Re-train ML#1 on V2-filtered outcomes | Done | `data/ml/lgbm_results_v2filtered/` |
-| B9  | Monotonic constraint on `candidate_rr` | Done | `data/ml/adaptive_rr_b9/` |
-| B10 | Kelly-fraction sizing from calibrated P(win) | Done | `data/ml/adaptive_rr_v2/kelly_backtest.json` |
-| B6  | Temporal OOD test for V2 (test-partition bars) | Done | `data/ml/adaptive_rr_v2/b6_temporal_ood.json` + `b6_reliability.png` |
-| B7  | Walk-forward validation (expanding + rolling) | Done | `data/ml/adaptive_rr_v2/b7_walk_forward.json` + `walk_forward_v2.png` |
-| B8  | Feature engineering ablation (autocorr/recency/regime) | Done | `data/ml/adaptive_rr_v2/b8_feature_eng.json` |
-| B8-SHAP | Identity-leakage audit on Family A | Done | `data/ml/adaptive_rr_v2/b8_shap_audit.json` + 3 PNGs |
+| B4  | Filter on surrogate top-50 | Done | `data/ml/adaptive_rr_v2/filter_backtest_surrogate_v2.json` |
+| B5  | Re-train ML#1 on V2-filtered outcomes | Done | `data/ml/ml1_results_v2filtered/` |
+| B9  | Monotonic constraint on `candidate_rr` | Done | `data/ml/adaptive_rr_monotonic_v2/` |
+| B10 | Kelly-fraction sizing from calibrated P(win) | Done | `data/ml/adaptive_rr_v2/kelly_backtest_v2.json` |
+| B6  | Temporal OOD test for V2 (test-partition bars) | Done | `data/ml/adaptive_rr_v2/heldout_time_eval_v2.json` + `heldout_time_reliability_v2.png` |
+| B7  | Walk-forward validation (expanding + rolling) | Done | `data/ml/adaptive_rr_v2/walk_forward_v2.json` + `walk_forward_v2.png` |
+| B8  | Feature engineering ablation (autocorr/recency/regime) | Done | `data/ml/adaptive_rr_v2/feature_engineering_v2.json` |
+| B8-SHAP | Identity-leakage audit on Family A | Done | `data/ml/adaptive_rr_v2/shap_audit_v2.json` + 3 PNGs |
 
 Outstanding: Full-9.5M V2 retrain on Family A · B11–B15 tier-3 ·
 B16 held-out · B17 paper-trade.
@@ -175,7 +175,7 @@ edge combos need to stay at fixed 5%.
 
 ## B5 feature importance + partial dependence (from retrained surrogate)
 
-From `data/ml/lgbm_results_v2filtered/feature_importance.png` and
+From `data/ml/ml1_results_v2filtered/feature_importance.png` and
 `partial_dependence.png` on the composite-score model.
 
 **Top features by gain**:
@@ -221,7 +221,7 @@ signature (WR 95–99%, n=120–240).
   (512,499 bars, post 2024-10-22) using the new
   `param_sweep.py --eval-partition test` flag → 118,985 test-bar trades →
   2,022,745 expanded rows at 17 R:R levels.
-- Applied trained V2 booster (`adaptive_rr_model_v1.txt`, trained on 80% train
+- Applied trained V2 booster (`adaptive_rr_model.txt`, trained on 80% train
   bars) and compared AUC / log-loss / Brier / ECE vs training-split OOF
   metrics in `run_metadata.json`.
 
@@ -416,9 +416,9 @@ retrain will include `combo_id` as an explicit categorical feature —
 forcing LightGBM to absorb the static combo-quality signal there and
 leaving `prior_wr_50` to carry only residual dynamics.
 
-Artifacts: `data/ml/adaptive_rr_v2/b8_shap_audit.json`,
-`b8_shap_summary.png`, `b8_shap_prior_wr_50_dependence.png`,
-`b8_shap_per_combo_boxplot.png`. Runtime 590s on sweep-runner-1.
+Artifacts: `data/ml/adaptive_rr_v2/shap_audit_v2.json`,
+`shap_summary_v2.png`, `shap_prior_wr_50_dependence_v2.png`,
+`shap_per_combo_boxplot_v2.png`. Runtime 590s on sweep-runner-1.
 
 ---
 
@@ -432,7 +432,7 @@ Artifacts: `data/ml/adaptive_rr_v2/b8_shap_audit.json`,
    combo-specific. Low-freq / high-WR combos want strict filters and
    aggressive Kelly; high-freq / volume-driven combos want loose filters
    and fixed 5%.
-3. **B5 is the new ML#1 baseline**. The unfiltered `lgbm_results/` top-20
+3. **B5 is the new ML#1 baseline**. The unfiltered `ml1_results/` top-20
    is obsolete — zero overlap with the V2-filtered retrain. All downstream
    work (B16 final held-out, B17 paper-trade) should use
    `lgbm_results_v2filtered/top_combos.csv` as the candidate set.
@@ -534,7 +534,7 @@ the calibration drift identified in B6. B16 final held-out must use
 the rolling recalibrator; static calibrators (V2 or V3) are not
 safe for absolute-probability use on recent bars.
 
-Artifacts: `data/ml/adaptive_rr_v3/b6_rolling_recal.json`,
+Artifacts: `data/ml/adaptive_rr_v3/rolling_recal_v3.json`,
 `scripts/rolling_recal_v3.py`.
 
 ---
@@ -543,7 +543,7 @@ Artifacts: `data/ml/adaptive_rr_v3/b6_rolling_recal.json`,
 
 Three diagnostics on the Phase 4 rolling recalibrator, one pass over the
 held-out tail (80k base trades × 17 R:R = 1.36M rows). Artifact:
-`data/ml/adaptive_rr_v3/b6_phase4b.json` (runtime 296s).
+`data/ml/adaptive_rr_v3/recal_robustness_v3.json` (runtime 296s).
 
 **Headline (reconfirmed from Phase 4)**
 
@@ -628,7 +628,7 @@ refit (~33s total vs 2.5s) but halves ECE (0.0070 → 0.0035).
 ### Phase 4c — production config lock-in + expanding-window test
 
 Compared four calibration strategies on the V3 held-out tail (artifact:
-`data/ml/adaptive_rr_v3/b6_phase4c.json`, runtime 186s):
+`data/ml/adaptive_rr_v3/recal_window_compare_v3.json`, runtime 186s):
 
 | Variant | ECE | Fit time | Verdict |
 |---|---|---|---|
@@ -671,7 +671,7 @@ Rolling (20000, 100) remains the absolute-optimum fallback if ECE
 
 Broke the expanding_100 pooled ECE 0.0039 down by `global_combo_id`
 across the 104 combos with ≥500 held-out rows. Artifact:
-`data/ml/adaptive_rr_v3/b6_phase4d.json` (runtime 138s).
+`data/ml/adaptive_rr_v3/per_combo_ece_audit_v3.json` (runtime 138s).
 
 #### Per-combo ECE distribution
 
@@ -744,7 +744,7 @@ pooled-calibrated probabilities for high-win-rate combos.
 
 Tested per-(combo, R:R) expanding causal isotonic with pooled
 fallback when a combo stream has <300 past trades at that R:R.
-Artifact: `data/ml/adaptive_rr_v3/b6_phase4e.json` (runtime 147s).
+Artifact: `data/ml/adaptive_rr_v3/per_combo_rr_isotonic_v3.json` (runtime 147s).
 
 #### Overall outcome
 
@@ -824,7 +824,7 @@ causal isotonic fit on its full cross-R:R stream (17× more samples
 per combo). Pooled per-R:R isotonic remains the fallback for combos
 with < 300 total trades (26 of 142 combos, 0.2% of rows).
 
-Artifact: `data/ml/adaptive_rr_v3/b6_phase4f.json` (runtime 183s).
+Artifact: `data/ml/adaptive_rr_v3/per_combo_isotonic_v3.json` (runtime 183s).
 
 #### Overall outcome
 
@@ -1031,7 +1031,7 @@ Phase 5C is a **third null-to-negative result for the per-combo two-stage calibr
 ## Phase 5D — B16 FINAL held-out eval (test partition, 20% OOS)
 
 **Script:** `scripts/final_holdout_eval_v3.py`
-**Artifact:** `data/ml/adaptive_rr_v3/b16_final_eval.json`
+**Artifact:** `data/ml/adaptive_rr_v3/final_holdout_eval_v3.json`
 **Combos:** 10 total — top-5 high-freq (v10_7649, v10_8617, v10_9264, v10_9393, v6_1676) + bottom-5 low-freq (v10_9955, v5_158, v5_2904, v7_2114, v7_215)
 **Partition:** 20% of bars held out from training (post-2018-ish chronological test)
 **Warm/cold split:** ≥300 trades = warm (5 combos), <300 = cold (5 combos)

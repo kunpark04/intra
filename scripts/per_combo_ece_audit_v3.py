@@ -3,7 +3,7 @@
 Breaks pooled ECE 0.0039 down by global_combo_id to see whether residual
 error is uniform or concentrated in a few combos.
 
-Output: data/ml/adaptive_rr_v3/b6_phase4d.json
+Output: data/ml/adaptive_rr_v3/per_combo_ece_audit_v3.json
 """
 from __future__ import annotations
 

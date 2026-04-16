@@ -185,4 +185,4 @@ Consequences:
   scratch for this alone.
 
 See `tasks/part_b_findings.md` §B6 and
-`data/ml/adaptive_rr_v2/b6_temporal_ood.json`.
+`data/ml/adaptive_rr_v2/heldout_time_eval_v2.json`.

@@ -7,8 +7,8 @@ For each combo across v2-v10 mfe parquets:
      guardrail (n_trades >= MIN_N, sharpe < MAX_SHARPE). Fallback: thr=0.
   4. Aggregate filtered trades into combo-level metrics.
 
-Output: data/ml/lgbm_results_v2filtered/combo_features.parquet
-Next: run ml1_surrogate.py --skip-aggregation --output-dir data/ml/lgbm_results_v2filtered
+Output: data/ml/ml1_results_v2filtered/combo_features.parquet
+Next: run ml1_surrogate.py --skip-aggregation --output-dir data/ml/ml1_results_v2filtered
 """
 from __future__ import annotations
 import gc
@@ -32,8 +32,8 @@ SIDE_MAP = {"long": 0, "short": 1}
 STOP_METHOD_MAP = {"fixed": 0, "atr": 1, "swing": 2}
 
 DATA_DIR = REPO / "data/ml"
-OUTPUT_DIR = DATA_DIR / "lgbm_results_v2filtered"
-V2_MODEL_PATH = DATA_DIR / "adaptive_rr_v2" / "adaptive_rr_model_v1.txt"
+OUTPUT_DIR = DATA_DIR / "ml1_results_v2filtered"
+V2_MODEL_PATH = DATA_DIR / "adaptive_rr_v2" / "adaptive_rr_model.txt"
 
 THRESHOLDS = np.round(np.arange(-0.5, 0.51, 0.1), 2).tolist()  # 11 points
 MIN_N_KEEP = 50           # guardrail on filtered trade count

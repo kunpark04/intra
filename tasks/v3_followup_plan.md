@@ -27,7 +27,7 @@ self-contained enough to execute in a fresh chat context.
 | `scripts/filter_backtest_per_combo_v2.py` | Imports `V2_MODEL` from `filter_backtest_v2.py`; L78 `lgb.Booster(...)` | `filter_backtest_per_combo_v2.json` |
 | `scripts/filter_backtest_percentile_v2.py` | Imports `V2_MODEL`; L78 `lgb.Booster(...)` | `filter_backtest_percentile_v2.json` |
 | `scripts/filter_backtest_surrogate_v2.py` | Imports `V2_MODEL`; L89 `lgb.Booster(...)` | `filter_backtest_surrogate_v2.json` |
-| `scripts/heldout_time_eval_v2.py` | L82 `default=...adaptive_rr_v2/adaptive_rr_model.txt` | `b6_temporal_ood.json` |
+| `scripts/heldout_time_eval_v2.py` | L82 `default=...adaptive_rr_v2/adaptive_rr_model.txt` | `heldout_time_eval_v2.json` |
 
 ### Existing calibrator
 
@@ -42,7 +42,7 @@ self-contained enough to execute in a fresh chat context.
   median Sharpe lift **+3.87**.
 - B4 (`filter_backtest_surrogate_v2.json`): median Sharpe lift **+2.65** across
   50 surrogate combos × 3 thresholds.
-- B6 (`b6_temporal_ood.json`): test AUC 0.8014 (Δ −0.004 vs train), but
+- B6 (`heldout_time_eval_v2.json`): test AUC 0.8014 (Δ −0.004 vs train), but
   **ECE 0.062** — calibration drift is the gating blocker for B16.
 
 ### Anti-patterns to avoid
@@ -204,7 +204,7 @@ the post-2024-10-22 regime shift; a time-rolling recalibrator does.
 - On the B6 held-out bars, rolling-calibrated ECE drops from 0.062
   (static) to < 0.015. This is the gate; if it doesn't drop, the rolling
   approach is wrong and we need to think harder before B16.
-- Commit a `b6_rolling_recal.json` with before/after ECE per window.
+- Commit a `rolling_recal_v3.json` with before/after ECE per window.
 
 ### Anti-patterns
 

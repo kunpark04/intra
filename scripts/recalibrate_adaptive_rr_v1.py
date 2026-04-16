@@ -9,8 +9,8 @@ import pandas as pd
 from sklearn.isotonic import IsotonicRegression
 
 REPO = Path(__file__).resolve().parents[1]
-OOF_PATH = REPO / "data/ml/adaptive_rr/oof_predictions.parquet"
-OUT_DIR = REPO / "data/ml/adaptive_rr"
+OOF_PATH = REPO / "data/ml/adaptive_rr_v1/oof_predictions.parquet"
+OUT_DIR = REPO / "data/ml/adaptive_rr_v1"
 ISO_DIR = OUT_DIR / "isotonic_per_rr"
 ISO_DIR.mkdir(parents=True, exist_ok=True)
 

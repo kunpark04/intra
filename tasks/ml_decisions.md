@@ -196,7 +196,7 @@ things simple and avoid meta-overfitting. If R² is low, tuning can be added lat
 
 ## D12: Output Structure
 
-**Decision**: All outputs go to `data/ml/lgbm_results/`.
+**Decision**: All outputs go to `data/ml/ml1_results/`.
 
 **Reasoning**: Keeps ML artifacts separate from the raw sweep data. The directory contains
 both human-readable files (CSV, PNG, JSON) and machine-readable files (parquet, model .txt).
@@ -216,9 +216,9 @@ unique and traceable back to their source dataset.
 
 ## D14: V2-filtered retrain (B5) replaces unfiltered top combos (2026-04-14)
 
-**Decision**: `data/ml/lgbm_results_v2filtered/` is the authoritative source for
+**Decision**: `data/ml/ml1_results_v2filtered/` is the authoritative source for
 top combos, surrogate candidates, and feature importance. The original
-`data/ml/lgbm_results/` output is superseded for downstream use.
+`data/ml/ml1_results/` output is superseded for downstream use.
 
 **Reasoning**: Under V2 filter + best-Sharpe threshold per combo, 26,062 /
 27,326 combos (95%) improve; median Sharpe lift +0.849. Top-20 combo

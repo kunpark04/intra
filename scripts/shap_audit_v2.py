@@ -127,9 +127,9 @@ def main() -> None:
     ax.set_xlabel("mean |SHAP|")
     ax.set_title("Family A (orange) vs V2 (blue) — feature importance")
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "b8_shap_summary.png", dpi=140)
+    fig.savefig(OUT_DIR / "shap_summary_v2.png", dpi=140)
     plt.close(fig)
-    print("[shap] saved b8_shap_summary.png")
+    print("[shap] saved shap_summary_v2.png")
 
     # ---- Diagnostic 2: prior_wr_50 dependence scatter ------------------
     pwr50_idx = feat_cols.index("prior_wr_50")
@@ -156,9 +156,9 @@ def main() -> None:
     ax.legend(fontsize=7, ncol=2, loc="best")
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "b8_shap_prior_wr_50_dependence.png", dpi=140)
+    fig.savefig(OUT_DIR / "shap_prior_wr_50_dependence_v2.png", dpi=140)
     plt.close(fig)
-    print("[shap] saved b8_shap_prior_wr_50_dependence.png")
+    print("[shap] saved shap_prior_wr_50_dependence_v2.png")
 
     # ---- Diagnostic 3: within-combo boxplot of prior_wr_50 SHAP -------
     fig, ax = plt.subplots(figsize=(12, 5))
@@ -172,9 +172,9 @@ def main() -> None:
     ax.axhline(0, color="k", lw=0.5, alpha=0.5)
     ax.grid(axis="y", alpha=0.3)
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "b8_shap_per_combo_boxplot.png", dpi=140)
+    fig.savefig(OUT_DIR / "shap_per_combo_boxplot_v2.png", dpi=140)
     plt.close(fig)
-    print("[shap] saved b8_shap_per_combo_boxplot.png")
+    print("[shap] saved shap_per_combo_boxplot_v2.png")
 
     # ---- Diagnostic 4: within/between std ratio per Family-A feat ------
     summary = {"n_shap_rows": int(len(pick)),

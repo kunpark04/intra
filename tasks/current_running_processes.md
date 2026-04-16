@@ -16,7 +16,7 @@ file when jobs start/finish.
 | 28016 | 04:42    | ~1h08m  | 184% | 4.03 GB | `scripts/adaptive_rr_model_monotonic_v2.py`  | **B9** — Monotonic constraint on `candidate_rr` + `rr_x_atr` (wraps V2 with LightGBM `monotone_constraints=-1`) |
 
 Both processes are `Rl` (running, multi-threaded). `b9` has not yet written
-artifacts to `data/ml/adaptive_rr_b9/` — expected; the V2-with-constraint
+artifacts to `data/ml/adaptive_rr_monotonic_v2/` — expected; the V2-with-constraint
 training runs ~2000 rounds before saving model + plots.
 
 ## Non-project processes (ignore)

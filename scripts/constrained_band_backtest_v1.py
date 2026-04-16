@@ -16,7 +16,7 @@ spec = importlib.util.spec_from_file_location(
 avf = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(avf)
 
-OUT = REPO / "data/ml/adaptive_rr/constrained_band_backtest.json"
+OUT = REPO / "data/ml/adaptive_rr_v1/constrained_band_backtest.json"
 
 
 def pick_constrained(features, model, lo, hi):
@@ -55,7 +55,7 @@ def main():
     bands = [(1.5, 2.5), (1.5, 3.0)]
     results = {}
     # Reference: unconstrained V3 metrics
-    with open(REPO / "data/ml/adaptive_rr/adaptive_vs_fixed.json") as f:
+    with open(REPO / "data/ml/adaptive_rr_v1/adaptive_vs_fixed.json") as f:
         ref = json.load(f)
     results["unconstrained"] = ref.get("adaptive", ref)
     results["fixed"] = ref.get("fixed", {})

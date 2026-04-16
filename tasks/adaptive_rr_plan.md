@@ -26,7 +26,7 @@ pulled via scp earlier this session).
 
 **Do NOT re-run any sweep.** Data is complete.
 
-Prior LightGBM run at `data/ml/lgbm_results/` (2026-04-12) operated at
+Prior LightGBM run at `data/ml/ml1_results/` (2026-04-12) operated at
 **combo-grain** (27,171 aggregate rows). The adaptive R:R model is different —
 it works at **trade-grain** with synthetic labels expanded across R:R levels.
 
@@ -140,7 +140,7 @@ Plus 5 engineered:
   split by row**, that leaks trades from the same combo across train/test.
   Split by combo_id to keep a combo's trades together.
 - Hyperparams: start with same grid as the 2026-04-12 run
-  (`data/ml/lgbm_results/run_metadata.json`) but switch objective to binary.
+  (`data/ml/ml1_results/run_metadata.json`) but switch objective to binary.
 - Early stopping on log-loss, 50 rounds patience.
 
 ### Inference — adaptive R:R selection
@@ -154,7 +154,7 @@ Given a new trade's features, at inference time:
 ### Output structure
 
 ```
-data/ml/adaptive_rr/
+data/ml/adaptive_rr_v1/
   model.lgb                    # saved LightGBM model
   model_metadata.json          # features, R:R grid, training rows, CV scores
   cv_results.json              # per-fold log-loss, AUC, calibration
@@ -171,7 +171,7 @@ Before trusting for deployment:
 1. **Calibration** — reliability diagram; P(win) should track actual win
    frequencies within ±5%.
 2. **Backtest adaptive vs fixed** — re-run v10_9955 (or whatever the current
-   best combo is — check `data/ml/lgbm_results/top_combos.csv`) with
+   best combo is — check `data/ml/ml1_results/top_combos.csv`) with
    adaptive R:R and compare Sharpe / total return / max DD vs its original
    fixed-R:R result.
 3. **No-lookahead check** — confirm all features are computed from data
@@ -221,7 +221,7 @@ Before trusting for deployment:
 
 - Full plan: `C:\Users\kunpa\.claude\plans\deep-munching-lynx.md` (local only)
 - Memory: `memory/project_adaptive_rr_plan.md`
-- Prior LightGBM combo-grain run (reference): `data/ml/lgbm_results/`
+- Prior LightGBM combo-grain run (reference): `data/ml/ml1_results/`
 - Param sweep trade dict: `scripts/param_sweep.py` lines 908–960
 - Cython MFE/MAE computation: `src/cython_ext/backtest_core.pyx` lines 73–74,
   123–133, 193–194

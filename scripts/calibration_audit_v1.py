@@ -13,9 +13,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 ROOT = Path("/root/intra")
-OOF_PATH = ROOT / "data/ml/adaptive_rr/oof_predictions.parquet"
-OUT_JSON = ROOT / "data/ml/adaptive_rr/calibration_audit.json"
-OUT_PNG = ROOT / "data/ml/adaptive_rr/calibration_by_rr.png"
+OOF_PATH = ROOT / "data/ml/adaptive_rr_v1/oof_predictions.parquet"
+OUT_JSON = ROOT / "data/ml/adaptive_rr_v1/calibration_audit.json"
+OUT_PNG = ROOT / "data/ml/adaptive_rr_v1/calibration_by_rr.png"
 
 N_BINS = 20
 RR_LEVELS = np.arange(1.0, 5.25, 0.25)  # 17 levels

@@ -30,7 +30,7 @@ spec3 = importlib.util.spec_from_file_location("v3inf", REPO / "scripts/inferenc
 v3inf = importlib.util.module_from_spec(spec3); spec3.loader.exec_module(v3inf)
 
 OUT = REPO / "data/ml/adaptive_rr_v3/filter_backtest_reopt_v3.json"
-SURROGATE_CSV = REPO / "data/ml/lgbm_results/surrogate_top_combos.csv"
+SURROGATE_CSV = REPO / "data/ml/ml1_results/surrogate_top_combos.csv"
 
 THRESHOLDS = [round(x, 2) for x in np.arange(-0.5, 0.51, 0.05)]
 MIN_TRADES_FOR_OPTIMUM = 20

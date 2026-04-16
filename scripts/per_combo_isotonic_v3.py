@@ -9,7 +9,7 @@ Assumption: per-combo miscalibration is R:R-agnostic bias (Phase 4d
 evidence: worst offenders had systematic under-prediction across
 every R:R, mean_y ~0.33 vs mean_p ~0.14).
 
-Output: data/ml/adaptive_rr_v3/b6_phase4f.json
+Output: data/ml/adaptive_rr_v3/per_combo_isotonic_v3.json
 """
 from __future__ import annotations
 

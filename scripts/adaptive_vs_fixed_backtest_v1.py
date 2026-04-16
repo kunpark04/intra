@@ -4,7 +4,7 @@ for the top-ranked combo on the TRAINING split.
 
 Approach
 --------
-1. Load top combo from data/ml/lgbm_results/top_combos.csv (row 0).
+1. Load top combo from data/ml/ml1_results/top_combos.csv (row 0).
 2. Look up its full parameter set in data/ml/ml_dataset_v{N}_mfe.parquet.
 3. Build indicator DataFrame exactly as the sweep did (compute_zscore_v2 with
    the combo's z_* formulation, resolved stop distance via median ATR/swing).
@@ -24,7 +24,7 @@ Approach
 7. Compute equity curves compound on $50k start, 5% risk per trade; report
    total_return_pct, Sharpe, max_dd, n_trades, win_rate.
 
-Output: data/ml/adaptive_rr/adaptive_vs_fixed.json
+Output: data/ml/adaptive_rr_v1/adaptive_vs_fixed.json
 """
 from __future__ import annotations
 
@@ -58,10 +58,10 @@ except ImportError:
 import lightgbm as lgb
 
 REPO = Path(__file__).resolve().parents[1]
-TOP_CSV = REPO / "data/ml/lgbm_results/top_combos.csv"
-MODEL_PATH = REPO / "data/ml/adaptive_rr/adaptive_rr_model.txt"
-META_PATH = REPO / "data/ml/adaptive_rr/run_metadata.json"
-OUT_PATH = REPO / "data/ml/adaptive_rr/adaptive_vs_fixed.json"
+TOP_CSV = REPO / "data/ml/ml1_results/top_combos.csv"
+MODEL_PATH = REPO / "data/ml/adaptive_rr_v1/adaptive_rr_model.txt"
+META_PATH = REPO / "data/ml/adaptive_rr_v1/run_metadata.json"
+OUT_PATH = REPO / "data/ml/adaptive_rr_v1/adaptive_vs_fixed.json"
 DATA_CSV = REPO / "data/NQ_1min.csv"
 
 RR_LEVELS = np.round(np.arange(1.0, 5.25, 0.25), 2).astype(np.float32)

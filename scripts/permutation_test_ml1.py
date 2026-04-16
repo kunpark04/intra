@@ -15,7 +15,7 @@ spec = importlib.util.spec_from_file_location("mlo", REPO / "scripts/ml1_surroga
 mlo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mlo)
 
-OUT = REPO / "data/ml/lgbm_results/permutation_test.json"
+OUT = REPO / "data/ml/ml1_results/permutation_test.json"
 
 
 def main():

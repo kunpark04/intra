@@ -22,7 +22,7 @@ set -u
 echo "=== $(date -Is) starting phase4b ==="
 systemd-run --scope -p MemoryMax=7G -p CPUQuota=400% \\
     python3 scripts/recal_robustness_v3.py \\
-    > logs/v3_phase4b_run.log 2>&1
+    > logs/v3_recal_robustness_run.log 2>&1
 rc=$?
 echo "=== $(date -Is) phase4b exit=$rc ==="
 exit $rc
@@ -46,7 +46,7 @@ def main() -> None:
 
     launch = (
         "cd /root/intra && mkdir -p logs && "
-        "rm -f logs/v3_phase4b.log logs/v3_phase4b_run.log && "
+        "rm -f logs/v3_phase4b.log logs/v3_recal_robustness_run.log && "
         "screen -dmS v3_phase4b bash -c "
         '"./run_v3_phase4b.sh > logs/v3_phase4b.log 2>&1" && sleep 5'
     )
@@ -56,7 +56,7 @@ def main() -> None:
     time.sleep(5)
     _, o, _ = c.exec_command(
         "screen -ls; echo ---PHASE4B---; tail -30 logs/v3_phase4b.log; "
-        "echo ---RUN---; tail -30 logs/v3_phase4b_run.log 2>/dev/null || echo '(not yet)'"
+        "echo ---RUN---; tail -30 logs/v3_recal_robustness_run.log 2>/dev/null || echo '(not yet)'"
     )
     print(o.read().decode(errors="replace"))
     c.close()

@@ -106,7 +106,7 @@ def main() -> None:
     permuted_metrics = result["overall"]
 
     # Load original metrics
-    orig_path = Path("data/ml/adaptive_rr/run_metadata.json")
+    orig_path = Path("data/ml/adaptive_rr_v1/run_metadata.json")
     with open(orig_path) as f:
         orig = json.load(f)
     original = orig["overall_metrics"]
@@ -127,7 +127,7 @@ def main() -> None:
         "fold_metrics_permuted": result["fold_metrics"],
     }
 
-    out_path = Path("data/ml/adaptive_rr/permutation_test.json")
+    out_path = Path("data/ml/adaptive_rr_v1/permutation_test.json")
     with open(out_path, "w") as f:
         json.dump(out, f, indent=2, default=float)
 

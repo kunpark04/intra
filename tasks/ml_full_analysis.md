@@ -47,7 +47,7 @@ for `prior_r_ma10` ratio=1.77 and `prior_wr_10` ratio=1.32).
 | Full retrain (10M rows, 588k combos) | 0.8057 | 0.8077 | +0.002 |
 | Held-out test (B6 baseline) | 0.8014 | 0.8387* | +0.037 |
 
-*B6 V3 number is from `b6_rolling_recal.json` which uses the full V3 booster on test data.
+*B6 V3 number is from `rolling_recal_v3.json` which uses the full V3 booster on test data.
 
 **Why +0.033 on testbed but +0.002 on full retrain?**
 

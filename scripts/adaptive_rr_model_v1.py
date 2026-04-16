@@ -557,7 +557,7 @@ def main() -> None:
     best_fold = max(range(len(result["fold_metrics"])),
                     key=lambda i: result["fold_metrics"][i]["auc"])
     best_model = result["models"][best_fold]
-    model_path = OUTPUT_DIR / "adaptive_rr_model_v1.txt"
+    model_path = OUTPUT_DIR / "adaptive_rr_model.txt"
     best_model.save_model(str(model_path))
     print(f"  Model saved: {model_path}")
 

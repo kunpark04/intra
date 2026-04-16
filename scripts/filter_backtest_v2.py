@@ -20,8 +20,8 @@ avf = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(avf)
 
 V2_MODEL = REPO / "data/ml/adaptive_rr_v2/adaptive_rr_model.txt"
-HELDOUT_MODEL = REPO / "data/ml/adaptive_rr_heldout/adaptive_rr_model.txt"
-OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest.json"
+HELDOUT_MODEL = REPO / "data/ml/adaptive_rr_heldout_v2/adaptive_rr_model.txt"
+OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_v2.json"
 
 EV_THRESHOLDS = [0.0, 0.1, 0.25]
 

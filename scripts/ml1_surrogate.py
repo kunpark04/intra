@@ -52,7 +52,7 @@ STARTING_EQUITY = 50_000.0
 
 # Sweep versions available and their data paths
 DATA_DIR = Path("data/ml")
-OUTPUT_DIR = DATA_DIR / "lgbm_results"
+OUTPUT_DIR = DATA_DIR / "ml1_results"
 
 # All parameter columns that LightGBM will use as features.
 # These are the strategy hyperparameters (what we're optimizing).
@@ -159,7 +159,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--skip-aggregation", action="store_true",
                    help="Reuse cached combo_features.parquet instead of re-aggregating")
     p.add_argument("--output-dir", type=str, default=None,
-                   help="Override output directory (default: data/ml/lgbm_results)")
+                   help="Override output directory (default: data/ml/ml1_results)")
     p.add_argument("--surrogate-candidates", type=int, default=50_000,
                    help="Number of random candidates for surrogate search (default: 50000)")
     p.add_argument("--seed", type=int, default=42,

@@ -11,7 +11,7 @@ avf = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(avf)
 
 # Override model + output paths
-avf.MODEL_PATH = REPO / "data/ml/adaptive_rr_heldout/adaptive_rr_model.txt"
-avf.OUT_PATH = REPO / "data/ml/adaptive_rr_heldout/adaptive_vs_fixed_heldout.json"
+avf.MODEL_PATH = REPO / "data/ml/adaptive_rr_heldout_v2/adaptive_rr_model.txt"
+avf.OUT_PATH = REPO / "data/ml/adaptive_rr_heldout_v2/adaptive_vs_fixed_heldout.json"
 
 avf.main()

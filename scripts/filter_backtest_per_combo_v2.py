@@ -7,7 +7,7 @@ prefer a lower threshold, high-WR / low-freq combos a higher one.
 
 Inputs: V2 adaptive R:R model at data/ml/adaptive_rr_v2/adaptive_rr_model.txt
 Combos: 10 existing + 50 from surrogate_top_combos.csv.
-Output: data/ml/adaptive_rr_v2/filter_backtest_per_combo.json
+Output: data/ml/adaptive_rr_v2/filter_backtest_per_combo_v2.json
 """
 from __future__ import annotations
 import importlib.util, json, sys, traceback
@@ -24,8 +24,8 @@ fb = importlib.util.module_from_spec(spec); spec.loader.exec_module(fb)
 spec2 = importlib.util.spec_from_file_location("fbs", REPO / "scripts/filter_backtest_surrogate_v2.py")
 fbs = importlib.util.module_from_spec(spec2); spec2.loader.exec_module(fbs)
 
-OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_per_combo.json"
-SURROGATE_CSV = REPO / "data/ml/lgbm_results/surrogate_top_combos.csv"
+OUT = REPO / "data/ml/adaptive_rr_v2/filter_backtest_per_combo_v2.json"
+SURROGATE_CSV = REPO / "data/ml/ml1_results/surrogate_top_combos.csv"
 
 # Absolute E[R] threshold grid, -0.5 to +0.5 step 0.05 (21 points).
 THRESHOLDS = [round(x, 2) for x in np.arange(-0.5, 0.51, 0.05)]

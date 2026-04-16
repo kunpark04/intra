@@ -1,6 +1,6 @@
 """Upload and launch Phase 5D (B16 final held-out eval) on sweep-runner-1.
 
-Output artifact: data/ml/adaptive_rr_v3/b16_final_eval.json
+Output artifact: data/ml/adaptive_rr_v3/final_holdout_eval_v3.json
 """
 from __future__ import annotations
 import time
