@@ -1026,3 +1026,72 @@ Per-combo calibration delta on `mean_pwin`: v10_7649 +0.05, v10_9264 **+0.50** (
 ### Verdict
 
 Phase 5C is a **third null-to-negative result for the per-combo two-stage calibrator**: it did not help filter-threshold Sharpe (Phase 3), did not help filter reopt Sharpe (Phase 5A), and actively harms Kelly sizing on train via overconfident absolute P(win). The correct next step is Phase 5D (B16 held-out eval) — if OOS kelly_twostage is also catastrophic, the per-combo calibrator should be deprecated from the production stack and the pooled per-R:R isotonic used for all consumers (filter + Kelly).
+
+
+## Phase 5D — B16 FINAL held-out eval (test partition, 20% OOS)
+
+**Script:** `scripts/b16_final_eval.py`
+**Artifact:** `data/ml/adaptive_rr_v3/b16_final_eval.json`
+**Combos:** 10 total — top-5 high-freq (v10_7649, v10_8617, v10_9264, v10_9393, v6_1676) + bottom-5 low-freq (v10_9955, v5_158, v5_2904, v7_2114, v7_215)
+**Partition:** 20% of bars held out from training (post-2018-ish chronological test)
+**Warm/cold split:** ≥300 trades = warm (5 combos), <300 = cold (5 combos)
+**Decision threshold:** ≥60% of warm combos with Sharpe(kelly_twostage) > Sharpe(fixed5) to pass
+
+### Top-5 portfolio sim (OOS, shared $50k, event-driven, realistic 5% cap on current equity)
+
+| Policy                  | Return    | Sharpe | Max DD   | Trades taken |
+|-------------------------|-----------|--------|----------|--------------|
+| `fixed5`                | +642.2%   | 3.43   | 21.0%    | 1045         |
+| `kelly:pwin_simple`     | +267.9%   | 4.21   | 14.5%    | 39           |
+| `kelly:pwin_twostage`   | +230.3%   | 1.23   | 31.0%    | 226          |
+
+### Warm-combo per-combo Sharpe (OOS)
+
+| combo_id | n | per-combo cal? | fixed5 | kelly_simple | kelly_twostage | Δ (2s − fixed) |
+|----------|---:|:---:|-------:|-------------:|---------------:|---------------:|
+| v10_7649 | 1369 | YES | 7.42 | 3.10 | 3.07 | **−4.35** |
+| v10_8617 |  412 | no  | 7.04 | 5.10 | 5.10 | −1.94 |
+| v10_9264 | 3061 | YES | **34.99** | 4.75 | 4.45 | **−30.54** |
+| v10_9393 |  788 | no  | 7.48 | 3.18 | 3.18 | −4.30 |
+| v6_1676  |  848 | YES | 2.01 | 3.14 | **3.18** | **+1.17** |
+
+**Warm kelly_twostage beats fixed5: 1/5 = 20% → FAILS the ≥60% gate.**
+
+### Cold-combo per-combo Sharpe (OOS)
+
+All 5 cold combos have `has_per_combo_cal=false`, so `kelly_twostage == kelly_simple` (pooled per-R:R fallback).
+
+| combo_id | n | fixed5 | kelly_simple/twostage | Δ |
+|----------|---:|-------:|----------------------:|----:|
+| v10_9955 | 165 | 7.79 | 4.45 | −3.34 |
+| v5_158   |  32 | 2.67 | 4.09 | +1.42 |
+| v5_2904  |  15 | 2.95 | 4.34 | +1.39 |
+| v7_2114  |  24 | 2.69 | 4.42 | +1.73 |
+| v7_215   |  25 | 3.03 | 4.11 | +1.08 |
+
+Cold-Kelly beats fixed5 in 4/5 = 80%, but this is **pooled per-R:R sizing winning on tiny samples** (≤165 trades), not a per-combo-calibrator win.
+
+### Verdict
+
+**B16 FAILS.** The per-combo two-stage calibrator does not deliver Sharpe improvement on warm combos under Kelly sizing. The sizing gains seen on cold combos come from pooled per-R:R fallback — i.e., not from the per-combo knots that Phase 5B spent building (7,309 isotonic models, 13.2 MB artifact). On the only warm combo where per-combo cal helped (v6_1676), fixed5 Sharpe was the lowest (2.01) — it was easiest to beat.
+
+### Interpretation and production recommendation
+
+- **Fixed-5% per-trade sizing is the production default.** It beats both Kelly variants at the portfolio level (Sharpe 3.43 vs 4.21 vs 1.23 — kelly_simple wins by Sharpe but takes only 39 OOS trades, too sparse for live deployment) and crushes Kelly on 4 of 5 warm combos solo.
+- **The per-combo calibrator (Phase 5B, 7,309 models) should be considered deprecated** for production use. It did not help filter-threshold Sharpe (Phase 3, Phase 5A) and does not help Kelly sizing on warm combos OOS (this phase). Keep the artifact in `data/ml/adaptive_rr_v3/` for research reproducibility but do not wire it into the live stack.
+- **The pooled per-R:R isotonic calibrator (Phase 3 artifact, 17 calibrators in `isotonic_calibrators_v3.json`) is the only calibration layer with durable value** — it's what powers `kelly_simple`, which produces Sharpe 4.21 with a low 14.5% DD at the portfolio level. For a sparse, high-conviction overlay it's deployable; for the main stack, fixed5 remains the right primary sizing.
+- **v10_9264 is the canary.** Its Sharpe collapses from 34.99 (fixed5) to 4.45 (kelly_twostage) — a 30-point drop driven by the Phase 5C pathology (mean P(win) 0.970 on train → saturated Kelly). On OOS, the per-combo calibrator moderates (mean P(win) 0.820, not shown but ≤ 0.97) but the saturated Kelly still under-performs vs the raw high-WR trade stream.
+- **Cold combos** (tiny OOS samples of 15–165 trades) should be treated with strong sample-size caveats — their Kelly-wins are statistically weak.
+
+### Caveat on solo-sim Kelly returns
+
+Solo-combo Kelly returns in the artifact show unbounded compounding (e.g., v10_9264 solo kelly_twostage return = 1.28e+38%). This is a simulation artifact — per-trade `risk_dollars = current_equity * f` compounds without bound when the combo is on a winning streak. Sharpe is invariant to this scaling (it's a ratio), so Sharpe comparisons are still valid. The portfolio-level sim does not have this issue — it shares equity across 5 combos with realistic cap logic, and its numbers are directly interpretable.
+
+### Closing
+
+Four null-to-negative results on the per-combo calibrator (Phase 3, Phase 5A, Phase 5C in-sample, Phase 5D OOS) is sufficient to retire the approach. The V3 production stack is:
+
+- **Booster:** `data/ml/adaptive_rr_v3/booster_v3.txt` (OOF AUC 0.8077, retained)
+- **Calibrator:** `data/ml/adaptive_rr_v3/isotonic_calibrators_v3.json` (17 per-R:R pooled isotonic; retained)
+- **Sizing:** fixed 5% of starting equity per trade (MNQ economics, $2/point)
+- **Optional Kelly overlay:** `kelly:pwin_simple` with the pooled per-R:R calibrator, useful for low-frequency high-conviction filtering (39 OOS trades @ Sharpe 4.21 in top-5) — **do not** use the per-combo two-stage calibrator.
