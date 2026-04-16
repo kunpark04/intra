@@ -10,12 +10,29 @@ try:
 except ImportError:
     NUMBA_AVAILABLE = False
     def njit(*args, **kwargs):
-        def decorator(fn): return fn
+        """No-op stand-in for `numba.njit` when Numba is unavailable."""
+        def decorator(fn):
+            """Pass-through: return `fn` unchanged."""
+            return fn
         return args[0] if (len(args) == 1 and callable(args[0])) else decorator
 
 
 def _atr_numpy(high: np.ndarray, low: np.ndarray, close: np.ndarray,
                window: int) -> np.ndarray:
+    """Strided-NumPy simple-moving-average ATR.
+
+    Builds the per-bar true range as `max(H-L, |H-prev_close|, |L-prev_close|)`
+    then takes a simple moving average over `window` bars.
+
+    Args:
+        high: 1-D array of bar highs.
+        low: 1-D array of bar lows.
+        close: 1-D array of bar closes.
+        window: ATR window length in bars.
+
+    Returns:
+        Array same length as `close` with first `window-1` values NaN.
+    """
     n = len(close)
     tr = np.empty(n, dtype=np.float64)
     tr[0] = high[0] - low[0]
@@ -34,6 +51,7 @@ def _atr_numpy(high: np.ndarray, low: np.ndarray, close: np.ndarray,
 @njit(cache=True)
 def _atr_numba(high: np.ndarray, low: np.ndarray, close: np.ndarray,
                window: int) -> np.ndarray:
+    """Numba-JIT ATR — identical output to `_atr_numpy`, fewer allocations."""
     n = len(close)
     tr = np.empty(n)
     tr[0] = high[0] - low[0]
@@ -54,7 +72,18 @@ def _atr_numba(high: np.ndarray, low: np.ndarray, close: np.ndarray,
 
 def compute_atr(high: np.ndarray, low: np.ndarray, close: np.ndarray,
                 window: int, use_numba: bool = True) -> np.ndarray:
-    """Average True Range. NaN for first (window-1) bars."""
+    """Simple-moving-average Average True Range.
+
+    Args:
+        high: 1-D array-like of bar highs.
+        low: 1-D array-like of bar lows.
+        close: 1-D array-like of bar closes.
+        window: ATR window length in bars.
+        use_numba: Prefer the Numba path when available. Default True.
+
+    Returns:
+        Array same length as `close` with first `window-1` values NaN.
+    """
     high = np.asarray(high, dtype=np.float64)
     low = np.asarray(low, dtype=np.float64)
     close = np.asarray(close, dtype=np.float64)

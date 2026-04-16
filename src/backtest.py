@@ -1,12 +1,19 @@
-"""
-backtest.py - Bar-by-bar backtest engine for the MNQ 1-minute EMA strategy.
+"""Bar-by-bar backtest engine for the MNQ 1-minute strategy.
 
-Three-layer dispatch (fastest to slowest):
-  backtest_core_cy      — Cython AOT-compiled (preferred; zero JIT overhead)
-  _backtest_core        — Numba @njit JIT-compiled (fallback if Cython absent)
-  _backtest_core_numpy  — pure-Python/NumPy (always present; last resort)
-  run_backtest          — Python wrapper: dispatches to core, post-processes records,
-                          builds equity curve, returns results dict.
+Three engine tiers are tried in order of speed:
+
+1. **Cython AOT** — `backtest_core_cy` from `src.cython_ext.backtest_core`;
+   preferred when the extension is built (no JIT overhead, ~5-10× NumPy).
+2. **Numba JIT** — `_backtest_core`; good for development, first-call
+   compile cost is amortised with `cache=True`.
+3. **NumPy / pure Python** — `_backtest_core_numpy`; always available,
+   identical logic to the JIT core, last-resort fallback.
+
+All three cores share the same signature and state machine. The Python
+wrapper `run_backtest` extracts arrays from the DataFrame, dispatches to
+the best available core, post-processes the output into `LOG_SCHEMA.md`
+trade records, builds the bar-by-bar equity curve, and returns a dict
+with `trades`, `equity_curve`, `n_trades`, `final_equity`, `version`.
 """
 from __future__ import annotations
 
@@ -34,7 +41,9 @@ try:
 except ImportError:
     # Provide a no-op decorator so the decorated function is just a normal function
     def njit(*args, **kwargs):
+        """No-op stand-in for `numba.njit` when Numba is unavailable."""
         def decorator(fn):
+            """Pass-through: return `fn` unchanged."""
             return fn
         # Support both @njit and @njit(cache=True) forms
         if len(args) == 1 and callable(args[0]):
@@ -61,7 +70,36 @@ def _backtest_core(
     hour_arr,            # int64[:] — bar hour-of-day (0–23)
     tod_exit_hour,       # int   — force close at this hour (0 = disabled)
 ):
-    """Numba JIT bar-by-bar state machine. Returns sliced output arrays."""
+    """Numba JIT bar-by-bar state machine for one position at a time.
+
+    Exit priority per bar: same-bar SL+TP (configurable), TP only, SL only,
+    opposite signal, max hold, time-of-day exit, then end-of-data. Tracks
+    MAE/MFE from entry and moves the effective stop to break-even once
+    +1R is reached (when enabled). The returned SL in `out_sl` is the
+    original pre-breakeven stop so downstream R-sizing stays consistent.
+
+    Args:
+        open_arr: float64 bar opens.
+        high_arr: float64 bar highs.
+        low_arr: float64 bar lows.
+        close_arr: float64 bar closes.
+        signal_arr: int8 signals (`1` long, `-1` short, `0` flat).
+        n_bars: Number of bars.
+        sl_pts: Stop distance in positive points.
+        tp_pts: Take-profit distance in positive points.
+        same_bar_tp_first: True → resolve same-bar SL+TP as TP; False → SL.
+        exit_on_opposite: True → close on opposite-side signal.
+        use_breakeven_stop: True → move effective SL to entry after +1R.
+        max_hold_bars: Force exit after this many bars in position
+            (`0` disables).
+        hour_arr: int64 hour-of-day per bar (only read when TOD exit is on).
+        tod_exit_hour: Force-close hour (0 disables).
+
+    Returns:
+        13-tuple of per-trade arrays sliced to the actual trade count
+        (side, signal_bar, entry_bar, exit_bar, entry_price, exit_price,
+        sl, tp, exit_reason, mae, mfe, hold_bars, label_tp_first).
+    """
     max_trades = n_bars // 2 + 1
 
     out_side           = np.empty(max_trades, dtype=np.int8)
@@ -225,7 +263,12 @@ def _backtest_core_numpy(
     hour_arr,
     tod_exit_hour,
 ):
-    """Pure-Python/NumPy fallback — same logic as _backtest_core, no Numba."""
+    """Pure-Python/NumPy fallback — identical logic to `_backtest_core`.
+
+    Used when neither the Cython extension nor Numba is available. Slow
+    compared to the other two cores but requires no compilation. See
+    `_backtest_core` for argument and return-value semantics.
+    """
     max_trades = n_bars // 2 + 1
 
     out_side           = np.empty(max_trades, dtype=np.int8)
@@ -375,19 +418,35 @@ _EXIT_REASON_MAP = {1: "stop", 2: "take_profit", 3: "opposite_signal", 4: "end_o
 
 
 def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
-    """Run the bar-by-bar backtest on df (must already have indicators + signals).
+    """Run the bar-by-bar backtest and return trades + equity curve.
 
-    Parameters
-    ----------
-    df      : DataFrame with columns: open, high, low, close, time, signal,
-              ema_fast, ema_slow, ema_spread, zscore (optional), volume,
-              volume_zscore (optional), atr (optional), session_break.
-    cfg     : config module with all required constants.
-    version : iteration label, e.g. "V1".
+    Expects `df` to already carry indicators (from `indicators.add_indicators`)
+    and signals (from `strategy.generate_signals`). Dispatches to the
+    fastest available core (Cython → Numba → NumPy), then post-processes
+    each trade into a full `LOG_SCHEMA.md` record with sizing, PnL,
+    MAE/MFE, signal-bar features, Track A entry scores, and the
+    break-even / rule-violation flags.
 
-    Returns
-    -------
-    dict with keys: trades, equity_curve, n_trades, final_equity, version.
+    Args:
+        df: DataFrame with `open`, `high`, `low`, `close`, `time`, `signal`,
+            `ema_fast`, `ema_slow`, `ema_spread`, and optionally `zscore`,
+            `volume_zscore`, `atr`, `session_break`, `bar_hour`.
+        cfg: Config module exposing `STOP_FIXED_PTS`, `MIN_RR`,
+            `SAME_BAR_COLLISION`, `EXIT_ON_OPPOSITE_SIGNAL`,
+            `STARTING_EQUITY`, `RISK_PCT`, `MNQ_DOLLARS_PER_POINT`,
+            `Z_BAND_K`, and optional `USE_BREAKEVEN_STOP`, `MAX_HOLD_BARS`,
+            `TOD_EXIT_HOUR`, `USE_NUMBA`.
+        version: Iteration label stamped into each trade record.
+            Default ``"V1"``.
+
+    Returns:
+        Dict with keys:
+
+        - ``trades`` (list): per-trade dicts in `LOG_SCHEMA.md` form.
+        - ``equity_curve`` (list): per-bar `{bar_idx, time, equity}` rows.
+        - ``n_trades`` (int): trade count.
+        - ``final_equity`` (float): equity after the last trade.
+        - ``version`` (str): the passed-in version label.
     """
     # ── 1. Extract arrays ────────────────────────────────────────────────────
     open_arr   = df["open"].to_numpy(dtype=np.float64)
@@ -452,7 +511,16 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
     col_pos = {col: df.columns.get_loc(col) for col in df.columns}
 
     def _get(row_idx: int, col: str, default=float("nan")):
-        """Safe column read; returns default if column absent."""
+        """Safe positional cell read; returns `default` if the column is absent.
+
+        Args:
+            row_idx: iloc row position.
+            col: Column name.
+            default: Value returned when `col` is not in `df`.
+
+        Returns:
+            Cell value or `default`.
+        """
         if col in col_pos:
             return df.iat[row_idx, col_pos[col]]
         return default

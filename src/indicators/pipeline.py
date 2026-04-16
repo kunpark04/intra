@@ -14,20 +14,23 @@ from .atr import compute_atr
 def add_indicators(df: pd.DataFrame, cfg) -> pd.DataFrame:
     """Compute all strategy indicators and attach them as new columns.
 
-    Parameters
-    ----------
-    df  : DataFrame with at least columns 'close', 'high', 'low', 'volume'.
-    cfg : config module exposing: Z_WINDOW, ZSCORE_DDOF, EMA_FAST, EMA_SLOW,
-          ATR_WINDOW, VOLUME_ZSCORE_WINDOW, USE_NUMBA.
+    Returns a copy of `df` with EMA/Z-score/ATR/volume-Z-score columns added.
+    The input frame is not mutated.
 
-    Added columns
-    -------------
-    ema_fast, ema_slow, ema_spread   — EMA values and their difference
-    ema_cross_up                     — bool: fast crossed above slow this bar
-    ema_cross_down                   — bool: fast crossed below slow this bar
-    zscore                           — rolling Z-score on close (optional filter)
-    atr                              — Average True Range
-    volume_zscore                    — rolling Z-score on volume
+    Args:
+        df: DataFrame with at least `close`, `high`, `low`, `volume` columns.
+        cfg: Config module or object exposing `Z_WINDOW`, `ZSCORE_DDOF`,
+            `EMA_FAST`, `EMA_SLOW`, `ATR_WINDOW`, `VOLUME_ZSCORE_WINDOW`, and
+            `USE_NUMBA`.
+
+    Returns:
+        Copy of `df` with these additional columns:
+            - `ema_fast`, `ema_slow`, `ema_spread` — EMA values and difference
+            - `ema_cross_up` — bool: fast crossed **above** slow this bar
+            - `ema_cross_down` — bool: fast crossed **below** slow this bar
+            - `zscore` — rolling Z-score on close
+            - `atr` — Average True Range
+            - `volume_zscore` — rolling Z-score on volume
     """
     use_numba = getattr(cfg, "USE_NUMBA", True)
     ddof = getattr(cfg, "ZSCORE_DDOF", 0)

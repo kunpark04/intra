@@ -1,3 +1,11 @@
+"""Central configuration constants for the backtest, strategy, and risk model.
+
+All tunable parameters live here so the bar-by-bar engine, signal generator,
+Monte Carlo simulator, and reporting layer read from a single source of truth.
+Values are loaded at import time; mutations at runtime are not supported.
+Grouped by concern (indicators, signal logic, execution, risk, exits, scoring).
+"""
+
 # ── Indicators ────────────────────────────────────────────────────────────────
 EMA_FAST = 10                # fast EMA span (bars)  — V3: 10/20
 EMA_SLOW = 20                # slow EMA span (bars)

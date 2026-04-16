@@ -27,21 +27,29 @@ import pandas as pd
 
 
 def generate_signals(df: pd.DataFrame, cfg) -> pd.DataFrame:
-    """Add 'signal' column to df and return it.
+    """Attach `signal` and `signal_bar_idx` columns to an indicator frame.
 
-    Parameters
-    ----------
-    df  : DataFrame produced by indicators.add_indicators(). May optionally
-          contain 'atr_pct_rank' and 'bar_hour' columns for V5+ filters.
-    cfg : config module exposing SIGNAL_MODE, USE_ZSCORE_FILTER, Z_BAND_K,
-          and optionally VOLUME_ENTRY_THRESHOLD, VOL_REGIME_LOOKBACK,
-          VOL_REGIME_MIN_PCT, VOL_REGIME_MAX_PCT, SESSION_FILTER_MODE.
+    Dispatches on `cfg.SIGNAL_MODE` to produce raw long/short booleans,
+    then optionally applies the V5+ entry filters (volume threshold,
+    volatility regime gate, session hours). All filters are AND-combined
+    so disabling one just leaves the others in effect.
 
-    Returns
-    -------
-    df copy with added columns:
-        signal          int8  — 1=long, -1=short, 0=flat
-        signal_bar_idx  int   — iloc position of the signal bar (-1 if no signal)
+    Args:
+        df: DataFrame produced by `indicators.add_indicators()`. May
+            optionally include `atr_pct_rank` (for volatility regime) and
+            `bar_hour` (for session filter).
+        cfg: Config module exposing `SIGNAL_MODE`, `USE_ZSCORE_FILTER`,
+            `Z_BAND_K`, and optionally `VOLUME_ENTRY_THRESHOLD`,
+            `VOL_REGIME_LOOKBACK`, `VOL_REGIME_MIN_PCT`,
+            `VOL_REGIME_MAX_PCT`, `SESSION_FILTER_MODE`,
+            `ZSCORE_CONFIRMATION`.
+
+    Returns:
+        A copy of `df` with:
+
+        - ``signal`` (int8): `1` long, `-1` short, `0` flat.
+        - ``signal_bar_idx`` (int): iloc position of the signal bar, or
+          `-1` if no signal on that bar.
     """
     df = df.copy()
     mode = getattr(cfg, "SIGNAL_MODE", "ema_crossover")
@@ -98,6 +106,19 @@ def generate_signals(df: pd.DataFrame, cfg) -> pd.DataFrame:
 # ── Mode: EMA crossover (V1/V2) ───────────────────────────────────────────────
 
 def _ema_crossover_signals(df, cfg):
+    """Raw long/short masks from the V1/V2 EMA-crossover rule.
+
+    With `cfg.USE_ZSCORE_FILTER=True`, only permits entries when the
+    z-score is beyond the `cfg.Z_BAND_K` band in the same direction
+    (long on oversold, short on overbought).
+
+    Args:
+        df: Indicator frame with `ema_cross_up`, `ema_cross_down`, `zscore`.
+        cfg: Config exposing `USE_ZSCORE_FILTER` and `Z_BAND_K`.
+
+    Returns:
+        `(long_cond, short_cond)` tuple of bool arrays same length as `df`.
+    """
     cross_up   = df["ema_cross_up"].to_numpy(dtype=bool)
     cross_down = df["ema_cross_down"].to_numpy(dtype=bool)
 
@@ -116,10 +137,19 @@ def _ema_crossover_signals(df, cfg):
 # ── Mode: Z-score reversal (V3+) ──────────────────────────────────────────────
 
 def _zscore_reversal_signals(df, cfg):
-    """Z-score crosses back through the band, confirmed by EMA direction.
+    """Raw long/short masks from the V3+ z-score reversal rule.
 
-    Long:  z crosses from <= -k to > -k  AND  fast EMA > slow EMA
-    Short: z crosses from >=  k to <  k  AND  fast EMA < slow EMA
+    Long: z crosses from ≤ -k to > -k and fast EMA > slow EMA.
+    Short: z crosses from ≥  k to <  k and fast EMA < slow EMA.
+    Optional `cfg.ZSCORE_CONFIRMATION` requires `|z|` to be declining on
+    the signal bar (peaked-and-reverting entries only).
+
+    Args:
+        df: Indicator frame with `zscore`, `ema_fast`, `ema_slow`.
+        cfg: Config exposing `Z_BAND_K` and optional `ZSCORE_CONFIRMATION`.
+
+    Returns:
+        `(long_cond, short_cond)` tuple of bool arrays same length as `df`.
     """
     z    = df["zscore"].to_numpy(dtype=np.float64)
     k    = float(cfg.Z_BAND_K)

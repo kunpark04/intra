@@ -49,6 +49,16 @@ _RETURNS_VALID_DENOMS = frozenset({"rolling_std", "parkinson"})
 # Converts a probability p ∈ (0,1) to its standard-normal quantile.
 # Abramowitz & Stegun rational approximation; max error ~4.5e-4.
 def _probit(p: np.ndarray) -> np.ndarray:
+    """Invert the standard-normal CDF via the Abramowitz & Stegun rational
+    approximation (max error ≈ 4.5e-4). No scipy dependency.
+
+    Args:
+        p: Probabilities in `(0, 1)`. Values outside `[1e-6, 1-1e-6]` are
+            clipped to avoid infinities.
+
+    Returns:
+        Standard-normal quantiles the same shape as `p`.
+    """
     p = np.clip(p, 1e-6, 1.0 - 1e-6)
     mask = p < 0.5
     q = np.where(mask, p, 1.0 - p)
@@ -64,6 +74,15 @@ def _probit(p: np.ndarray) -> np.ndarray:
 # ── Rolling helpers (pure NumPy, fast via stride tricks) ──────────────────────
 
 def _rolling_mean(arr: np.ndarray, window: int) -> np.ndarray:
+    """Rolling simple mean via stride tricks — NaN for first `window-1` bars.
+
+    Args:
+        arr: 1-D float array.
+        window: Rolling window length in bars.
+
+    Returns:
+        Array same length as `arr`; `window-1` leading NaNs then the per-bar mean.
+    """
     n = len(arr)
     out = np.full(n, np.nan, dtype=np.float64)
     if window < 1 or n < window:
@@ -76,6 +95,16 @@ def _rolling_mean(arr: np.ndarray, window: int) -> np.ndarray:
 
 
 def _rolling_std(arr: np.ndarray, window: int, ddof: int = 0) -> np.ndarray:
+    """Rolling standard deviation via stride tricks.
+
+    Args:
+        arr: 1-D float array.
+        window: Rolling window length in bars.
+        ddof: Delta degrees of freedom. Default 0 (population std).
+
+    Returns:
+        Array same length as `arr` with the first `window-1` values NaN.
+    """
     n = len(arr)
     out = np.full(n, np.nan, dtype=np.float64)
     if window < 1 or n < window:
@@ -88,16 +117,21 @@ def _rolling_std(arr: np.ndarray, window: int, ddof: int = 0) -> np.ndarray:
 
 
 def _rolling_rank(arr: np.ndarray, window: int) -> np.ndarray:
-    """Rolling percentile rank of arr[t] within arr[t-window+1 : t+1].
-    Result ∈ (0, 1), NaN for first (window-1) bars.
+    """Rolling percentile rank of `arr[t]` within `arr[t-window+1 : t+1]`.
 
-    Uses pandas rolling().rank() to avoid materialising a full (n, window)
-    float64 array via stride tricks, which causes OOM on 2M-bar series
-    (e.g. window=50 → 782 MiB contiguous allocation per combo).
+    Uses `pandas.rolling().rank()` instead of stride tricks to avoid a full
+    `(n, window)` float64 allocation (≈782 MiB per 2M-bar combo at window=50).
+    Result is strictly in `(0, 1)` via the mid-rank formula
+    `(rank_1based - 0.5) / window`, which keeps `_probit` finite. Equivalent
+    to the original stride-tricks implementation for the no-ties case.
 
-    Mid-rank formula: (rank_1based - 0.5) / window keeps result strictly in
-    (0, 1) so _probit never returns ±inf.  Mathematically identical to the
-    original stride-tricks implementation for the common no-ties case.
+    Args:
+        arr: 1-D float array.
+        window: Rolling window length in bars.
+
+    Returns:
+        Array same length as `arr`; first `window-1` values are NaN, the rest
+        are in `(0, 1)`.
     """
     n = len(arr)
     out = np.full(n, np.nan, dtype=np.float64)
@@ -123,10 +157,23 @@ def compute_vwap_session(
     volume: np.ndarray,
     session_break: np.ndarray,
 ) -> np.ndarray:
-    """Intraday session VWAP, reset at each session_break bar.
+    """Intraday session VWAP using typical price, reset at each session break.
 
-    Uses typical price = (H + L + C) / 3.
-    First bar of each session returns that bar's typical price (single-bar VWAP).
+    Typical price is `(H + L + C) / 3`. The cumulator resets whenever
+    `session_break[t]` is truthy (and implicitly on `t == 0`). For the first
+    bar of a session the output equals that bar's typical price (single-bar
+    VWAP). If cumulative volume is zero, the bar's typical price is used as
+    a safe fallback.
+
+    Args:
+        high: 1-D array of bar highs.
+        low: 1-D array of bar lows.
+        close: 1-D array of bar closes.
+        volume: 1-D array of bar volumes.
+        session_break: Bool-like 1-D array; truthy values start a new session.
+
+    Returns:
+        1-D float64 array same length as `close` containing per-bar VWAP.
     """
     n = len(close)
     typical = (high + low + close) / 3.0
@@ -168,26 +215,40 @@ def compute_zscore_variant(
 ) -> np.ndarray:
     """Compute a single z-score array for one (input, anchor, denom, type, window) combo.
 
-    Parameters
-    ----------
-    close, high, low, volume, session_break : price/volume arrays
-    ema_fast_arr, ema_slow_arr              : pre-computed EMA arrays
-    atr_arr                                 : pre-computed ATR array
-    window   : rolling window length
-    z_input  : "close" | "returns" | "typical_price"
-    z_anchor : "rolling_mean" | "vwap_session" | "ema_fast" | "ema_slow"
-               (forced to "rolling_mean" when z_input="returns")
-    z_denom  : "rolling_std" | "atr" | "parkinson" | "n/a"
-               ("atr" is invalid with z_input="returns" → treated as "rolling_std";
-                "n/a" and quantile_rank combos skip denom computation entirely)
-    z_type   : "parametric" | "quantile_rank"
-    ddof     : degrees-of-freedom correction for rolling_std
-    vwap_arr : pre-computed session VWAP (pass in to avoid recomputation)
+    Output is always in standard-deviation units so the downstream
+    `z_band_k` threshold works uniformly. Quantile-rank output is probit-
+    transformed then rescaled to a ±3 range so the threshold stays
+    window-size independent. Compatibility overrides documented in the
+    module docstring are applied here (returns→rolling_mean anchor;
+    returns+ATR→rolling_std fallback).
 
-    Returns
-    -------
-    np.ndarray of float64, same length as close, NaN where not yet computable.
-    Always in standard-deviation units (quantile_rank normalized to ±3 scale).
+    Args:
+        close: Bar close prices.
+        high: Bar highs.
+        low: Bar lows.
+        volume: Bar volumes.
+        session_break: Bool-like array marking session resets.
+        ema_fast_arr: Pre-computed fast EMA array.
+        ema_slow_arr: Pre-computed slow EMA array.
+        atr_arr: Pre-computed ATR array.
+        window: Rolling window length in bars.
+        z_input: `"close"` | `"returns"` | `"typical_price"`.
+        z_anchor: `"rolling_mean"` | `"vwap_session"` | `"ema_fast"` |
+            `"ema_slow"`. Forced to `"rolling_mean"` when
+            `z_input="returns"`.
+        z_denom: `"rolling_std"` | `"atr"` | `"parkinson"` | `"n/a"`.
+            `"atr"` is invalid with `z_input="returns"` and falls back to
+            `"rolling_std"`. `"n/a"` and any `quantile_rank` combo skip
+            denominator computation entirely.
+        z_type: `"parametric"` | `"quantile_rank"`.
+        ddof: Degrees-of-freedom correction for `rolling_std`. Default 0.
+        vwap_arr: Pre-computed session VWAP. Pass in to avoid recomputation
+            across many combos. Default None.
+
+    Returns:
+        1-D float64 array same length as `close`. Leading values are NaN
+        where the indicator is not yet computable. Always in
+        standard-deviation units; quantile_rank is scaled to ±3.
     """
     n = len(close)
     close  = np.asarray(close,  dtype=np.float64)
@@ -288,12 +349,35 @@ def compute_zscore_v2(
     z_window_2: int        = 0,
     z_window_2_weight: float = 0.3,
 ) -> np.ndarray:
-    """Compute z-score with optional two-window composite.
+    """Compute a z-score, optionally blended across two rolling windows.
 
-    If z_window_2 > 0 and z_window_2 != window:
-        z = (1 - z_window_2_weight) * z_window1 + z_window_2_weight * z_window2
+    When `z_window_2 > 0` and `z_window_2 != window`, returns the weighted
+    blend `(1 - w) * z_window + w * z_window_2` where `w = z_window_2_weight`.
+    Positions where either window is NaN are set to NaN in the output.
+    All other arguments are passed through to `compute_zscore_variant`.
 
-    All other parameters are passed through to compute_zscore_variant.
+    Args:
+        close: Bar close prices.
+        high: Bar highs.
+        low: Bar lows.
+        volume: Bar volumes.
+        session_break: Bool-like array marking session resets.
+        ema_fast_arr: Pre-computed fast EMA array.
+        ema_slow_arr: Pre-computed slow EMA array.
+        atr_arr: Pre-computed ATR array.
+        window: Primary rolling window length.
+        z_input: See `compute_zscore_variant`.
+        z_anchor: See `compute_zscore_variant`.
+        z_denom: See `compute_zscore_variant`.
+        z_type: See `compute_zscore_variant`.
+        ddof: Degrees-of-freedom correction for `rolling_std`. Default 0.
+        vwap_arr: Pre-computed session VWAP; reused for both windows.
+        z_window_2: Secondary window length. `0` (default) disables
+            blending. Ignored if equal to `window`.
+        z_window_2_weight: Weight on the secondary window. Default 0.3.
+
+    Returns:
+        1-D float64 z-score array same length as `close`.
     """
     z1 = compute_zscore_variant(
         close, high, low, volume, session_break,

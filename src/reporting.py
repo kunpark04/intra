@@ -1,15 +1,18 @@
-"""
-reporting.py - Artifact generation for the MNQ 1-minute backtest system.
+"""Artifact generation for the MNQ 1-minute backtest system.
 
-Functions
----------
-write_trades_csv      - ML-ready full trade log (all LOG_SCHEMA fields)
-write_trader_log      - Minimal 7-column human-readable trades-only log
-write_daily_ledger    - One row per calendar day (including no-trade days)
-write_equity_curve    - Bar-by-bar equity curve
-write_metadata        - JSON metadata from config + extra fields
-run_monte_carlo       - Bootstrap Monte Carlo risk metrics
-save_iteration        - Orchestrate all artifact writes for one iteration Vn
+This module is the single source for all persisted iteration outputs. A
+backtest run produces an in-memory `results` dict plus the source DataFrame,
+and `save_iteration` fans them out to the canonical files under
+`iterations/Vn/`:
+
+- `trades.csv` — ML-ready full log (every `LOG_SCHEMA` field).
+- `trader_log.csv` — minimal human-readable 7-column trades-only view.
+- `daily_ledger.csv` — one row per calendar day (including no-trade days).
+- `equity_curve.csv` — bar-by-bar equity path.
+- `monte_carlo.json` — IID bootstrap risk metrics + win-rate permutation test.
+- `metadata.json` — config snapshot plus run-specific extras.
+
+The Monte Carlo layer is required by the project contract — do not skip it.
 """
 from __future__ import annotations
 
@@ -24,18 +27,30 @@ import pandas as pd
 # ── 1. write_trades_csv ───────────────────────────────────────────────────────
 
 def write_trades_csv(trades: List[Dict[str, Any]], path: Path) -> None:
-    """Write the full ML-ready trade list to CSV. All LOG_SCHEMA fields must
-    be present (populated by run_backtest)."""
+    """Dump the full ML-ready trade list to CSV.
+
+    All `LOG_SCHEMA.md` fields must already be populated by the backtest
+    engine — this function does not compute derived columns.
+
+    Args:
+        trades: List of per-trade dicts produced by `run_backtest`.
+        path: Destination CSV path.
+    """
     pd.DataFrame(trades).to_csv(path, index=False)
 
 
 # ── 2. write_trader_log ───────────────────────────────────────────────────────
 
 def write_trader_log(trades: List[Dict[str, Any]], path: Path) -> None:
-    """Write the minimal 7-column human-readable log (trades only, no no-trade
-    days). Columns exactly:
-      entry_time, side, entry_fill_price, sl_price, tp_price,
-      net_pnl_dollars, cumulative_net_pnl_dollars
+    """Write a minimal 7-column human-readable trades-only log.
+
+    Columns (in order): `entry_time`, `side`, `entry_fill_price`, `sl_price`,
+    `tp_price`, `net_pnl_dollars`, `cumulative_net_pnl_dollars`. Cumulative
+    PnL is computed in traversal order of the input list.
+
+    Args:
+        trades: List of per-trade dicts produced by `run_backtest`.
+        path: Destination CSV path.
     """
     rows = []
     cum = 0.0
@@ -60,8 +75,17 @@ def write_daily_ledger(
     df: pd.DataFrame,
     path: Path,
 ) -> None:
-    """One row per calendar day in the partition's date range (including
-    no-trade days). Columns: date, trades_count, pnl_day_dollars, equity_eod.
+    """Write one ledger row per calendar day in the partition's date range.
+
+    No-trade days are preserved so per-day stats (Sharpe, drawdown) see
+    the correct denominator. Output columns: `date`, `trades_count`,
+    `pnl_day_dollars`, `equity_eod`.
+
+    Args:
+        trades: List of per-trade dicts (empty list is valid).
+        df: Partition DataFrame used for the backtest — provides the
+            calendar range via its `time` column.
+        path: Destination CSV path.
     """
     # Build full date range from the bar series
     dates = pd.to_datetime(df["time"]).dt.date
@@ -100,15 +124,31 @@ def write_daily_ledger(
 # ── 4. write_equity_curve ─────────────────────────────────────────────────────
 
 def write_equity_curve(equity_curve: List[Dict[str, Any]], path: Path) -> None:
-    """Write bar-by-bar equity curve to CSV."""
+    """Dump the bar-by-bar equity path returned by `run_backtest` to CSV.
+
+    Args:
+        equity_curve: List of per-bar dicts with at least `time` and
+            `equity` keys.
+        path: Destination CSV path.
+    """
     pd.DataFrame(equity_curve).to_csv(path, index=False)
 
 
 # ── 5. write_metadata ─────────────────────────────────────────────────────────
 
 def write_metadata(cfg, extra: dict, path: Path) -> None:
-    """Write a JSON file with all uppercase config parameters plus any extra
-    fields. Non-serialisable values are converted via default=str."""
+    """Serialise config parameters + run-specific extras to JSON.
+
+    Captures every upper-case, non-callable attribute on `cfg` (skipping
+    dunders and functions), merges in `extra`, and writes with
+    `default=str` to stringify non-JSON values (e.g. Timestamps, Paths).
+
+    Args:
+        cfg: Config module whose upper-case attributes are captured.
+        extra: Extra keys to merge into the output (e.g. `version`,
+            `n_trades`, `final_equity`).
+        path: Destination JSON path.
+    """
     # Collect all uppercase config vars (skip dunders and callables)
     params = {
         k: v
@@ -124,11 +164,24 @@ def write_metadata(cfg, extra: dict, path: Path) -> None:
 # ── 6. run_monte_carlo ────────────────────────────────────────────────────────
 
 def run_monte_carlo(trades: List[Dict[str, Any]], cfg) -> dict:
-    """Bootstrap Monte Carlo on trade net_pnl_dollars. Seeded and reproducible.
+    """Bootstrap Monte Carlo risk summary on observed trade PnL.
 
-    Draws cfg.MC_N_SIMS simulated equity paths (IID bootstrap), each with the
-    same number of trades as the observed sample. Reports max-drawdown
-    distribution, VaR/CVaR at trade level, and risk-of-ruin probability.
+    Draws `cfg.MC_N_SIMS` simulated equity paths via IID bootstrap of
+    `net_pnl_dollars` (each path has the same number of trades as the
+    observed sample), then reports the max-drawdown distribution
+    (p50/p90/p95/p99/worst), single-trade VaR/CVaR at 5%, and
+    risk-of-ruin probability (`drawdown ≥ cfg.MC_RUIN_THRESHOLD`).
+    A permutation test against the break-even win rate is embedded under
+    the `permutation_test` key. Seeded via `cfg.MC_SEED`.
+
+    Args:
+        trades: List of per-trade dicts; empty list is handled gracefully.
+        cfg: Config exposing `MC_N_SIMS`, `MC_SEED`, `MC_BOOTSTRAP`,
+            `MC_RUIN_THRESHOLD`.
+
+    Returns:
+        Dict with the summary stats described above. Returns a stub dict
+        with an `error` field when there are no trades.
     """
     if not trades:
         return {
@@ -212,18 +265,23 @@ def _permutation_win_rate_test(
     seed: int,
     rng,
 ) -> dict:
-    """One-sided binomial permutation test against the break-even win rate.
+    """One-sided binomial permutation test against break-even win rate.
 
-    H0: the strategy wins at exactly the break-even rate for its average
-        planned R:R (i.e. no edge beyond what random chance would produce).
-    H1: the strategy wins MORE often than break-even (one-tailed).
+    H0: strategy wins at `1 / (1 + avg_RR)` — no edge beyond chance at
+    the observed average planned R:R. H1: win rate exceeds break-even.
+    Under H0, simulate `n_sims` samples of `n` Bernoulli trials at
+    `break_even_wr` and report the fraction that match or exceed the
+    observed win rate — that fraction is the one-tailed p-value.
 
-    Under H0 we simulate n_sims samples of n Bernoulli(break_even_wr) trials
-    and record what fraction of those simulations achieve >= the observed win
-    rate. That fraction is the p-value.
+    Args:
+        trades: List of per-trade dicts with `label_win` and `rr_planned`.
+        n_sims: Number of null simulations to draw.
+        seed: Seed recorded in the output (the `rng` drives the draws).
+        rng: NumPy `Generator` used for the binomial draws.
 
-    p < 0.05 → reject H0 at the 5% level (strategy has statistically
-               significant edge over the break-even null).
+    Returns:
+        Dict with observed and null statistics plus `significant_05` /
+        `significant_01` convenience flags.
     """
     n = len(trades)
     observed_wins = sum(t["label_win"] for t in trades)
@@ -262,25 +320,23 @@ def _permutation_win_rate_test(
 # ── 7. save_iteration ─────────────────────────────────────────────────────────
 
 def save_iteration(version: str, results: dict, df: pd.DataFrame, cfg) -> Path:
-    """Orchestrate writing all artifacts for one training iteration Vn.
+    """Write every iteration artifact for one version `Vn` in one call.
 
-    Writes:
-      trades.csv, trader_log.csv, daily_ledger.csv, equity_curve.csv,
-      monte_carlo.json, metadata.json
+    Creates (or reuses) `iterations/Vn/` and writes `trades.csv`,
+    `trader_log.csv`, `daily_ledger.csv`, `equity_curve.csv`,
+    `monte_carlo.json`, and `metadata.json`. Monte Carlo results are
+    stamped with `version` to override any placeholder from `cfg`.
 
-    Note: plotly_price_indicators.html is NOT written here — handled by
-    notebook 02.
+    Args:
+        version: Iteration label, e.g. ``"V1"``.
+        results: The dict returned by `run_backtest`, containing at
+            least `trades`, `equity_curve`, `n_trades`, `final_equity`.
+        df: The partition DataFrame used for the backtest (needed for
+            the calendar range in the daily ledger).
+        cfg: Config module passed through to Monte Carlo and metadata.
 
-    Parameters
-    ----------
-    version : e.g. "V1"
-    results : dict returned by run_backtest()
-    df      : the partition DataFrame used for backtesting
-    cfg     : config module
-
-    Returns
-    -------
-    Path to the iteration output directory.
+    Returns:
+        `Path` to the iteration output directory.
     """
     from src.io_paths import iteration_dir
 

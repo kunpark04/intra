@@ -31,7 +31,15 @@ import pandas as pd
 # ── Session quality map (time_of_day_hhmm as int → score) ────────────────────
 
 def _session_score_from_hhmm(hhmm: int) -> float:
-    """Map an integer like 935 or 1500 to a session quality score."""
+    """Score a single bar's session quality from its `HHMM` integer.
+
+    Args:
+        hhmm: Time-of-day as `HHMM`, e.g. `935` for 09:35 or `1500` for 15:00.
+            Assumed Central Time.
+
+    Returns:
+        1.0 for RTH (08:30–15:15), 0.6 for extended hours, 0.3 for overnight.
+    """
     if 830 <= hhmm < 1515:
         return 1.0   # RTH
     if (600 <= hhmm < 830) or (1515 <= hhmm < 1700):
@@ -40,6 +48,16 @@ def _session_score_from_hhmm(hhmm: int) -> float:
 
 
 def _session_scores_vectorised(hhmm_series: pd.Series) -> pd.Series:
+    """Vectorised version of `_session_score_from_hhmm` for a pandas Series.
+
+    Non-numeric entries are treated as 0 (→ overnight score 0.3).
+
+    Args:
+        hhmm_series: Series of HHMM integers (or coercible strings).
+
+    Returns:
+        Series of session scores aligned to `hhmm_series.index`.
+    """
     hhmm = pd.to_numeric(hhmm_series, errors="coerce").fillna(0).astype(int)
     scores = np.where(
         (hhmm >= 830) & (hhmm < 1515), 1.0,
@@ -54,16 +72,24 @@ def _session_scores_vectorised(hhmm_series: pd.Series) -> pd.Series:
 # ── Vectorised scorer (DataFrame → Series) ────────────────────────────────────
 
 def compute_entry_score(trades: pd.DataFrame, cfg) -> pd.Series:
-    """Compute entry_score for every row in a trades DataFrame.
+    """Compute `entry_score` in `[0, 1]` for every row in a trades DataFrame.
 
-    Parameters
-    ----------
-    trades : DataFrame containing the LOG_SCHEMA columns produced by backtest.py
-    cfg    : config module with SCORE_W_* and SCORE_EMA_NORM attributes
+    Five components (z-score stretch, volume, EMA spread, bar body ratio,
+    session quality) are blended by `cfg.SCORE_W_*` weights. Missing
+    components are dropped and the score renormalises over the sum of
+    present weights, so trades lacking e.g. `volume_zscore` still receive
+    a valid score from the remaining components.
 
-    Returns
-    -------
-    pd.Series of float64 in [0, 1], same index as trades.
+    Args:
+        trades: DataFrame with columns produced by `backtest.py` per
+            `LOG_SCHEMA.md`. Optional columns are detected at runtime.
+        cfg: Config module exposing `SCORE_W_ZSCORE`, `SCORE_W_VOLUME`,
+            `SCORE_W_EMA`, `SCORE_W_BODY`, `SCORE_W_SESSION`,
+            `SCORE_EMA_NORM`, and `Z_BAND_K`.
+
+    Returns:
+        A `pd.Series` of float64 scores in `[0, 1]` aligned to
+        `trades.index`; NaN when no components are available.
     """
     w_z   = float(cfg.SCORE_W_ZSCORE)
     w_vol = float(cfg.SCORE_W_VOLUME)
@@ -138,7 +164,23 @@ def score_single_trade(
     time_of_day_hhmm:  str,
     cfg,
 ) -> float:
-    """Return entry_score for one trade. NaN inputs are handled gracefully."""
+    """Scalar `entry_score` for a single trade — used inside the backtest loop.
+
+    Mirrors `compute_entry_score` but processes one trade at a time without
+    pandas overhead. NaN inputs are silently dropped from the weighted mean.
+
+    Args:
+        zscore_entry: z-score at the entry bar (may be NaN).
+        volume_zscore: Volume z-score at entry (may be NaN).
+        ema_spread: Fast-minus-slow EMA at entry (may be NaN).
+        bar_body_points: Signal bar body in index points.
+        bar_range_points: Signal bar range (H-L) in points.
+        time_of_day_hhmm: HHMM string or int for the entry bar.
+        cfg: Config module (same attributes as `compute_entry_score`).
+
+    Returns:
+        Float `entry_score` in `[0, 1]`, or `NaN` if every component is missing.
+    """
     w_z   = cfg.SCORE_W_ZSCORE
     w_vol = cfg.SCORE_W_VOLUME
     w_ema = cfg.SCORE_W_EMA
@@ -150,6 +192,7 @@ def score_single_trade(
     num, den = 0.0, 0.0
 
     def _add(weight, value):
+        """Accumulate one weighted component into the running mean, skipping NaN."""
         nonlocal num, den
         if not math.isnan(value):
             num += weight * max(0.0, min(1.0, value))
