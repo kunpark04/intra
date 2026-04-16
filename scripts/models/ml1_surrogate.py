@@ -147,6 +147,7 @@ TARGETS = [
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the ML#1 combo-grain surrogate trainer."""
     p = argparse.ArgumentParser(description="LightGBM surrogate optimizer for strategy parameters")
     p.add_argument("--versions", nargs="+", type=int, default=list(range(2, 11)),
                    help="Sweep versions to include (default: 2–10)")
@@ -885,6 +886,7 @@ def save_results(
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main() -> None:
+    """Train the ML#1 surrogate model from per-combo aggregate features."""
     args = parse_args()
     t_start = time.time()
 

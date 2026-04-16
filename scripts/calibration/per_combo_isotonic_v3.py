@@ -63,6 +63,17 @@ PARQUET_COLUMNS = [
 
 
 def ece_20(y: np.ndarray, p: np.ndarray, n_bins: int = 20) -> float:
+    """Equal-width Expected Calibration Error over `n_bins` buckets.
+
+    Args:
+        y: Binary outcomes.
+        p: Predicted probabilities aligned to `y`.
+        n_bins: Number of equal-width `[0, 1]` buckets (default 20).
+
+    Returns:
+        Count-weighted mean absolute gap between predicted and observed
+        per bin; `0.0` for empty input.
+    """
     bins = np.linspace(0.0, 1.0, n_bins + 1)
     idx = np.clip(np.digitize(p, bins) - 1, 0, n_bins - 1)
     n = len(p)
@@ -79,6 +90,15 @@ def ece_20(y: np.ndarray, p: np.ndarray, n_bins: int = 20) -> float:
 
 
 def load_test() -> pd.DataFrame:
+    """Load the test-partition parquet and prepare it for R:R expansion.
+
+    Drops rows missing the label or sizing inputs, subsamples to
+    `MAX_BASE` if larger, and attaches the combo-id feature used by
+    the V3 booster.
+
+    Returns:
+        Cleaned base DataFrame ready for `expand_rr`.
+    """
     pf = pq.ParquetFile(TEST_PARQUET)
     have = {f.name for f in pf.schema_arrow}
     cols = [c for c in PARQUET_COLUMNS if c in have]
@@ -94,6 +114,19 @@ def load_test() -> pd.DataFrame:
 
 
 def expand_rr(df: pd.DataFrame) -> pd.DataFrame:
+    """Expand each base trade into one row per candidate R:R level.
+
+    Repeats numeric/categorical/Family-A features along the R:R axis,
+    synthesises the `would_win` label as `(mfe_points ≥ rr × stop)`,
+    preserves a `_base_idx` back-pointer, and adds the `rr_x_atr` and
+    `abs_zscore_entry` interaction features.
+
+    Args:
+        df: Base trade frame from `load_test`.
+
+    Returns:
+        Long-format DataFrame (`len(df) × len(RR_LEVELS)` rows).
+    """
     rr_arr = np.array(RR_LEVELS, dtype=np.float32)
     n_rr = len(rr_arr)
     n_base = len(df)
@@ -131,6 +164,20 @@ def expand_rr(df: pd.DataFrame) -> pd.DataFrame:
 
 def expanding_recal_1d(p_raw: np.ndarray, y: np.ndarray,
                        refit_every: int) -> np.ndarray:
+    """Expanding-window isotonic calibration over a chronologically sorted slice.
+
+    Fits `IsotonicRegression` on the first `anchor` rows and applies it
+    forward to the next chunk; walks until the end. Skips refits with
+    fewer than 2 unique labels. Rows before the warm-up keep raw scores.
+
+    Args:
+        p_raw: Raw booster predictions in chronological order.
+        y: Binary outcomes aligned to `p_raw`.
+        refit_every: Bars between refits.
+
+    Returns:
+        Calibrated probabilities, same shape as `p_raw`.
+    """
     n = len(p_raw)
     p_cal = p_raw.copy()
     for anchor in range(MIN_FIT, n, refit_every):
@@ -145,6 +192,12 @@ def expanding_recal_1d(p_raw: np.ndarray, y: np.ndarray,
 
 
 def main() -> None:
+    """Fit per-combo 1-D isotonic calibrators on top of the pooled per-R:R stack.
+
+    For each combo with enough data, fits an additional `IsotonicRegression`
+    on top of the pooled-recalibrated score and reports ECE before and
+    after. Writes JSON + a knots artifact consumed by `inference_v3`.
+    """
     t0 = time.time()
     df = load_test()
     print(f"[4f] loaded {len(df):,} base trades")

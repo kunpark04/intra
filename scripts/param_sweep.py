@@ -840,6 +840,7 @@ def _run_backtest_light(df: pd.DataFrame, cfg) -> dict:
     col_pos = {col: df.columns.get_loc(col) for col in df.columns}
 
     def _get(row_idx: int, col: str, default=float("nan")):
+        """Safe attribute/index lookup used inside vectorised sampling paths."""
         if col in col_pos:
             return df.iat[row_idx, col_pos[col]]
         return default
@@ -1162,10 +1163,12 @@ def _merge_chunks() -> None:
 
 
 def _save_manifest(manifest: list[dict]) -> None:
+    """Persist the per-combo completion manifest alongside the parquet dataset."""
     MANIFEST_PATH.write_text(json.dumps(manifest, default=str))
 
 
 def _load_manifest() -> list[dict]:
+    """Load the per-combo manifest if it exists, else return an empty skeleton."""
     if MANIFEST_PATH.exists():
         return json.loads(MANIFEST_PATH.read_text())
     return []
@@ -1174,6 +1177,7 @@ def _load_manifest() -> list[dict]:
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 def _parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the parameter sweep runner."""
     p = argparse.ArgumentParser(description="Parameter sweep for ML dataset generation.")
     p.add_argument("--combinations", type=int, default=3000,
                    help="Total combos in the sample space (default: 3000)")
@@ -1202,6 +1206,7 @@ def _parse_args() -> argparse.Namespace:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    """Run the parameter sweep: sample N combos, backtest each, append to parquet."""
     global PARQUET_PATH, MANIFEST_PATH, _chunk_counter
 
     args = _parse_args()
@@ -1358,6 +1363,7 @@ def main() -> None:
     # 4. SIGINT handler
     stop_flag = [False]
     def _on_sigint(sig, frame):
+        """SIGINT handler — flush pending rows to parquet before exiting cleanly."""
         stop_flag[0] = True
         print("\n[sweep] Ctrl+C — will flush and exit after current combo.", flush=True)
     signal.signal(signal.SIGINT, _on_sigint)
@@ -1500,12 +1506,26 @@ if __name__ == "__main__":
     _orig_stdout, _orig_stderr = sys.stdout, sys.stderr
 
     class _Tee:
-        def __init__(self, *streams): self._streams = streams
+        """Minimal tee file-like that mirrors writes to stdout and a log file."""
+
+        def __init__(self, *streams):
+            """Store the destination streams."""
+            self._streams = streams
+
         def write(self, data):
-            for s in self._streams: s.write(data); s.flush()
+            """Forward `data` to all underlying streams and flush each."""
+            for s in self._streams:
+                s.write(data)
+                s.flush()
+
         def flush(self):
-            for s in self._streams: s.flush()
-        def fileno(self): return self._streams[0].fileno()
+            """Flush all underlying streams."""
+            for s in self._streams:
+                s.flush()
+
+        def fileno(self):
+            """Delegate `fileno` to the primary (first) stream."""
+            return self._streams[0].fileno()
 
     sys.stdout = _Tee(_orig_stdout, _log)
     sys.stderr = _Tee(_orig_stderr, _log)

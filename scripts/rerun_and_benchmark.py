@@ -67,6 +67,7 @@ def time_fn(fn, args, n_runs: int = 3) -> float:
 
 
 def main():
+    """Rerun V1/V2 across Cython, Numba, and NumPy tiers and print per-tier timings."""
     print(SEP)
     print("  Starting equity : $50,000")
     print(SEP)

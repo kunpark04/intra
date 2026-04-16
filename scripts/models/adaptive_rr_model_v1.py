@@ -112,6 +112,7 @@ VERSION_RANGE_MODE = {
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the V1 adaptive-R:R trainer."""
     p = argparse.ArgumentParser(
         description="Adaptive R:R model — P(win | features, candidate_rr)")
     p.add_argument("--versions", type=int, nargs="+",
@@ -503,6 +504,7 @@ def plot_optimal_rr_distribution(results: pd.DataFrame,
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    """Train the V1 adaptive-R:R LightGBM model and emit booster + OOF artifacts."""
     args = parse_args()
     t_start = time.time()
 

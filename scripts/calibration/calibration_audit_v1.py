@@ -23,6 +23,16 @@ N_RR = len(RR_LEVELS)
 
 
 def wilson_ci(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score confidence interval for a binomial proportion.
+
+    Args:
+        k: Number of successes.
+        n: Number of trials.
+        z: Standard-normal quantile (default 1.96 → 95% CI).
+
+    Returns:
+        `(lo, hi)` tuple clipped to `[0, 1]`, or `(nan, nan)` if `n == 0`.
+    """
     if n == 0:
         return (float("nan"), float("nan"))
     p = k / n
@@ -33,6 +43,20 @@ def wilson_ci(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
 
 
 def equal_mass_bins(pred: np.ndarray, y: np.ndarray, n_bins: int = N_BINS):
+    """Equal-mass reliability diagram with per-bin Wilson CIs + ECE/MCE.
+
+    Partitions `pred` into `n_bins` quantile-mass buckets, then reports
+    per-bin predicted mean, observed rate, count, Wilson 95% CI, and gap.
+    Also returns the expected (ECE) and max (MCE) calibration error.
+
+    Args:
+        pred: Predicted probabilities in `[0, 1]`.
+        y: Binary outcomes aligned to `pred`.
+        n_bins: Number of quantile bins (default `N_BINS`).
+
+    Returns:
+        `(rows, ece, mce)` where `rows` is a list of per-bin dicts.
+    """
     # Quantile bin edges; unique() to handle ties.
     qs = np.linspace(0, 1, n_bins + 1)
     edges = np.unique(np.quantile(pred, qs))
@@ -69,6 +93,17 @@ def equal_mass_bins(pred: np.ndarray, y: np.ndarray, n_bins: int = N_BINS):
 
 
 def compute_ece(pred: np.ndarray, y: np.ndarray, n_bins: int = N_BINS) -> float:
+    """Equal-mass Expected Calibration Error.
+
+    Args:
+        pred: Predicted probabilities.
+        y: Binary outcomes aligned to `pred`.
+        n_bins: Target number of quantile bins.
+
+    Returns:
+        Count-weighted mean absolute gap between predicted and observed
+        per bin, or NaN when fewer than `n_bins` samples are provided.
+    """
     if len(pred) < n_bins:
         return float("nan")
     qs = np.linspace(0, 1, n_bins + 1)
@@ -86,6 +121,12 @@ def compute_ece(pred: np.ndarray, y: np.ndarray, n_bins: int = N_BINS) -> float:
 
 
 def main() -> None:
+    """Run the V1 calibration audit and write a JSON report.
+
+    Loads OOF predictions from `OOF_PATH`, reconstructs per-R:R indexing,
+    computes global equal-mass ECE/MCE, per-R:R ECE, and writes the
+    aggregated result to `OUT_PATH`.
+    """
     t0 = time.time()
     print(f"[load] {OOF_PATH}")
     df = pd.read_parquet(OOF_PATH, columns=["oof_pwin", "y_true"])

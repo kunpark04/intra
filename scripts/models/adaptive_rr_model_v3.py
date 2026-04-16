@@ -100,6 +100,7 @@ LGB_PARAMS = {
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the V3 adaptive-R:R trainer."""
     p = argparse.ArgumentParser(description="V3 adaptive R:R — V2 + Family A")
     p.add_argument("--versions", type=int, nargs="+", default=list(range(2, 11)))
     p.add_argument("--max-rows", type=int, default=10_000_000)
@@ -158,6 +159,14 @@ def add_family_a(df: pd.DataFrame) -> pd.DataFrame:
 
 def expand_rr_levels(df: pd.DataFrame, rr_levels: list[float],
                      max_rows: int) -> pd.DataFrame:
+    """Expand a base trade frame into long format along `RR_LEVELS`.
+
+    Args:
+        df: Base trade DataFrame.
+
+    Returns:
+        Long-format frame with synthetic `would_win` label and R:R feature.
+    """
     print(f"\n[expand] {len(df):,} base trades × {len(rr_levels)} R:R...")
 
     rng = np.random.default_rng(42)
@@ -225,6 +234,18 @@ def expand_rr_levels(df: pd.DataFrame, rr_levels: list[float],
 # ── Training ──────────────────────────────────────────────────────────────
 
 def train_model(df: pd.DataFrame, n_folds: int) -> dict:
+    """Fit the V3 LightGBM booster on a prepared train/val split.
+
+    Args:
+        X_tr: Training feature matrix.
+        y_tr: Training labels.
+        X_va: Validation feature matrix.
+        y_va: Validation labels.
+        params: LightGBM parameter dict.
+
+    Returns:
+        Trained `lightgbm.Booster`.
+    """
     print(f"\n[train] Training V3 on {len(df):,} rows, {n_folds}-fold CV...")
     feature_cols = [c for c in ALL_FEATURES if c in df.columns]
     print(f"  Features ({len(feature_cols)}): {feature_cols}")
@@ -282,6 +303,16 @@ def train_model(df: pd.DataFrame, n_folds: int) -> dict:
 # ── Isotonic-per-RR calibration ───────────────────────────────────────────
 
 def fit_isotonic_per_rr(y: np.ndarray, p: np.ndarray, rr: np.ndarray) -> dict:
+    """Fit one `IsotonicRegression` calibrator per R:R level.
+
+    Args:
+        p: Raw booster probabilities (long-format vector).
+        y: Outcomes aligned to `p`.
+        rr: Per-row R:R level.
+
+    Returns:
+        Dict mapping R:R → fitted `IsotonicRegression`.
+    """
     calibrators = {}
     p_cal = np.empty_like(p)
     for rr_val in RR_LEVELS:
@@ -300,6 +331,7 @@ def fit_isotonic_per_rr(y: np.ndarray, p: np.ndarray, rr: np.ndarray) -> dict:
 
 
 def ece_20bin(y: np.ndarray, p: np.ndarray) -> float:
+    """Convenience ECE wrapper with a fixed 20-bin equal-width grid."""
     bins = np.linspace(0, 1, 21)
     idx = np.digitize(p, bins) - 1
     ece = 0.0
@@ -315,6 +347,7 @@ def ece_20bin(y: np.ndarray, p: np.ndarray) -> float:
 # ── Main ──────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    """Train the V3 stack: LightGBM booster + per-R:R pooled isotonic calibrator."""
     args = parse_args()
     t0 = time.time()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

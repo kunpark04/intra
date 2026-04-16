@@ -67,6 +67,17 @@ PARQUET_COLUMNS = [
 
 
 def ece_20(y: np.ndarray, p: np.ndarray, n_bins: int = 20) -> float:
+    """Equal-width Expected Calibration Error over `n_bins` buckets.
+
+    Args:
+        y: Binary outcomes.
+        p: Predicted probabilities aligned to `y`.
+        n_bins: Number of equal-width `[0, 1]` buckets (default 20).
+
+    Returns:
+        Count-weighted mean absolute gap between predicted and observed
+        per bin; `0.0` for empty input.
+    """
     bins = np.linspace(0.0, 1.0, n_bins + 1)
     idx = np.clip(np.digitize(p, bins) - 1, 0, n_bins - 1)
     ece = 0.0
@@ -83,6 +94,15 @@ def ece_20(y: np.ndarray, p: np.ndarray, n_bins: int = 20) -> float:
 
 
 def load_test() -> pd.DataFrame:
+    """Load the test-partition parquet and prepare it for R:R expansion.
+
+    Drops rows missing the label or sizing inputs, subsamples to
+    `MAX_BASE` if larger, and attaches the combo-id feature used by
+    the V3 booster.
+
+    Returns:
+        Cleaned base DataFrame ready for `expand_rr`.
+    """
     pf = pq.ParquetFile(TEST_PARQUET)
     have = {f.name for f in pf.schema_arrow}
     cols = [c for c in PARQUET_COLUMNS if c in have]
@@ -98,6 +118,19 @@ def load_test() -> pd.DataFrame:
 
 
 def expand_rr(df: pd.DataFrame) -> pd.DataFrame:
+    """Expand each base trade into one row per candidate R:R level.
+
+    Repeats numeric/categorical/Family-A features along the R:R axis,
+    synthesises the `would_win` label as `(mfe_points ≥ rr × stop)`,
+    preserves a `_base_idx` back-pointer, and adds the `rr_x_atr` and
+    `abs_zscore_entry` interaction features.
+
+    Args:
+        df: Base trade frame from `load_test`.
+
+    Returns:
+        Long-format DataFrame (`len(df) × len(RR_LEVELS)` rows).
+    """
     rr_arr = np.array(RR_LEVELS, dtype=np.float32)
     n_rr = len(rr_arr)
     n_base = len(df)
@@ -136,6 +169,21 @@ def expand_rr(df: pd.DataFrame) -> pd.DataFrame:
 def rolling_recal_1d(p_raw: np.ndarray, y: np.ndarray,
                      window: int, refit_every: int,
                      min_fit: int = 200) -> np.ndarray:
+    """Rolling-window isotonic calibration over a chronologically sorted slice.
+
+    Slides a fixed-width training window and refits `IsotonicRegression`
+    every `refit_every` rows. Complementary to `expanding_recal_1d`:
+    better for detecting regime drift, worse for small samples.
+
+    Args:
+        p_raw: Raw booster predictions in chronological order.
+        y: Binary outcomes aligned to `p_raw`.
+        window: Training window size.
+        refit_every: Bars between refits.
+
+    Returns:
+        Calibrated probabilities, same shape as `p_raw`.
+    """
     n = len(p_raw)
     p_cal = p_raw.copy()
     for anchor in range(min_fit, n, refit_every):
@@ -153,6 +201,19 @@ def rolling_recal_1d(p_raw: np.ndarray, y: np.ndarray,
 def apply_rolling_per_rr(p_raw: np.ndarray, y: np.ndarray,
                          rr_col: np.ndarray, base_idx: np.ndarray,
                          window: int, refit_every: int) -> np.ndarray:
+    """Apply `rolling_recal_1d` independently per R:R slice.
+
+    Args:
+        p_raw: Raw predictions (full long-format vector).
+        y: Outcomes aligned to `p_raw`.
+        rr_col: Per-row R:R level (used to split).
+        base_idx: Per-row base-trade index (used to sort chronologically).
+        window: Training window size.
+        refit_every: Bars between refits.
+
+    Returns:
+        Calibrated probabilities, same shape as `p_raw`.
+    """
     p_out = p_raw.copy()
     for rr in RR_LEVELS:
         m = rr_col == np.float32(rr)
@@ -169,6 +230,17 @@ def apply_rolling_per_rr(p_raw: np.ndarray, y: np.ndarray,
 def regime_split_metrics(y: np.ndarray, p_raw: np.ndarray,
                          p_static: np.ndarray, p_rolling: np.ndarray,
                          base_idx: np.ndarray) -> dict:
+    """Per-regime ECE on a supplied train/test split.
+
+    Args:
+        y: Outcomes.
+        p: Predicted probabilities aligned to `y`.
+        mask_train: Bool mask for the training half.
+        mask_test: Bool mask for the held-out half.
+
+    Returns:
+        Dict with `ece_train`, `ece_test`, and sample counts.
+    """
     n_base = int(base_idx.max()) + 1
     mid = n_base // 2
     m_early = base_idx < mid
@@ -197,6 +269,17 @@ def regime_split_metrics(y: np.ndarray, p_raw: np.ndarray,
 
 def bootstrap_ece(y: np.ndarray, p_rolling: np.ndarray,
                   n_boot: int, seed: int, gate: float) -> dict:
+    """Bootstrap confidence interval for ECE via row resampling.
+
+    Args:
+        y: Outcomes.
+        p: Predicted probabilities aligned to `y`.
+        n_boot: Number of bootstrap draws (default defined in body).
+        seed: RNG seed.
+
+    Returns:
+        Dict with `mean`, `p2_5`, `p97_5` ECE values.
+    """
     rng = np.random.default_rng(seed)
     n = len(y)
     eces = np.empty(n_boot, dtype=np.float64)
@@ -216,6 +299,12 @@ def bootstrap_ece(y: np.ndarray, p_rolling: np.ndarray,
 
 
 def main() -> None:
+    """Robustness audit of per-R:R recalibration via regime splits + bootstraps.
+
+    Computes per-regime ECE, bootstrap CIs, and compares rolling vs
+    expanding recalibration across multiple `refit_every` cadences.
+    Writes an aggregate JSON report.
+    """
     t0 = time.time()
     df = load_test()
     print(f"[4b] loaded {len(df):,} base trades in {time.time()-t0:.1f}s")

@@ -63,6 +63,12 @@ VERSIONS = list(range(2, 11))
 
 
 def main() -> None:
+    """Serialise the pooled per-R:R isotonic calibrators to a portable JSON file.
+
+    Fits each per-R:R calibrator on the training partition and emits
+    `isotonic_calibrators_v3.json` (the artifact consumed by the V3
+    production stack at inference time).
+    """
     t0 = time.time()
 
     # ── Load training data (same pipeline as V3 training) ────────────────

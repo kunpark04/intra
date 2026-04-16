@@ -19,6 +19,16 @@ N_RR = len(RR_LEVELS)
 
 
 def ece_equal_mass(p, y, n_bins=20):
+    """Equal-mass Expected Calibration Error.
+
+    Args:
+        p: Predicted probabilities.
+        y: Binary outcomes aligned to `p`.
+        n_bins: Number of quantile bins.
+
+    Returns:
+        Count-weighted mean absolute per-bin gap.
+    """
     order = np.argsort(p)
     p_s, y_s = p[order], y[order]
     idx = np.array_split(np.arange(len(p)), n_bins)
@@ -34,6 +44,12 @@ def ece_equal_mass(p, y, n_bins=20):
 
 
 def main():
+    """Fit and serialise the V1 adaptive-R:R recalibration artifact.
+
+    Loads OOF predictions, applies per-R:R isotonic recalibration, and
+    writes the calibrator + before/after ECE summary to
+    `data/ml/adaptive_rr_v1/recalibrator.json`.
+    """
     df = pd.read_parquet(OOF_PATH)
     n = len(df)
     assert n % N_RR == 0, f"rows {n} not divisible by {N_RR}"

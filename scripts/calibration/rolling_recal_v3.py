@@ -64,6 +64,17 @@ PARQUET_COLUMNS = [
 
 
 def ece_20(y: np.ndarray, p: np.ndarray, n_bins: int = 20) -> float:
+    """Equal-width Expected Calibration Error over `n_bins` buckets.
+
+    Args:
+        y: Binary outcomes.
+        p: Predicted probabilities aligned to `y`.
+        n_bins: Number of equal-width `[0, 1]` buckets (default 20).
+
+    Returns:
+        Count-weighted mean absolute gap between predicted and observed
+        per bin; `0.0` for empty input.
+    """
     bins = np.linspace(0.0, 1.0, n_bins + 1)
     idx = np.clip(np.digitize(p, bins) - 1, 0, n_bins - 1)
     ece = 0.0
@@ -78,6 +89,15 @@ def ece_20(y: np.ndarray, p: np.ndarray, n_bins: int = 20) -> float:
 
 
 def load_test(path: Path, max_base: int, sweep_version: int = 10) -> pd.DataFrame:
+    """Load the test-partition parquet and prepare it for R:R expansion.
+
+    Drops rows missing the label or sizing inputs, subsamples to
+    `MAX_BASE` if larger, and attaches the combo-id feature used by
+    the V3 booster.
+
+    Returns:
+        Cleaned base DataFrame ready for `expand_rr`.
+    """
     pf = pq.ParquetFile(path)
     have = {f.name for f in pf.schema_arrow}
     cols = [c for c in PARQUET_COLUMNS if c in have]
@@ -93,6 +113,19 @@ def load_test(path: Path, max_base: int, sweep_version: int = 10) -> pd.DataFram
 
 
 def expand_rr(df: pd.DataFrame) -> pd.DataFrame:
+    """Expand each base trade into one row per candidate R:R level.
+
+    Repeats numeric/categorical/Family-A features along the R:R axis,
+    synthesises the `would_win` label as `(mfe_points ≥ rr × stop)`,
+    preserves a `_base_idx` back-pointer, and adds the `rr_x_atr` and
+    `abs_zscore_entry` interaction features.
+
+    Args:
+        df: Base trade frame from `load_test`.
+
+    Returns:
+        Long-format DataFrame (`len(df) × len(RR_LEVELS)` rows).
+    """
     rr_arr = np.array(RR_LEVELS, dtype=np.float32)
     n_rr = len(rr_arr)
     n_base = len(df)
@@ -148,6 +181,12 @@ def rolling_recal_1d(p_raw: np.ndarray, y: np.ndarray,
 
 
 def main() -> None:
+    """Apply a fixed rolling-window per-R:R isotonic recalibration end-to-end.
+
+    Loads the test partition, predicts, recalibrates with
+    `rolling_recal_1d`, and writes the calibrated probability column
+    + pooled ECE summary JSON.
+    """
     ap = argparse.ArgumentParser()
     ap.add_argument("--test-parquet", type=Path,
                     default=REPO / "data/ml/mfe/ml_dataset_v10_test_mfe.parquet")

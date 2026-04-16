@@ -376,6 +376,15 @@ plt.show()
 
 
 def make_code_cell(source: str) -> dict:
+    """Build a single `code` cell from a list of source lines.
+
+    Args:
+        source_lines: Cell body (each entry is one source line,
+            newline-terminated or not).
+
+    Returns:
+        `nbformat` code-cell dict.
+    """
     return {
         "cell_type": "code",
         "execution_count": None,
@@ -386,6 +395,15 @@ def make_code_cell(source: str) -> dict:
 
 
 def make_notebook() -> dict:
+    """Assemble the full 7-cell analysis notebook for one iteration.
+
+    Args:
+        version: Iteration label used to locate artifacts.
+        cells: Ordered list of cell dicts.
+
+    Returns:
+        `nbformat` notebook dict (v4).
+    """
     return {
         "nbformat": 4,
         "nbformat_minor": 5,
@@ -410,6 +428,7 @@ def make_notebook() -> dict:
 
 
 def main():
+    """Generate `analysis.ipynb` for each iteration named on the command line."""
     iterations_dir = Path("iterations")
     if len(sys.argv) > 1:
         versions = sys.argv[1:]

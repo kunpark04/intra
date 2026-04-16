@@ -22,6 +22,7 @@ from src.reporting import save_iteration
 
 
 def main():
+    """CLI entry point: run one iteration version end-to-end (training partition)."""
     parser = argparse.ArgumentParser(description="Run MNQ 1-min EMA crossover backtest (training partition only).")
     parser.add_argument("--version", default="V1", help="Iteration version label, e.g. V1, V2 (default: V1)")
     parser.add_argument("--data", default="data/NQ_1min.csv", help="Path to NQ 1-min CSV (default: data/NQ_1min.csv)")

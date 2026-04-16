@@ -80,6 +80,7 @@ ALL_FEATURES = ENTRY_FEATURES + COMBO_FEATURES + [RR_FEATURE] + DERIVED_FEATURES
 
 
 def shared_cache_path() -> Path:
+    """Resolve the on-disk path for the shared V2 R:R-expanded feature cache."""
     # Key cache by features + R:R grid so schema drift invalidates automatically.
     key = json.dumps({"features": ALL_FEATURES, "rr_levels": RR_LEVELS}, sort_keys=True)
     h = hashlib.sha1(key.encode()).hexdigest()[:12]
@@ -147,6 +148,7 @@ VERSION_RANGE_MODE = {
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI arguments for the V2 adaptive-R:R trainer."""
     p = argparse.ArgumentParser(
         description="Adaptive R:R model — P(win | features, candidate_rr)")
     p.add_argument("--versions", type=int, nargs="+",
@@ -642,6 +644,7 @@ def plot_optimal_rr_distribution(results: pd.DataFrame,
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    """Train the V2 adaptive-R:R model (V2-filtered sweep, Family A features)."""
     args = parse_args()
     t_start = time.time()
 

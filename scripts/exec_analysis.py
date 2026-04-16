@@ -6,6 +6,14 @@ import sys
 
 
 def execute_analysis(version: str) -> None:
+    """Execute `analysis.ipynb` in-place for one iteration folder.
+
+    Runs all cells via `nbclient` with `cwd` set to the iteration root
+    so relative paths resolve correctly.
+
+    Args:
+        version: Iteration label (e.g. ``"V1"``) — selects the folder.
+    """
     path = Path("iterations") / version / "analysis.ipynb"
     abs_cwd = str(path.parent.resolve())
 
