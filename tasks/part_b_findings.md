@@ -968,3 +968,61 @@ signal either direction.
 - Roadmap and pre-task planning: `tasks/ml1_ml2_synthesis_roadmap.md`.
 - ML#1 decisions: `tasks/ml_decisions.md`.
 - ML#2 decisions: `tasks/adaptive_rr_decisions.md`.
+
+
+## Phase 5C — Portfolio-level simulation (top-5 combos, train partition)
+
+**Script:** `scripts/portfolio_sim_v3.py`
+**Artifact:** `data/ml/adaptive_rr_v3/portfolio_sim_v3.json`
+**Combos:** v10_7649, v10_8617, v10_9264, v10_9393, v6_1676 (top-5 high-freq)
+**Setup:** Shared $50k equity, event-driven event stream (exits before entries at same bar), three sizing policies compared head-to-head.
+
+### Three-policy comparison (same trade pool, different sizing)
+
+| Policy                   | Return    | Sharpe | Max DD    | Trades taken |
+|--------------------------|-----------|--------|-----------|--------------|
+| `fixed5` (5% starting eq)| +2404%    | 5.46   | 36.5%     | 6107 / ~25k  |
+| `kelly:pwin_simple`      | +151%     | 2.58   | 12.5%     |   95 / ~25k  |
+| `kelly:pwin_twostage`    | +202%     | 0.67   | **91.1%** | 1788 / ~25k  |
+
+### Interpretation
+
+- **Fixed-5% dominates in-sample.** Takes ~24% of available trades, produces Sharpe 5.46 with moderate DD.
+- **kelly_simple is too conservative.** Pooled per-R:R calibrator outputs mean P(win) 0.32–0.47 → Kelly(p, ~1.1) ≤ 0 on most trades → only 95 pass the f > 0 gate. High per-trade WR (0.53–1.0 on the rare trades taken) confirms the gate is picking winners but missing huge volume.
+- **kelly_twostage is catastrophic.** v10_9264's per-combo isotonic maps booster raw scores to mean P(win) = **0.970** (vs simple 0.472). Kelly saturates at the 5% cap on nearly every v10_9264 trade → 1526 trades at max size → when WR reverts to 0.453 (the actual base rate), net -$29,675 and a 91% drawdown.
+
+### Why the per-combo calibrator mis-sizes v10_9264
+
+The per-combo isotonic was fit on OOF predictions from training. Re-running the same booster on the train partition here produces raw scores that are partly in-bag. For v10_9264's fold, the isotonic mapping `raw → P(win)` is calibrated to the OOF raw-score distribution; on in-bag raw scores it produces a systematic upward bias. The 0.970 mean is diagnostic: it does not reflect the realised 0.4528 WR on these same trades.
+
+### Implication for Kelly sizing
+
+**Absolute P(win) from the per-combo two-stage calibrator is not Kelly-safe on the train partition.** The correct test is the B16 held-out eval (Phase 5D), where the raw scores are genuinely OOS and the calibrator's isotonic mapping is applied to a fresh score distribution. If kelly_twostage on OOS still produces pathological DDs, the per-combo calibrator is overfit and should be restricted to pooled per-R:R for Kelly.
+
+### Correlation matrix (top-5, daily PnL, 1768 overlapping days)
+
+|            | v10_7649 | v10_8617 | v10_9264 | v10_9393 | v6_1676 |
+|------------|---------:|---------:|---------:|---------:|--------:|
+| v10_7649   |    1.000 |    0.055 |    0.230 |    0.176 |   0.014 |
+| v10_8617   |    0.055 |    1.000 |    0.143 |    0.051 |   0.049 |
+| v10_9264   |    0.230 |    0.143 |    1.000 |    0.129 |   0.105 |
+| v10_9393   |    0.176 |    0.051 |    0.129 |    1.000 |  -0.032 |
+| v6_1676    |    0.014 |    0.049 |    0.105 |   -0.032 |   1.000 |
+
+Max off-diagonal 0.230 → portfolio is well-diversified. No pair dominates; the top-5 set is a legitimate multi-combo ensemble.
+
+### Per-combo solo metrics (fixed-5% sizing, train partition)
+
+| combo_id | n | R:R | per-combo cal? | solo ret | solo sharpe | mean_pwin_simple | mean_pwin_twostage |
+|----------|---:|-----|:---:|---------:|------------:|------:|------:|
+| v10_7649 | 5565 | 1.71 | YES | +10759% | 21.33 | 0.321 | 0.371 |
+| v10_8617 | 1814 | 1.07 | no  | +2047%  |  9.50 | 0.461 | 0.461 |
+| v10_9264 | 10832 | 1.11 | YES | +20172% | 39.47 | 0.472 | **0.970** |
+| v10_9393 | 3277 | 1.62 | no  | +6293%  | 16.85 | 0.328 | 0.328 |
+| v6_1676  | 3545 | 1.08 | YES | +1420%  |  4.59 | 0.378 | 0.386 |
+
+Per-combo calibration delta on `mean_pwin`: v10_7649 +0.05, v10_9264 **+0.50** (extreme), v6_1676 +0.01. The 0.05-tier lifts look reasonable; the v10_9264 +0.50 is the smoking gun for why kelly_twostage fails.
+
+### Verdict
+
+Phase 5C is a **third null-to-negative result for the per-combo two-stage calibrator**: it did not help filter-threshold Sharpe (Phase 3), did not help filter reopt Sharpe (Phase 5A), and actively harms Kelly sizing on train via overconfident absolute P(win). The correct next step is Phase 5D (B16 held-out eval) — if OOS kelly_twostage is also catastrophic, the per-combo calibrator should be deprecated from the production stack and the pooled per-R:R isotonic used for all consumers (filter + Kelly).
