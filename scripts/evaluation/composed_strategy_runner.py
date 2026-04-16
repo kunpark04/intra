@@ -103,17 +103,26 @@ def make_cfg_from_params(params: dict) -> types.SimpleNamespace:
     ns.SESSION_FILTER_MODE    = int(params.get("session_filter_mode", 0) or 0)
     ns.TOD_EXIT_HOUR          = int(params.get("tod_exit_hour", 0) or 0)
 
-    stop_method = str(params.get("stop_method", "fixed")).lower()
-    ns.STOP_METHOD = stop_method
-    if stop_method == "fixed":
-        sfp = params.get("stop_fixed_pts")
-        ns.STOP_FIXED_PTS = float(sfp) if not _is_none_or_nan(sfp) else base_cfg.STOP_FIXED_PTS
-    elif stop_method == "atr":
-        mult = params.get("atr_multiplier")
-        ns.ATR_MULTIPLIER = float(mult) if not _is_none_or_nan(mult) else base_cfg.ATR_MULTIPLIER
-    elif stop_method == "swing":
-        lb = params.get("swing_lookback")
-        ns.SWING_LOOKBACK = int(lb) if not _is_none_or_nan(lb) else base_cfg.SWING_LOOKBACK
+    # Use the sweep's pre-resolved fixed-pts stop when present — replaying
+    # ATR/swing combos on OOS bars must NOT recompute the dynamic stop on
+    # test data (that produces a different strategy than what the ML
+    # selected). See scripts/analysis/validate_top_combos_ml1.py.
+    resolved = params.get("stop_fixed_pts_resolved")
+    if not _is_none_or_nan(resolved):
+        ns.STOP_METHOD = "fixed"
+        ns.STOP_FIXED_PTS = float(resolved)
+    else:
+        stop_method = str(params.get("stop_method", "fixed")).lower()
+        ns.STOP_METHOD = stop_method
+        if stop_method == "fixed":
+            sfp = params.get("stop_fixed_pts")
+            ns.STOP_FIXED_PTS = float(sfp) if not _is_none_or_nan(sfp) else base_cfg.STOP_FIXED_PTS
+        elif stop_method == "atr":
+            mult = params.get("atr_multiplier")
+            ns.ATR_MULTIPLIER = float(mult) if not _is_none_or_nan(mult) else base_cfg.ATR_MULTIPLIER
+        elif stop_method == "swing":
+            lb = params.get("swing_lookback")
+            ns.SWING_LOOKBACK = int(lb) if not _is_none_or_nan(lb) else base_cfg.SWING_LOOKBACK
 
     ns.SIGNAL_MODE = "zscore_reversal"
     return ns

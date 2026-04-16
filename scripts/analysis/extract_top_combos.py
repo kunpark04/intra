@@ -1,19 +1,26 @@
-"""Extract the top-K combos in each frequency bucket for final evaluation.
+"""Extract the top-K combos overall by ML#1-predicted composite score.
 
-Loads `combo_features.parquet` (ML#1 training frame — every sweep combo with
-realised metrics + hyperparameters) and the ML#1 `composite_score` LightGBM
-model, predicts composite on every combo, splits combos into high-frequency
-(`n_trades >= --high-freq-min`) and low-frequency (`n_trades <= --low-freq-max`)
-buckets, then picks the top-K per bucket by ML#1-predicted composite.
+Loads `combo_features.parquet` (ML#1 training frame) and the ML#1
+composite-score LightGBM model, predicts composite for every combo,
+applies a `--min-trades` floor to drop statistically unreliable combos,
+then picks the top-K by predicted composite.
 
-Output: `evaluation/top_strategies.json` — one entry per combo containing
+Output: `evaluation/top_strategies.json` — one entry per combo with
 `global_combo_id`, ML prediction, realised metrics, and the complete
-hyperparameter set needed to reconstruct the strategy.
+hyperparameter set (including `stop_fixed_pts_resolved` from the sweep
+manifest) needed to reconstruct the strategy.
+
+Frequency bucketing was dropped after an audit
+(`scripts/analysis/_freq_filter_audit.py`) showed that predicted composite
+is uncorrelated with `n_trades` (r = -0.002) and the overall top-20
+combos all live in the middle band — bucketing was actively excluding the
+best combos. A `--min-trades` floor remains the only principled filter:
+it rejects combos where realised metrics (and therefore the trained
+labels) are noise from too-few trades.
 
 Usage:
-    python scripts/analysis/extract_top_combos_by_freq.py
-    python scripts/analysis/extract_top_combos_by_freq.py --top-k 5 \
-        --high-freq-min 1000 --low-freq-max 300
+    python scripts/analysis/extract_top_combos.py
+    python scripts/analysis/extract_top_combos.py --top-k 10 --min-trades 100
 """
 from __future__ import annotations
 
@@ -36,9 +43,8 @@ ML1_DIR = REPO / "data" / "ml" / "ml1_results_v2filtered"
 FEATURES_PARQUET = ML1_DIR / "combo_features.parquet"
 COMPOSITE_MODEL = ML1_DIR / "models" / "composite_score.txt"
 DEFAULT_OUT = REPO / "evaluation" / "top_strategies.json"
+DEFAULT_MANIFEST_DIR = REPO / "data" / "ml" / "originals"
 
-# Hyperparameter columns that fully specify a strategy (mirrors PARAM_COLS
-# in scripts/models/ml1_surrogate.py + sweep metadata needed for replay).
 PARAM_COLS = [
     "sweep_version",
     "z_band_k", "z_window", "volume_zscore_window",
@@ -61,25 +67,46 @@ REALISED_COLS = [
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse CLI args for the top-combo extractor.
-
-    Returns:
-        Namespace with `top_k`, `high_freq_min`, `low_freq_max`, `output`.
-    """
+    """Parse CLI args for the top-combo extractor."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--top-k", type=int, default=5,
-                    help="Number of combos to keep per frequency bucket.")
-    ap.add_argument("--high-freq-min", type=int, default=1000,
-                    help="n_trades threshold (inclusive) for high-freq bucket.")
-    ap.add_argument("--low-freq-max", type=int, default=300,
-                    help="n_trades threshold (inclusive) for low-freq bucket.")
+    ap.add_argument("--top-k", type=int, default=10,
+                    help="Number of combos to keep overall.")
+    ap.add_argument("--min-trades", type=int, default=100,
+                    help="Reject combos with fewer than this many trades "
+                         "(realised metrics are noise below ~100).")
     ap.add_argument("--output", type=Path, default=DEFAULT_OUT,
                     help="Output JSON path.")
     ap.add_argument("--features", type=Path, default=FEATURES_PARQUET,
                     help="combo_features.parquet path.")
     ap.add_argument("--model", type=Path, default=COMPOSITE_MODEL,
                     help="LightGBM composite-score model path.")
+    ap.add_argument("--manifest-dir", type=Path, default=DEFAULT_MANIFEST_DIR,
+                    help="Directory of sweep manifests with stop_fixed_pts_resolved.")
     return ap.parse_args()
+
+
+def _load_resolved_stops(manifest_dir: Path) -> dict[str, float]:
+    """Load `stop_fixed_pts_resolved` per `global_combo_id` from sweep manifests.
+
+    The sweep stored a single resolved fixed-points value for every combo,
+    even those with `stop_method` of `"atr"` or `"swing"` — pre-resolved
+    from training-period medians. Replaying these combos on OOS bars must
+    use this resolved value (not recompute ATR/swing on test data), or the
+    strategy becomes something the ML never selected.
+    """
+    resolved: dict[str, float] = {}
+    if not manifest_dir.exists():
+        return resolved
+    for v in range(2, 11):
+        path = manifest_dir / f"ml_dataset_v{v}_manifest.json"
+        if not path.exists():
+            continue
+        for entry in json.loads(path.read_text()):
+            cid = entry.get("combo_id")
+            val = entry.get("stop_fixed_pts_resolved")
+            if cid is not None and val is not None:
+                resolved[f"v{v}_{cid}"] = float(val)
+    return resolved
 
 
 def _to_jsonable(v):
@@ -93,12 +120,15 @@ def _to_jsonable(v):
     return v
 
 
-def _row_to_entry(row: pd.Series) -> dict:
+def _row_to_entry(row: pd.Series, resolved_stops: dict[str, float]) -> dict:
     """Format one combo row as the JSON entry written to `top_strategies.json`."""
     params = {c: _to_jsonable(row[c]) for c in PARAM_COLS if c in row}
     realised = {c: _to_jsonable(row[c]) for c in REALISED_COLS if c in row}
+    cid = str(row["global_combo_id"])
+    if cid in resolved_stops:
+        params["stop_fixed_pts_resolved"] = resolved_stops[cid]
     return {
-        "global_combo_id": str(row["global_combo_id"]),
+        "global_combo_id": cid,
         "predicted_composite": float(row["predicted_composite"]),
         "realised": realised,
         "parameters": params,
@@ -106,13 +136,7 @@ def _row_to_entry(row: pd.Series) -> dict:
 
 
 def main() -> None:
-    """Rank all combos by ML#1 composite, split by frequency, emit top-K per bucket.
-
-    Loads the ML#1 training frame and saved composite LightGBM booster,
-    predicts composite on every combo, filters into high- and low-frequency
-    buckets, ranks each bucket, and writes the resulting JSON to
-    `evaluation/top_strategies.json`.
-    """
+    """Rank all combos by ML#1 composite, apply min-trades floor, emit top-K."""
     args = parse_args()
 
     if not args.features.exists():
@@ -142,37 +166,32 @@ def main() -> None:
         X[c] = X[c].astype("category")
     df["predicted_composite"] = booster.predict(X)
 
-    hi_mask = df["n_trades"] >= args.high_freq_min
-    lo_mask = df["n_trades"] <= args.low_freq_max
-    hi = (df[hi_mask]
-          .sort_values("predicted_composite", ascending=False)
-          .head(args.top_k))
-    lo = (df[lo_mask]
-          .sort_values("predicted_composite", ascending=False)
-          .head(args.top_k))
+    resolved_stops = _load_resolved_stops(args.manifest_dir)
+    print(f"[extract] loaded {len(resolved_stops):,} resolved-stop entries "
+          f"from {args.manifest_dir.relative_to(REPO)}")
 
-    print(f"[extract] high-freq pool: {int(hi_mask.sum()):,}  "
-          f"low-freq pool: {int(lo_mask.sum()):,}")
-    print(f"[extract] top-{args.top_k} high: "
-          f"{list(hi['global_combo_id'])}")
-    print(f"[extract] top-{args.top_k} low:  "
-          f"{list(lo['global_combo_id'])}")
+    eligible = df[df["n_trades"] >= args.min_trades]
+    rejected = len(df) - len(eligible)
+    print(f"[extract] min-trades floor (>= {args.min_trades}): "
+          f"{len(eligible):,} eligible, {rejected:,} rejected")
+
+    top = (eligible
+           .sort_values("predicted_composite", ascending=False)
+           .head(args.top_k))
+
+    print(f"[extract] top-{args.top_k}: {list(top['global_combo_id'])}")
 
     out = {
         "source_features": str(args.features.relative_to(REPO)).replace("\\", "/"),
         "source_model": str(args.model.relative_to(REPO)).replace("\\", "/"),
-        "freq_thresholds": {
-            "high_freq_min_trades": args.high_freq_min,
-            "low_freq_max_trades": args.low_freq_max,
-        },
+        "min_trades": args.min_trades,
         "top_k": args.top_k,
         "pool_sizes": {
             "total_combos": int(len(df)),
-            "high_freq_pool": int(hi_mask.sum()),
-            "low_freq_pool": int(lo_mask.sum()),
+            "eligible_combos": int(len(eligible)),
+            "rejected_min_trades": int(rejected),
         },
-        "high_freq": [_row_to_entry(r) for _, r in hi.iterrows()],
-        "low_freq": [_row_to_entry(r) for _, r in lo.iterrows()],
+        "top": [_row_to_entry(r, resolved_stops) for _, r in top.iterrows()],
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

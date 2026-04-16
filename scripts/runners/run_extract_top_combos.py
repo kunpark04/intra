@@ -1,4 +1,4 @@
-"""Upload + run `extract_top_combos_by_freq.py` on sweep-runner-1.
+"""Upload + run `extract_top_combos.py` on sweep-runner-1.
 
 The extractor is fast (<5 s) so this runner executes the script inline
 over SSH, then SFTPs the resulting `evaluation/top_strategies.json`
@@ -16,18 +16,18 @@ PASS = "J@maicanP0wer123"
 REMOTE_DIR = "/root/intra"
 
 REPO = Path(__file__).resolve().parent.parent.parent
-LOCAL_SCRIPT = REPO / "scripts" / "analysis" / "extract_top_combos_by_freq.py"
+LOCAL_SCRIPT = REPO / "scripts" / "analysis" / "extract_top_combos.py"
 LOCAL_OUT = REPO / "evaluation" / "top_strategies.json"
-REMOTE_SCRIPT = f"{REMOTE_DIR}/scripts/analysis/extract_top_combos_by_freq.py"
+REMOTE_SCRIPT = f"{REMOTE_DIR}/scripts/analysis/extract_top_combos.py"
 REMOTE_OUT = f"{REMOTE_DIR}/evaluation/top_strategies.json"
 
 
 def main() -> None:
     """Upload the extractor, run it on sweep-runner-1, SFTP the JSON back.
 
-    Parses optional CLI overrides for `--top-k`, `--high-freq-min`,
-    `--low-freq-max`, forwards them to the remote invocation, and writes
-    the output to `evaluation/top_strategies.json` locally.
+    Parses optional CLI overrides (`--top-k`, `--min-trades`, …),
+    forwards them to the remote invocation, and writes the output to
+    `evaluation/top_strategies.json` locally.
     """
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -47,7 +47,7 @@ def main() -> None:
     sftp.put(str(LOCAL_SCRIPT), REMOTE_SCRIPT)
     print("OK")
 
-    cmd = f"cd {REMOTE_DIR} && python3 scripts/analysis/extract_top_combos_by_freq.py {extra_args}".strip()
+    cmd = f"cd {REMOTE_DIR} && python3 scripts/analysis/extract_top_combos.py {extra_args}".strip()
     print(f"  Running: {cmd}")
     stdin, stdout, stderr = ssh.exec_command(cmd)
     out = stdout.read().decode(errors="replace")
