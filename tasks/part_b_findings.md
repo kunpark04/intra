@@ -740,6 +740,83 @@ pooled-calibrated probabilities for high-win-rate combos.
 
 ---
 
+### Phase 4e — per-(combo, R:R) expanding isotonic: **partial win, sample-size constrained**
+
+Tested per-(combo, R:R) expanding causal isotonic with pooled
+fallback when a combo stream has <300 past trades at that R:R.
+Artifact: `data/ml/adaptive_rr_v3/b6_phase4e.json` (runtime 147s).
+
+#### Overall outcome
+
+| Metric | Pooled (4c) | Per-(combo,rr) (4e) | Δ |
+|---|---|---|---|
+| Pooled ECE | 0.0039 | 0.0044 | **+0.0006 worse** |
+| Median per-combo ECE | 0.043 | **0.030** | −30% |
+| Mean per-combo ECE | 0.048 | 0.040 | −17% |
+| p90 per-combo ECE | 0.088 | 0.074 | −16% |
+
+Per-combo calibration improves the *distribution* of per-combo ECE
+but slightly worsens pooled ECE — the overrides introduce small-sample
+noise into the very-well-calibrated majority. Median combo is better
+off; aggregate metric is marginally worse.
+
+#### Override coverage
+
+- 952 (combo, R:R) streams overridden (1.24M rows, 91.2%)
+- 1462 streams fell back to pooled (119k rows, 8.8%)
+
+Fallback threshold: a (combo, R:R) stream needs ≥ `MIN_FIT + refit =
+300` trades. With 17 R:R levels, this means a combo needs ≥ 5100
+total rows to qualify for override at every R:R.
+
+#### Worst-case combos: the motivating target didn't move
+
+The 10 worst combos under pooled calibration (Phase 4d) had 2000–4300
+total rows — below the 5100 threshold, so they got the pooled fallback
+unchanged:
+
+| combo | n | ece_pooled | ece_per_combo | improvement |
+|---|---|---|---|---|
+| v10_123 | 4097 | 0.184 | 0.184 | 0.000 |
+| v10_92 | 1173 | 0.173 | 0.173 | 0.000 |
+| v10_154 | 4301 | 0.164 | 0.164 | 0.000 |
+| v10_17 | 2873 | 0.128 | 0.128 | 0.000 |
+| v10_16 | 2346 | 0.110 | 0.110 | 0.000 |
+| v10_45 | 1258 | 0.106 | 0.106 | 0.000 |
+| v10_105 | 4301 | 0.101 | 0.101 | 0.000 |
+| v10_114 | 1479 | 0.095 | 0.095 | 0.000 |
+| **v10_165** | **7310** | 0.092 | **0.064** | **−0.028** |
+| **v10_131** | **8942** | 0.090 | **0.053** | **−0.037** |
+
+Only the 2 combos above 5100 rows got meaningful improvement
+(both ~30% ECE reduction). The mechanism works — per-combo isotonic
+does fix the systematic under-prediction for high-win-rate combos —
+but the sample-size bar is too high for most combos on the held-out
+tail.
+
+#### Interpretation + next test
+
+The 17-way R:R split is expensive: spreading ~2000 trades across 17
+isotonics leaves each with too few points for a causal expanding fit.
+Two ways to unlock the remaining wins:
+
+1. **Drop the R:R split** — fit per-combo isotonic on *all* R:R
+   levels pooled per combo. Bias the combo's prediction by a single
+   isotonic curve. Simpler, 17× more data per fit, captures most of
+   the per-combo systematic bias (mean_y 0.33 vs mean_p 0.14 in
+   v10_123 is an R:R-agnostic offset).
+2. **Use combo bias + pooled isotonic** — two-stage: pooled per-R:R
+   isotonic, then a per-combo scalar or low-parameter additive bias
+   correction (e.g. fit a 1D isotonic on residuals). Requires far
+   fewer samples per combo.
+
+Approach (1) is one line of code change. Approach (2) is the more
+elegant solution but needs a new script. **Next test: approach (1) —
+per-combo expanding isotonic, R:R-agnostic.** Expected to fix the
+top-10 offenders while keeping pooled ECE near 0.004.
+
+---
+
 ## Pointers
 
 - Numerical details per task: the JSON files listed in the Scoreboard.
