@@ -817,6 +817,76 @@ top-10 offenders while keeping pooled ECE near 0.004.
 
 ---
 
+### Phase 4f — per-combo R:R-agnostic expanding isotonic: **big win**
+
+Dropped the R:R split from Phase 4e. Each combo now has one expanding
+causal isotonic fit on its full cross-R:R stream (17× more samples
+per combo). Pooled per-R:R isotonic remains the fallback for combos
+with < 300 total trades (26 of 142 combos, 0.2% of rows).
+
+Artifact: `data/ml/adaptive_rr_v3/b6_phase4f.json` (runtime 183s).
+
+#### Overall outcome
+
+| Metric | Pooled (4c) | per-(combo,rr) (4e) | **per-combo (4f)** |
+|---|---|---|---|
+| Pooled ECE | 0.0039 | 0.0044 | **0.0042** |
+| Median per-combo ECE | 0.043 | 0.030 | **0.014** |
+| Mean per-combo ECE | 0.048 | 0.040 | **0.022** |
+| p90 per-combo ECE | 0.088 | 0.074 | **0.046** |
+| Max per-combo ECE | 0.184 | 0.184 | **0.097** |
+
+**Median per-combo ECE dropped 67%** (0.043 → 0.014). **Max dropped
+47%** (0.184 → 0.097). Pooled ECE held at 0.0042 — per-combo override
+doesn't trade away the aggregate win.
+
+#### The motivating target: all 10 worst pooled-offenders improved
+
+| combo | n | ece_pooled | **ece_per_combo_f** | improvement | % |
+|---|---|---|---|---|---|
+| v10_123 | 4097 | 0.184 | **0.044** | −0.139 | −76% |
+| v10_92  | 1173 | 0.173 | **0.097** | −0.076 | −44% |
+| v10_154 | 4301 | 0.164 | **0.044** | −0.120 | −73% |
+| v10_17  | 2873 | 0.128 | **0.041** | −0.087 | −68% |
+| v10_16  | 2346 | 0.110 | **0.058** | −0.053 | −48% |
+| v10_45  | 1258 | 0.106 | **0.048** | −0.058 | −55% |
+| v10_105 | 4301 | 0.101 | **0.032** | −0.069 | −68% |
+| v10_114 | 1479 | 0.095 | **0.041** | −0.054 | −57% |
+| v10_165 | 7310 | 0.092 | **0.027** | −0.066 | −71% |
+| v10_131 | 8942 | 0.090 | **0.032** | −0.059 | −65% |
+
+Every offender improved by 44–76%. The hypothesis from Phase 4d was
+correct: per-combo miscalibration is dominated by an R:R-agnostic
+systematic bias (high-win-rate combos getting regressed toward the
+global prior). A single per-combo isotonic captures it cleanly.
+
+#### Remaining cap: very-small combos
+
+v10_92 (n=1173) is now the worst remaining combo at ECE 0.097. Small
+sample → noisy isotonic. The 26 combos with < 300 total rows still
+fall back to pooled (0.2% of data). Addressing these requires either
+more data (can't; held-out tail is fixed) or a simpler calibrator
+(Platt scaling / scalar bias) on tiny samples.
+
+#### Production recommendation — updated again
+
+**Calibration stack (two-stage):**
+
+1. **Primary** — per-combo expanding causal isotonic, R:R-agnostic,
+   refit_every=100, min 300 past trades to qualify.
+2. **Fallback** — pooled per-R:R expanding causal isotonic
+   (refit_every=100), for combos with insufficient per-combo data
+   and for the MIN_FIT warmup of every combo.
+
+Expected live performance: pooled ECE ~0.0042, median per-combo ECE
+0.014 — both well under the 0.015 scientific gate, and critically,
+the per-combo distribution is tight enough for live EV/Kelly
+decisions on individual combos (not just pool-wide risk sizing).
+
+This is the stack to ship for B16.
+
+---
+
 ## Pointers
 
 - Numerical details per task: the JSON files listed in the Scoreboard.
