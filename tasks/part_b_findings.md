@@ -667,6 +667,79 @@ Rolling (20000, 100) remains the absolute-optimum fallback if ECE
 
 ---
 
+### Phase 4d — per-combo ECE audit (pooled hides large variance)
+
+Broke the expanding_100 pooled ECE 0.0039 down by `global_combo_id`
+across the 104 combos with ≥500 held-out rows. Artifact:
+`data/ml/adaptive_rr_v3/b6_phase4d.json` (runtime 138s).
+
+#### Per-combo ECE distribution
+
+| Percentile | ECE |
+|---|---|
+| p25 | 0.026 |
+| median | 0.043 |
+| p75 | 0.062 |
+| p90 | 0.088 |
+| p99 | 0.173 |
+| max | 0.184 |
+
+**Pooled ECE 0.0039 is ~11× lower than median per-combo ECE 0.043.**
+The pooled number is dominated by a handful of high-volume,
+well-calibrated combos (e.g. `v10_163` n=95k ECE 0.009, `v10_128`
+n=76k ECE 0.011). Smaller combos are substantially worse-calibrated.
+
+#### Concentration of weighted error
+
+| Top K worst combos | Share of weighted ECE |
+|---|---|
+| 5  | 22.1% |
+| 10 | 35.5% |
+| 20 | 54.7% |
+| 50 | 83.7% |
+
+Top 10 worst combos (2% of 500 known combos) carry 35% of weighted
+error. Calibration error is **concentrated**, not uniform.
+
+#### Calibration actively harms some combos
+
+The 10 worst offenders all have **raw ECE < calibrated ECE**:
+
+| combo_id | n | raw ECE | cal ECE | mean_y | mean_p_cal |
+|---|---|---|---|---|---|
+| v10_123 | 4,097 | 0.115 | **0.184** | 0.329 | 0.145 |
+| v10_92  | 1,173 | 0.099 | **0.173** | 0.373 | 0.199 |
+| v10_154 | 4,301 | 0.114 | **0.164** | 0.333 | 0.169 |
+| v10_17  | 2,873 | 0.066 | **0.128** | 0.326 | 0.198 |
+| v10_16  | 2,346 | 0.087 | **0.110** | 0.241 | 0.131 |
+
+Pattern is clear: these are **high win-rate combos** (mean_y 0.24-0.37,
+~3× the global mean 0.11). The global expanding isotonic pulls their
+predictions toward the pooled mean, systematically under-predicting.
+Calibration is regressing these combos to the global prior.
+
+#### Verdict: per-combo calibration worth pursuing
+
+- Worst-hit combos are those most different from global prior.
+- 6 of 10 worst offenders have ≥2,000 rows — enough for a per-combo
+  expanding isotonic (maybe keyed by combo × R:R, or just per-combo
+  then per-R:R as a residual pass).
+- Low-risk estimate: per-combo calibration drops weighted-top-10 error
+  from 35.5% of total toward combo-specific miscalibration baseline,
+  potentially halving pooled ECE to ~0.002.
+
+**Next test candidate**: per-combo expanding isotonic using
+`combo × R:R` as the calibration key, with fallback to pooled isotonic
+when a combo has <200 past trades. Expected implementation ~1 hr,
+runtime ~5 min on sweep-runner-1.
+
+**Caveat for B16**: the pooled 0.0039 is the correct number for
+overall risk/Kelly sizing across the live book, but per-combo
+filtering decisions (EV threshold, go/no-go) should not rely on
+pooled-calibrated probabilities for high-win-rate combos.
+
+---
+
 ## Pointers
 
 - Numerical details per task: the JSON files listed in the Scoreboard.
