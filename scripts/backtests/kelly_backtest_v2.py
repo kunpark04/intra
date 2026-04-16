@@ -121,6 +121,11 @@ def equity_metrics_kelly(result: dict, trades: dict, cfg, f_per_trade: np.ndarra
 
 
 def backtest_one(gcid: str, combo: dict, model) -> dict:
+    """Kelly-sized backtest for one combo using V2 calibrated P(win).
+
+    Computes per-trade Kelly fraction, caps at `KELLY_CAP`, and simulates
+    compounded equity. Returns metrics dict.
+    """
     avf = fb.avf
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -167,6 +172,7 @@ def backtest_one(gcid: str, combo: dict, model) -> dict:
 
 
 def main():
+    """B10: Kelly-fraction sizing sweep on V2 calibrated P(win) per combo."""
     import lightgbm as lgb
     model = lgb.Booster(model_file=str(fb.V2_MODEL))
     all_results = {"model": "v2",

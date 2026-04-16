@@ -53,6 +53,11 @@ SEED = 42
 
 
 def load_base(n_cap: int) -> pd.DataFrame:
+    """Load the V2 adaptive R:R training frame + booster for SHAP audit.
+
+    Returns:
+        `(df, booster, feature_cols)` tuple used by `main`.
+    """
     pf = pq.ParquetFile(TESTBED)
     have = {f.name for f in pf.schema_arrow}
     cols = [c for c in PARQUET_COLUMNS if c in have]
@@ -69,6 +74,11 @@ def load_base(n_cap: int) -> pd.DataFrame:
 
 
 def main() -> None:
+    """B8-SHAP: audit whether Family A's lift is time-local signal or combo-ID leakage.
+
+    Computes TreeSHAP over the V2 booster, compares feature importances with
+    and without combo-ID features, and writes a diagnostic JSON.
+    """
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
 

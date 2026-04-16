@@ -26,6 +26,13 @@ UPLOAD_FILES = [
 
 
 def main():
+    """Upload script + inputs to sweep-runner-1 via paramiko and launch Phase 5A+5B (calibrator export + filter re-opt).
+
+    Opens an SSH connection, SFTPs the latest local copy of the target
+    script(s) and any required artifacts, starts a detached screen session
+    with `systemd-run` resource caps, then exits. Polling is handled by the
+    calling `/loop` skill.
+    """
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(HOST, username=USER, password=PASS, timeout=15)

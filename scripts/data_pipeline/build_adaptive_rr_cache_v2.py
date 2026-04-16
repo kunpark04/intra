@@ -22,6 +22,12 @@ import adaptive_rr_model_v2 as v2
 
 
 def main() -> None:
+    """Build the shared expanded-features cache used by every ML#2 variant.
+
+    Reads the MFE-enriched sweep parquet, runs the R:R expansion + Family A
+    feature attach, and writes the resulting frame as a cached parquet under
+    `data/ml/adaptive_rr_v2/`.
+    """
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--versions", type=int, nargs="+", default=list(range(2, 11)))
     p.add_argument("--max-rows", type=int, default=10_000_000)

@@ -54,6 +54,15 @@ def load_combo_by_id(gcid: str) -> dict:
 
 
 def predict_pwin_at_rr(features: pd.DataFrame, model, rr: float) -> np.ndarray:
+    """Predict P(win) for each row at a fixed target R:R using the V2 booster.
+
+    Args:
+        df: Per-trade feature frame (numeric + categorical columns).
+        rr: Target R:R level (must appear in `RR_LEVELS`).
+
+    Returns:
+        1-D array of calibrated probabilities aligned to `df`.
+    """
     f = features.copy()
     f["candidate_rr"] = np.float32(rr)
     f["rr_x_atr"] = np.float32(rr) * f["atr_points"].to_numpy()
@@ -62,6 +71,18 @@ def predict_pwin_at_rr(features: pd.DataFrame, model, rr: float) -> np.ndarray:
 
 
 def backtest_one(gcid: str, model) -> dict:
+    """Run one V2 filter backtest at a fixed R:R for one combo.
+
+    Applies `predict_pwin_at_rr`, filters trades by a P(win) threshold, and
+    reports Sharpe/return/WR.
+
+    Args:
+        df: Per-trade frame for a single combo.
+        rr: Target R:R.
+
+    Returns:
+        Metrics dict.
+    """
     combo = load_combo_by_id(gcid)
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -112,6 +133,7 @@ def backtest_one(gcid: str, model) -> dict:
 
 
 def main():
+    """B-option-1 V2: use adaptive R:R model as go/no-go filter at fixed R:R."""
     import lightgbm as lgb
     high_freq = ["v10_7649", "v10_8617", "v10_9264", "v10_9393", "v6_1676"]
     low_freq = ["v10_9955", "v5_158", "v5_2904", "v7_2114", "v7_215"]

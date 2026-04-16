@@ -73,6 +73,11 @@ PARQUET_COLUMNS = [
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI args for the B6 temporal-OOD V2 evaluator.
+
+    Returns:
+        `argparse.Namespace` with holdout fraction and output paths.
+    """
     p = argparse.ArgumentParser(description="B6 temporal-OOD eval for V2")
     p.add_argument("--test-parquet", type=Path,
                    default=REPO_ROOT / "data/ml/mfe/ml_dataset_v10_test_mfe.parquet",
@@ -172,6 +177,11 @@ def expected_calibration_error(y_true: np.ndarray, y_pred: np.ndarray,
 
 
 def main() -> None:
+    """B6: temporal OOD evaluation of the V2 adaptive R:R model.
+
+    Splits the test partition by time into a holdout tail and reports
+    per-R:R ECE and return delta vs the training-time distribution.
+    """
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 

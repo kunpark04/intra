@@ -19,6 +19,11 @@ OUT = REPO / "data/ml/ml1_results/permutation_test.json"
 
 
 def main():
+    """B3: permutation test for the ML#1 surrogate regressor.
+
+    Shuffles the target label across combos, refits the surrogate, and
+    reports the p-value of the observed R² versus the null distribution.
+    """
     cached = mlo.OUTPUT_DIR / "combo_features.parquet"
     if not cached.exists():
         print(f"Missing {cached}; run ml1_surrogate first.")

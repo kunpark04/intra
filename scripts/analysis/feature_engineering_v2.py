@@ -110,6 +110,11 @@ LGB_PARAMS = {
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI args for the B8 V2 feature-engineering ablation.
+
+    Returns:
+        `argparse.Namespace` with feature-family flags and output paths.
+    """
     p = argparse.ArgumentParser(description="B8 feature-engineering ablation")
     p.add_argument("--parquet", type=Path,
                    default=REPO_ROOT / "data/ml/mfe/ml_dataset_v10_train_wf_mfe.parquet")
@@ -195,10 +200,27 @@ def add_family_c(df: pd.DataFrame) -> pd.DataFrame:
     _assert_sorted(df)
 
     def rolling_rank_pct(s: pd.Series, window: int = 500) -> pd.Series:
+        """Rolling-window percentile rank of a series.
+
+        Args:
+            s: 1-D numeric series.
+            window: Lookback length in bars.
+
+        Returns:
+            Series of rank percentiles in `[0, 1]`; first `window-1` values NaN.
+        """
         # Current value's percentile rank among previous `window` values
         # (shift 1 to exclude self). Implemented via rolling().apply.
         shifted = s.shift(1)
         def _rank(x: np.ndarray) -> float:
+            """Compute the percentile rank of the last element within a window array.
+
+            Args:
+                a: 1-D array of length `window`.
+
+            Returns:
+                Fraction of `a` strictly less than `a[-1]`.
+            """
             if len(x) == 0:
                 return 0.5
             v = x[-1]  # this is the shifted-current value inside the window
@@ -272,6 +294,15 @@ def expand(df: pd.DataFrame, extra_numeric: list[str]) -> pd.DataFrame:
 
 
 def ece_20bin(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Equal-width 20-bin Expected Calibration Error.
+
+    Args:
+        y: Binary outcomes.
+        p: Predicted probabilities.
+
+    Returns:
+        ECE as a float.
+    """
     bins = np.linspace(0.0, 1.0, 21)
     idx = np.clip(np.digitize(y_pred, bins) - 1, 0, 19)
     ece = 0.0
@@ -288,6 +319,14 @@ def ece_20bin(y_true: np.ndarray, y_pred: np.ndarray) -> float:
 # ---------------------------- Config runner ----------------------------
 
 def build_extra(config: str) -> list[str]:
+    """Build candidate extra features (Family A, B, C) on top of V2 base.
+
+    Args:
+        df: Base per-trade feature frame.
+
+    Returns:
+        Copy of `df` with the extra feature columns added.
+    """
     extra = []
     if "A" in config:
         extra += FAMILY_A
@@ -368,6 +407,11 @@ def run_config(df_base: pd.DataFrame, config: str, n_folds: int, seed: int = 42)
 # ---------------------------- Main ----------------------------
 
 def main() -> None:
+    """B8: V2 feature-engineering ablation.
+
+    Trains the adaptive R:R model under each feature-family subset, reports
+    AUC/ECE deltas vs V2 baseline, and writes JSON + CSV.
+    """
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -100,6 +100,11 @@ LGB_PARAMS = {
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI args for the V2 walk-forward evaluator.
+
+    Returns:
+        `argparse.Namespace` with fold counts, output paths, and recal options.
+    """
     p = argparse.ArgumentParser(description="B7 walk-forward for V2")
     p.add_argument("--parquet", type=Path,
                    default=REPO_ROOT / "data/ml/mfe/ml_dataset_v10_train_wf_mfe.parquet",
@@ -118,6 +123,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def load_and_date(parquet_path: Path) -> pd.DataFrame:
+    """Load the V2 per-trade frame and attach a chronological date column.
+
+    Returns:
+        DataFrame sorted by time with a `date` column for fold assignment.
+    """
     if not parquet_path.exists():
         sys.exit(f"[b7] FATAL: parquet missing: {parquet_path}")
     pf = pq.ParquetFile(parquet_path)
@@ -179,6 +189,15 @@ def expand(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def ece_20bin(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Equal-width 20-bin Expected Calibration Error.
+
+    Args:
+        y: Binary outcomes.
+        p: Predicted probabilities aligned to `y`.
+
+    Returns:
+        Count-weighted mean absolute gap between predicted and observed per bin.
+    """
     bins = np.linspace(0.0, 1.0, 21)
     idx = np.clip(np.digitize(y_pred, bins) - 1, 0, 19)
     ece = 0.0
@@ -245,6 +264,11 @@ def make_folds_rolling(years: list[int], window: int) -> list[tuple[list[int], i
 
 
 def main() -> None:
+    """B7: walk-forward validation for the V2 adaptive R:R signal.
+
+    Splits history into expanding folds, retrains the booster and isotonic
+    per fold, and reports per-fold ECE, AUC, and Sharpe.
+    """
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -258,6 +258,12 @@ def compute_correlation_matrix(combos: list[dict], pnl_by_combo: list[list[tuple
 
 
 def main() -> None:
+    """Phase 5C: portfolio-level simulation across the top-5 ML#1 combos.
+
+    Runs three policies (fixed5, kelly_fixed, kelly_twostage) on the
+    concurrent multi-combo portfolio and reports equity curves, max
+    drawdown, and per-combo correlation.
+    """
     t0 = time.time()
     import lightgbm as lgb
     print("Loading V3 booster + calibrators...")

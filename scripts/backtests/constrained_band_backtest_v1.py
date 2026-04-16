@@ -20,6 +20,17 @@ OUT = REPO / "data/ml/adaptive_rr_v1/constrained_band_backtest.json"
 
 
 def pick_constrained(features, model, lo, hi):
+    """Pick argmax-E[R] within a constrained R:R band `[lo, hi]`.
+
+    Args:
+        pwin_by_rr: 1-D array of P(win) predictions indexed by `RR_LEVELS`.
+        rr_levels: Candidate R:R values.
+        lo: Lower band bound (inclusive).
+        hi: Upper band bound (inclusive).
+
+    Returns:
+        `(rr, e_r)` — the chosen R:R and its expected-R value.
+    """
     import pandas as pd
     n = len(features)
     K = len(avf.RR_LEVELS)
@@ -37,6 +48,12 @@ def pick_constrained(features, model, lo, hi):
 
 
 def main():
+    """Run the constrained-band adaptive-R:R backtest variant.
+
+    Loads V1 OOF predictions, computes per-trade E[R] restricted to the
+    configured R:R band, simulates trades with fixed risk sizing, and writes
+    summary metrics JSON.
+    """
     import lightgbm as lgb
     combo, _ = avf.load_top_combo()
     print(f"Combo: {combo['global_combo_id']}")

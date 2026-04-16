@@ -21,6 +21,15 @@ OUT = REPO / "data/ml/adaptive_rr_v3/filter_backtest_surrogate_v3.json"
 
 
 def backtest_one_surrogate_v3(gcid: str, combo: dict, booster, cals) -> dict:
+    """Run a filter-based V3 backtest for one surrogate combo (Family A features).
+
+    Args:
+        combo: Combo hyper-parameter dict.
+        rows: Per-trade frame already scoped to this combo.
+
+    Returns:
+        Metrics dict with Sharpe/return/trade-count at the best threshold.
+    """
     avf = fb.avf
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -64,6 +73,7 @@ def backtest_one_surrogate_v3(gcid: str, combo: dict, booster, cals) -> dict:
 
 
 def main():
+    """B4 V3: run the V3 filter backtest across the 50 ML#1 surrogate combos."""
     import lightgbm as lgb
     surrogate = pd.read_csv(SURROGATE_CSV)
     print(f"Running V3 filter on {len(surrogate)} surrogate combos")

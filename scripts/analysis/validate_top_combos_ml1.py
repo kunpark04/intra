@@ -49,6 +49,12 @@ OUTPUT_DIR = Path("data/ml/ml1_results/validation")
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI args for the top-combo ML#1 held-out validator.
+
+    Returns:
+        `argparse.Namespace` with `top_k`, output paths, and sample-size
+        thresholds.
+    """
     p = argparse.ArgumentParser(description="Validate top ML combos on test partition")
     p.add_argument("--n-top", type=int, default=5,
                    help="Number of top combos to validate (default: 5)")
@@ -288,6 +294,11 @@ def run_single_combo(
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    """Validate top-K ML#1-recommended combos on the held-out test partition.
+
+    Runs each recommended combo's backtest on OOS bars, compares realised
+    Sharpe/return against the ML#1 prediction, and writes a summary report.
+    """
     args = parse_args()
     t_start = time.time()
 

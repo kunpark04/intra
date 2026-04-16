@@ -47,6 +47,14 @@ READ_COLS = READ_COLS_BASE + [c for c in ENTRY_FEATS] + [c for c in COMBO_FEATS 
 
 
 def load_manifest_params(version: int) -> dict[int, dict]:
+    """Load per-combo hyper-parameters from a sweep manifest JSON.
+
+    Args:
+        manifest_path: Path to `ml_dataset_vN_manifest.json`.
+
+    Returns:
+        DataFrame indexed by `combo_id` with one column per hyper-parameter.
+    """
     path = DATA_DIR / "originals" / f"ml_dataset_v{version}_manifest.json"
     out: dict[int, dict] = {}
     if not path.exists():
@@ -81,6 +89,17 @@ def build_feature_matrix(grp: pd.DataFrame, combo: dict) -> pd.DataFrame:
 
 
 def aggregate(pnls: np.ndarray, wins: np.ndarray, rmul: np.ndarray) -> dict:
+    """Aggregate per-trade columns into combo-level features for ML#1.
+
+    Computes trade counts, win-rate, mean/std return, plus distribution
+    summaries of entry features (zscore, volume, EMA, body, session).
+
+    Args:
+        trades: Per-trade frame for a single combo.
+
+    Returns:
+        1-row DataFrame of combo-level features.
+    """
     return mlo._aggregate_single_combo(pnls, wins, rmul)
 
 
@@ -227,6 +246,11 @@ def process_version(v: int, model, rows: list[dict]) -> None:
 
 
 def main() -> None:
+    """B5: build filtered `combo_features.parquet` for ML#1 retraining.
+
+    Loads the V2-filtered trade parquet, aggregates per combo, and writes the
+    ML#1 feature matrix under `data/ml/ml1_results_v2filtered/`.
+    """
     import lightgbm as lgb
     print(f"[B5] Loading V2 model: {V2_MODEL_PATH}", flush=True)
     model = lgb.Booster(model_file=str(V2_MODEL_PATH))

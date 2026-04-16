@@ -23,6 +23,18 @@ PERCENTILES = [25, 50, 75, 90]
 
 
 def backtest_one_pct_v3(gcid: str, combo: dict, booster, cals) -> dict:
+    """Simulate one percentile-based filter policy for a combo.
+
+    Keeps trades whose E[R] falls in the top-`pct` percentile; computes
+    return, Sharpe, max drawdown, and trade count.
+
+    Args:
+        rows: Per-trade frame restricted to one combo.
+        pct: Top percentile to keep (e.g. 0.25 for top 25%).
+
+    Returns:
+        Metrics dict for this `(combo, pct)` pair.
+    """
     avf = fb.avf
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -67,6 +79,7 @@ def backtest_one_pct_v3(gcid: str, combo: dict, booster, cals) -> dict:
 
 
 def main():
+    """B2 V3: adaptive percentile-filter backtest over V3 predictions + Family A."""
     import lightgbm as lgb
     high_freq = ["v10_7649", "v10_8617", "v10_9264", "v10_9393", "v6_1676"]
     low_freq = ["v10_9955", "v5_158", "v5_2904", "v7_2114", "v7_215"]

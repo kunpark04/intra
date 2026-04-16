@@ -64,6 +64,15 @@ def _parse_rate_from_log(name: str, suffix: str, is_running: bool) -> float | No
 
 
 def check_version(v: dict) -> dict:
+    """Report completion status for a single sweep version.
+
+    Args:
+        version: Sweep version string (e.g. `"v10"`).
+
+    Returns:
+        Dict summarising combos completed, trades written, parquet size, and
+        manifest inconsistencies.
+    """
     name = v["name"]
     total = v["combos"]
     suffix = v["suffix"]
@@ -130,6 +139,7 @@ def check_version(v: dict) -> dict:
 
 
 def main():
+    """Print a status dashboard for every tracked MFE sweep version."""
     print()
     print("=" * 72)
     print("  MFE SWEEP PIPELINE STATUS")

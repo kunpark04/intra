@@ -72,6 +72,15 @@ STOP_METHOD_MAP = {"fixed": 0, "atr": 1, "swing": 2}
 
 
 def load_top_combo() -> dict:
+    """Read the winning combo row from an ML#1 ranking parquet.
+
+    Args:
+        ranking_parquet: Path to the ML#1 ranking file.
+        rank: 1-based rank of the combo to load (1 = highest predicted).
+
+    Returns:
+        Row as a pandas Series with combo hyper-parameters.
+    """
     df = pd.read_csv(TOP_CSV)
     row = df.iloc[0].to_dict()
     gcid = row["global_combo_id"]
@@ -108,6 +117,16 @@ def load_top_combo() -> dict:
 
 
 def build_indicators(df: pd.DataFrame, combo: dict) -> pd.DataFrame:
+    """Attach EMA/Z-score/ATR/regime indicators for the chosen combo to `bars`.
+
+    Args:
+        bars: 1-minute OHLCV frame (canonical column names).
+        combo: Combo row produced by `load_top_combo`.
+
+    Returns:
+        Copy of `bars` enriched with all indicators required by the signal
+        generator for this combo.
+    """
     close = df["close"].to_numpy(dtype=np.float64)
     high = df["high"].to_numpy(dtype=np.float64)
     low = df["low"].to_numpy(dtype=np.float64)
@@ -156,6 +175,17 @@ def build_indicators(df: pd.DataFrame, combo: dict) -> pd.DataFrame:
 
 
 def resolve_stop_pts(combo: dict, df_ind: pd.DataFrame) -> float:
+    """Resolve the stop distance in points for a given bar and combo.
+
+    Handles fixed, ATR-multiplier, and swing-based stops.
+
+    Args:
+        bar: Row from the enriched `bars` frame at signal time.
+        combo: Combo row with `stop_method` and associated parameters.
+
+    Returns:
+        Stop distance in index points.
+    """
     m = combo["stop_method"]
     if m == "fixed":
         return float(combo["stop_fixed_pts"])
@@ -171,6 +201,17 @@ def resolve_stop_pts(combo: dict, df_ind: pd.DataFrame) -> float:
 
 
 def make_cfg(combo: dict, stop_pts: float) -> types.SimpleNamespace:
+    """Build a lightweight `cfg`-like namespace for the backtest engine.
+
+    Maps combo hyper-parameters (R:R, risk %, commission, slippage) into the
+    attribute surface that `src.backtest.run_backtest` consumes.
+
+    Args:
+        combo: Combo row from the ranking parquet.
+
+    Returns:
+        `SimpleNamespace` with the fields expected by the backtest engine.
+    """
     ns = types.SimpleNamespace()
     for k in dir(_BASE_CFG):
         if not k.startswith("_"):
@@ -474,6 +515,13 @@ def compute_equity_and_metrics(result: dict, trades: dict,
 
 
 def main():
+    """Run fixed-R:R vs adaptive-R:R backtests for a top ML#1 combo.
+
+    Loads the combo, generates indicators, runs two backtests (fixed `min_rr`
+    and adaptive R:R selected from the V1 calibrated P(win|R:R)), prints a
+    side-by-side comparison, and writes trades + metrics JSON to the
+    evaluation folder.
+    """
     t0 = time.time()
     print(f"[adaptive-vs-fixed] core={CORE_NAME}")
 

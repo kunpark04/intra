@@ -33,6 +33,18 @@ MIN_TRADES_FOR_OPTIMUM = 20
 
 
 def pick_optimum(sweep: list[dict]) -> dict | None:
+    """Pick the E[R] threshold that maximises simulated return per combo.
+
+    Sweeps a grid of candidate thresholds and evaluates each via a vectorised
+    trade-level simulation using the supplied R:R choice and sizing policy.
+
+    Args:
+        rows: Per-trade frame with `e_r`, `r_multiple_at_chosen_rr`, and any
+            sizing inputs required by the policy.
+
+    Returns:
+        `(threshold, metrics_dict)` for the best-performing threshold.
+    """
     eligible = [s for s in sweep if s.get("n_trades", 0) >= MIN_TRADES_FOR_OPTIMUM
                 and "sharpe_ratio" in s]
     if not eligible:
@@ -50,6 +62,15 @@ def pick_optimum(sweep: list[dict]) -> dict | None:
 
 
 def backtest_per_combo(gcid: str, combo: dict, model) -> dict:
+    """Run per-combo filter sweep on the V2 booster + per-R:R isotonic.
+
+    Args:
+        combo_rows: Per-trade frame restricted to one combo.
+        rr_cols: Candidate R:R levels aligned to `pwin_by_rr`.
+
+    Returns:
+        Dict with `best_threshold`, metrics, and the full sweep curve.
+    """
     avf = fb.avf
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -106,6 +127,12 @@ def backtest_per_combo(gcid: str, combo: dict, model) -> dict:
 
 
 def main():
+    """B1 V2: per-combo filter threshold sweep over the V2 adaptive-R:R stack.
+
+    Loads V2 OOF predictions, runs `backtest_per_combo` on each combo meeting
+    the sample-size floor, aggregates results (median Sharpe, win-rate), and
+    writes JSON + CSV artifacts.
+    """
     import lightgbm as lgb
     high_freq = ["v10_7649", "v10_8617", "v10_9264", "v10_9393", "v6_1676"]
     low_freq = ["v10_9955", "v5_158", "v5_2904", "v7_2114", "v7_215"]

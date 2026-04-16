@@ -28,6 +28,13 @@ exit $rc
 
 
 def main() -> None:
+    """Upload script + inputs to sweep-runner-1 via paramiko and launch Phase 4c expanding-window recalibration comparison.
+
+    Opens an SSH connection, SFTPs the latest local copy of the target
+    script(s) and any required artifacts, starts a detached screen session
+    with `systemd-run` resource caps, then exits. Polling is handled by the
+    calling `/loop` skill.
+    """
     c = paramiko.SSHClient()
     c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     c.connect(HOST, username=USER, password=PWD, timeout=20)

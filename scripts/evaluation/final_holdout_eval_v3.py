@@ -203,6 +203,14 @@ def simulate_portfolio(combos: list[dict], pwin_key: str, policy: str) -> dict:
 
 
 def main() -> None:
+    """B16: single-shot final held-out evaluation on the 20% test partition.
+
+    Runs the full production stack (V3 booster + pooled per-R:R isotonic +
+    fixed 5% sizing) against the held-out bars, plus a Kelly/two-stage
+    variant for comparison. Computes per-combo solo metrics (top-5 + bottom-5
+    from ML#1), top-5 portfolio metrics, and applies the warm/cold cohort
+    decision verdict. Writes `b16_final_eval.json`.
+    """
     t0 = time.time()
     import lightgbm as lgb
     print("=== B16 FINAL HELD-OUT EVAL (test partition, 20% OOS) ===")

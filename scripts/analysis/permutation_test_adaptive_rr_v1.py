@@ -61,6 +61,11 @@ def permute_rr_within_blocks(df: pd.DataFrame, n_rr: int,
 
 
 def main() -> None:
+    """Permutation-test the V1 adaptive R:R model's OOF AUC against label shuffles.
+
+    Shuffles labels within each combo, retrains, and reports the empirical
+    p-value that the observed AUC exceeds the null distribution.
+    """
     p = argparse.ArgumentParser()
     p.add_argument("--versions", type=int, nargs="+",
                    default=list(range(2, 11)))

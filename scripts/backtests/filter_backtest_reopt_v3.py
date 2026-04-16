@@ -37,6 +37,18 @@ MIN_TRADES_FOR_OPTIMUM = 20
 
 
 def pick_optimum(sweep: list[dict]) -> dict | None:
+    """Pick the E[R] threshold that maximises simulated return per combo.
+
+    Sweeps a grid of candidate thresholds and evaluates each via a vectorised
+    trade-level simulation using the supplied R:R choice and sizing policy.
+
+    Args:
+        rows: Per-trade frame with `e_r`, `r_multiple_at_chosen_rr`, and any
+            sizing inputs required by the policy.
+
+    Returns:
+        `(threshold, metrics_dict)` for the best-performing threshold.
+    """
     eligible = [s for s in sweep if s.get("n_trades", 0) >= MIN_TRADES_FOR_OPTIMUM
                 and "sharpe_ratio" in s]
     if not eligible:
@@ -152,6 +164,12 @@ def backtest_combo_calibrated(gcid: str, combo: dict, booster, two_stage,
 
 
 def main():
+    """Phase 5A: re-optimise per-combo filter thresholds on V3 + two-stage cal.
+
+    Loads the V3 booster + per-combo two-stage calibrator, sweeps thresholds
+    per combo, and compares the re-optimised thresholds to the V2/B1 baseline.
+    Writes summary JSON including Sharpe deltas and coverage.
+    """
     import lightgbm as lgb
     import time
 

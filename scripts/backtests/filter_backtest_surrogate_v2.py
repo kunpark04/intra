@@ -30,6 +30,14 @@ META_COLS = [
 
 
 def row_to_combo(i: int, row: pd.Series) -> dict:
+    """Turn one ML#1 surrogate-ranking row into a combo hyper-parameter dict.
+
+    Args:
+        row: Row from the ML#1 ranking parquet.
+
+    Returns:
+        Dict consumable by `backtest_one_surrogate`.
+    """
     combo = {"global_combo_id": f"surrogate_{i}", "source_version": -1, "combo_id": i}
     for c in META_COLS:
         if c in row.index:
@@ -41,6 +49,15 @@ def row_to_combo(i: int, row: pd.Series) -> dict:
 
 
 def backtest_one_surrogate(gcid: str, combo: dict, model) -> dict:
+    """Run a filter-based V2 backtest for one surrogate combo.
+
+    Args:
+        combo: Combo hyper-parameter dict from `row_to_combo`.
+        rows: Per-trade frame already scoped to this combo.
+
+    Returns:
+        Metrics dict with Sharpe/return/trade-count at the best threshold.
+    """
     avf = fb.avf
     rr = float(combo["min_rr"])
     df = avf.load_bars(avf.DATA_CSV)
@@ -83,6 +100,7 @@ def backtest_one_surrogate(gcid: str, combo: dict, model) -> dict:
 
 
 def main():
+    """B4 V2: run the V2 filter backtest across the 50 ML#1 surrogate combos."""
     import lightgbm as lgb
     surrogate = pd.read_csv(SURROGATE_CSV)
     print(f"Running filter on {len(surrogate)} surrogate combos")

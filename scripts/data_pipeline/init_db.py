@@ -217,6 +217,11 @@ CREATE INDEX IF NOT EXISTS idx_val_drawdown
 # ── CLI ─────────────────────────────────────────────────────────────────────
 
 def parse_args() -> argparse.Namespace:
+    """Parse CLI args for the SQLite strategy-DB backfill.
+
+    Returns:
+        `argparse.Namespace` with input paths and table-rebuild flags.
+    """
     p = argparse.ArgumentParser(description="Create and populate strategy.db")
     p.add_argument("--db-path", type=str, default=str(DEFAULT_DB_PATH),
                    help="Path for the SQLite database file")
@@ -522,6 +527,11 @@ def backfill_ml_runs(conn: sqlite3.Connection) -> int:
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    """Create and populate the SQLite strategy database.
+
+    Ingests the sweep manifest and per-trade parquets into normalised combo/
+    trade tables; optionally rebuilds tables from scratch.
+    """
     args = parse_args()
     db_path = Path(args.db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)

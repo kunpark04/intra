@@ -41,6 +41,14 @@ REQUIRED = [
 
 
 def validate_one(v: int) -> dict:
+    """Validate a single MFE-enriched sweep parquet against the schema contract.
+
+    Args:
+        path: Path to `ml_dataset_v{N}_mfe.parquet`.
+
+    Returns:
+        Dict of validation results (row count, schema ok, null-column ok).
+    """
     path = DATA_DIR / "mfe" / f"ml_dataset_v{v}_mfe.parquet"
     if not path.exists():
         return {"version": v, "status": "MISSING", "critical": 1}
@@ -103,6 +111,11 @@ def validate_one(v: int) -> dict:
 
 
 def main() -> int:
+    """Phase-1 validator: check every MFE-enriched sweep parquet.
+
+    Runs `validate_one` on each parquet under `data/ml/mfe/` and prints a
+    pass/fail table.
+    """
     print("=" * 70)
     print("Phase 1: MFE Parquet Validation")
     print("=" * 70)
