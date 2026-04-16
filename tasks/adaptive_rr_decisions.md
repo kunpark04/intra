@@ -1,6 +1,6 @@
 # Adaptive R:R Model Decisions
 
-Key design choices for `scripts/adaptive_rr_model_v1.py`.
+Key design choices for `scripts/models/adaptive_rr_model_v1.py`.
 
 ---
 

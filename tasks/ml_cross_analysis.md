@@ -12,7 +12,7 @@ and `tasks/ml1_ml2_synthesis_roadmap.md` (task sequencing).
 
 | | **ML#1** (combo-grain ranker) | **ML#2** (trade-grain P(win)) |
 |---|---|---|
-| Script | `scripts/ml1_surrogate.py` | `scripts/adaptive_rr_model_v2.py` |
+| Script | `scripts/models/ml1_surrogate.py` | `scripts/models/adaptive_rr_model_v2.py` |
 | Grain | One row per parameter combo (~33k) | One row per trade × R:R level (~10M) |
 | Target | Composite score (Sharpe, return, DD, WR, count) | Binary `would_win` from MFE/MAE synthetic label |
 | CV | 5-fold KFold on combos | StratifiedGroupKFold on `global_combo_id` |

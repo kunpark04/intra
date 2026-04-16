@@ -1,6 +1,6 @@
 # ML Pipeline Decisions
 
-Every key decision in `scripts/ml1_surrogate.py` with reasoning.
+Every key decision in `scripts/models/ml1_surrogate.py` with reasoning.
 
 ---
 

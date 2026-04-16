@@ -1,6 +1,6 @@
 # V3 Follow-up Plan — after the retrain finishes
 
-**Context**: `scripts/adaptive_rr_model_v3.py` is running on sweep-runner-1
+**Context**: `scripts/models/adaptive_rr_model_v3.py` is running on sweep-runner-1
 (screen `50718.v3_run`). When it finishes it will produce:
 
 - `data/ml/adaptive_rr_v3/booster_v3.txt` — LightGBM booster
@@ -23,15 +23,15 @@ self-contained enough to execute in a fresh chat context.
 
 | Script | Load site | Output |
 |---|---|---|
-| `scripts/filter_backtest_v2.py` | L22 `V2_MODEL = ...adaptive_rr_v2/adaptive_rr_model.txt` | `filter_backtest_v2.json` |
-| `scripts/filter_backtest_per_combo_v2.py` | Imports `V2_MODEL` from `filter_backtest_v2.py`; L78 `lgb.Booster(...)` | `filter_backtest_per_combo_v2.json` |
-| `scripts/filter_backtest_percentile_v2.py` | Imports `V2_MODEL`; L78 `lgb.Booster(...)` | `filter_backtest_percentile_v2.json` |
-| `scripts/filter_backtest_surrogate_v2.py` | Imports `V2_MODEL`; L89 `lgb.Booster(...)` | `filter_backtest_surrogate_v2.json` |
-| `scripts/heldout_time_eval_v2.py` | L82 `default=...adaptive_rr_v2/adaptive_rr_model.txt` | `heldout_time_eval_v2.json` |
+| `scripts/backtests/filter_backtest_v2.py` | L22 `V2_MODEL = ...adaptive_rr_v2/adaptive_rr_model.txt` | `filter_backtest_v2.json` |
+| `scripts/backtests/filter_backtest_per_combo_v2.py` | Imports `V2_MODEL` from `filter_backtest_v2.py`; L78 `lgb.Booster(...)` | `filter_backtest_per_combo_v2.json` |
+| `scripts/backtests/filter_backtest_percentile_v2.py` | Imports `V2_MODEL`; L78 `lgb.Booster(...)` | `filter_backtest_percentile_v2.json` |
+| `scripts/backtests/filter_backtest_surrogate_v2.py` | Imports `V2_MODEL`; L89 `lgb.Booster(...)` | `filter_backtest_surrogate_v2.json` |
+| `scripts/evaluation/heldout_time_eval_v2.py` | L82 `default=...adaptive_rr_v2/adaptive_rr_model.txt` | `heldout_time_eval_v2.json` |
 
 ### Existing calibrator
 
-- `scripts/recalibrate_adaptive_rr_v1.py` — L47–58 trains **static** per-R:R
+- `scripts/calibration/recalibrate_adaptive_rr_v1.py` — L47–58 trains **static** per-R:R
   `IsotonicRegression` from OOF predictions. **Not time-rolling.**
 
 ### Known baselines (pre-V3)
@@ -106,17 +106,17 @@ isotonic. Needed by Phases 3 and 4.
 
 ### What to do
 
-1. Open `scripts/filter_backtest_v2.py` and copy its `predict_pwin()` /
+1. Open `scripts/backtests/filter_backtest_v2.py` and copy its `predict_pwin()` /
    `build_feature_matrix()` pattern. The V3 version must additionally:
    - Before prediction: call a `compute_family_a(df)` that mirrors
-     `scripts/adaptive_rr_model_v3.py::add_family_a` (same sort key, same
+     `scripts/models/adaptive_rr_model_v3.py::add_family_a` (same sort key, same
      rolling windows, same NaN fills). Import it directly — do not
      duplicate the logic.
    - After prediction: load `isotonic_calibrators_v3.json`, construct a
      dict of R:R → `IsotonicRegression` (fit via
      `iso.X_thresholds_ = np.array(X)` / `iso.y_thresholds_ = np.array(y)`
      pattern; check `sklearn.isotonic` source if unsure), apply per-R:R.
-2. Save as `scripts/inference_v3.py` with a single exported function
+2. Save as `scripts/models/inference_v3.py` with a single exported function
    `predict_pwin_v3(base_trade_df, rr_levels) -> np.ndarray` returning a
    calibrated P(win) matrix shape `(n_trades, len(rr_levels))`.
 3. Unit-test by round-tripping the OOF predictions:
@@ -185,7 +185,7 @@ the post-2024-10-22 regime shift; a time-rolling recalibrator does.
 
 ### What to do
 
-1. Open `scripts/recalibrate_adaptive_rr_v1.py` L47–58. The existing pattern
+1. Open `scripts/calibration/recalibrate_adaptive_rr_v1.py` L47–58. The existing pattern
    fits one `IsotonicRegression` per R:R on all OOF data. Extend it:
    - Add a `--window` arg (trades, default 5000) and `--refit-every` arg
      (trades, default 500).
@@ -196,7 +196,7 @@ the post-2024-10-22 regime shift; a time-rolling recalibrator does.
 2. Output to
    `data/ml/adaptive_rr_v3/rolling_calibrators/{ts}_rr_{rr}.joblib` +
    a manifest `rolling_manifest.json`.
-3. Update `scripts/inference_v3.py` (Phase 2) to optionally use the
+3. Update `scripts/models/inference_v3.py` (Phase 2) to optionally use the
    rolling calibrators.
 
 ### Verification
@@ -223,7 +223,7 @@ the post-2024-10-22 regime shift; a time-rolling recalibrator does.
 
 ### What to do
 
-1. Copy `scripts/heldout_time_eval_v2.py` to `scripts/final_holdout_eval_v3.py`.
+1. Copy `scripts/evaluation/heldout_time_eval_v2.py` to `scripts/evaluation/final_holdout_eval_v3.py`.
 2. Update model load path to V3 (`booster_v3.txt`) and integrate
    `inference_v3.predict_pwin_v3` + rolling calibrator from Phase 4.
 3. Run the top stack (ML#1-v2filtered top combos + V3 filter + per-combo
@@ -316,7 +316,7 @@ generation the whole loop is ~3–4 hrs wall clock.
 
 - **Goal**: map the ECE surface; verify 5000/500 wasn't a lucky
   pick; find the robust plateau for productionization.
-- **Implementation**: extend `scripts/rolling_recal_v3.py` to
+- **Implementation**: extend `scripts/calibration/rolling_recal_v3.py` to
   accept a `--grid` JSON arg, loop over configs, emit one row per
   config to `data/ml/adaptive_rr_v3/b6_rolling_grid.json`. Remote
   launcher mirrors Phase 4's pattern.

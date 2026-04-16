@@ -115,6 +115,13 @@ intra/
     create_notebooks.py
     rerun_and_benchmark.py            # reruns V1/V2 across Cython/Numba/NumPy tiers
     param_sweep.py                    # parameter sweep → data/ml/originals/ml_dataset_vN.parquet (or mfe/ suffix variant)
+    models/                           # ML training + inference (adaptive_rr_model_v{1,2,3}, heldout/monotonic variants, ml1_surrogate, inference_v3)
+    calibration/                      # isotonic + per-combo calibration (recal_*, per_combo_*, export_calibrators_v3)
+    backtests/                        # filter / kelly / adaptive_vs_fixed / constrained_band backtests
+    evaluation/                       # walk_forward_v2, heldout_time_eval_v2, final_holdout_eval_v3, portfolio_sim_v3
+    analysis/                         # shap_audit_v2, permutation_test_*, validate_top_combos_ml1, feature_engineering_v2, build_combo_features_ml1
+    runners/                          # `run_*` orchestrators that upload+launch remote jobs
+    data_pipeline/                    # init_db, sweep_status, validate_mfe_parquets, build_adaptive_rr_cache_v2
   notebooks/
     01_backtest_and_log.ipynb
   iterations/
@@ -153,12 +160,20 @@ intra/
 - `src/`: reusable core logic (data loading, indicators, strategy, risk, backtest, reporting, scoring).
 - `src/indicators/`: one module per indicator (`ema.py`, `zscore.py`, `zscore_variants.py`, `atr.py`) plus `pipeline.py` which exposes `add_indicators()` for DataFrame enrichment.
 - `src/cython_ext/`: Cython AOT extension module for the bar-by-bar backtest core.
-- `scripts/`: command-line entry points (repeatable runs without notebooks).
+- `scripts/`: command-line entry points (repeatable runs without notebooks). Canonical top-level entry points:
   - `run_backtest.py`: runs a single iteration version end-to-end.
   - `gen_analysis_notebook.py`: generates 7-cell `analysis.ipynb` for each iteration folder.
   - `exec_analysis.py`: executes `analysis.ipynb` in-place via nbclient with correct cwd.
   - `rerun_and_benchmark.py`: reruns V1/V2 and benchmarks all three engine tiers.
+  - `create_notebooks.py`: bootstraps iteration notebooks.
   - `param_sweep.py`: parameter sweep for Track-B ML training data; writes one row per closed trade to `data/ml/originals/ml_dataset_v{N}.parquet` (or `data/ml/mfe/ml_dataset_v{N}_mfe.parquet` for MFE re-runs). Supports `--range-mode` `default | winrate | zscore_variants | v4 | v5 | v6 | v7 | v8 | v9 | v10`.
+  - `scripts/models/`: ML training + inference (`adaptive_rr_model_v{1,2,3}.py`, `adaptive_rr_model_heldout_v2.py`, `adaptive_rr_model_monotonic_v2.py`, `ml1_surrogate.py`, `inference_v3.py`). Sibling modules import each other directly via `sys.path.insert(repo / "scripts" / "models")`.
+  - `scripts/calibration/`: isotonic + per-combo calibration (`recal_robustness_v3`, `recal_window_compare_v3`, `rolling_recal_v3`, `per_combo_{ece_audit,isotonic,rr_isotonic}_v3`, `export_calibrators_v3`, `recalibrate_adaptive_rr_v1`, `calibration_audit_v1`).
+  - `scripts/backtests/`: filter / Kelly / adaptive-vs-fixed / constrained-band backtests (`filter_backtest_*_v{2,3}.py`, `kelly_backtest_v2`, `adaptive_vs_fixed_backtest_v1`, `constrained_band_backtest_v1`).
+  - `scripts/evaluation/`: held-out and walk-forward evaluators (`walk_forward_v2`, `heldout_time_eval_v2`, `final_holdout_eval_v3`, `portfolio_sim_v3`).
+  - `scripts/analysis/`: diagnostics + feature engineering (`shap_audit_v2`, `permutation_test_{adaptive_rr_v1,ml1}`, `validate_top_combos_ml1`, `feature_engineering_v2`, `build_combo_features_ml1`).
+  - `scripts/runners/`: `run_*` orchestrators that upload scripts to sweep-runner-1 via paramiko and launch remote screen jobs.
+  - `scripts/data_pipeline/`: utility data scripts (`init_db`, `sweep_status`, `validate_mfe_parquets`, `build_adaptive_rr_cache_v2`).
 - `notebooks/`: interactive analysis; must run from repo root and write outputs to `iterations/` and `evaluation/`.
 - `iterations/`: generated training backtest artifacts for canonical strategy versions (currently `V1/`, `V2/`, `V3/`). Sweep versions `v4`–`v10` are training-data generators for ML, not strategy iterations — they write Parquet to `data/ml/` rather than producing an `iterations/Vn/` folder.
 - `evaluation/`: generated artifacts for the **single final** hold-out evaluation (no `Vn` subfolders).

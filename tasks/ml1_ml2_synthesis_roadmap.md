@@ -12,7 +12,7 @@ for future sessions — read this before proposing new ML work.
 
 ### ML #1 (combo-grain)
 
-- **Script**: `scripts/ml1_surrogate.py`
+- **Script**: `scripts/models/ml1_surrogate.py`
 - **Output**: `data/ml/ml1_results/`
 - **Purpose**: rank parameter configurations by predicted composite score
   (Sharpe 0.25 + return 0.25 + DD 0.20 + WR 0.15 + trade count 0.15).
@@ -32,8 +32,8 @@ for future sessions — read this before proposing new ML work.
 
 ### ML #2 (trade-grain adaptive R:R)
 
-- **Script**: `scripts/adaptive_rr_model_v1.py` → V1 (broken)
-  and `scripts/adaptive_rr_model_v2.py` → V2 (fixed)
+- **Script**: `scripts/models/adaptive_rr_model_v1.py` → V1 (broken)
+  and `scripts/models/adaptive_rr_model_v2.py` → V2 (fixed)
 - **Output**: `data/ml/adaptive_rr_v1/` and `data/ml/adaptive_rr_v2/`
 - **Purpose**: predict P(win) for each trade at each of 17 R:R levels
   (1.0 → 5.0, step 0.25); use for R:R selection or filtering.

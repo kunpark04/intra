@@ -20,7 +20,7 @@ data/ml/ml_dataset_v{2..10}_mfe.parquet        # 14M–? rows each, 7.0 GB total
 data/ml/ml_dataset_v{2..10}_mfe_manifest.json  # 37,000/37,000 combos, 0 errors
 ```
 
-Status dashboard (`python scripts/sweep_status.py`) shows **DONE** for every
+Status dashboard (`python scripts/data_pipeline/sweep_status.py`) shows **DONE** for every
 version with zero errors. Files are present on both server and local (local
 pulled via scp earlier this session).
 
@@ -60,7 +60,7 @@ whole file.
 
 ### Suggested script
 
-Create `scripts/validate_mfe_parquets.py`. Use this pattern:
+Create `scripts/data_pipeline/validate_mfe_parquets.py`. Use this pattern:
 
 ```python
 import pyarrow.parquet as pq
@@ -187,10 +187,10 @@ Before trusting for deployment:
 1. `cd ~/intra` on server, `git pull` (sync latest param_sweep + scripts).
 2. Verify env has: `lightgbm`, `pandas`, `pyarrow`, `scikit-learn`,
    `matplotlib`. Install if missing (`pip install lightgbm scikit-learn`).
-3. Run `python scripts/sweep_status.py` — confirm all DONE.
-4. Write + run `scripts/validate_mfe_parquets.py` (Phase 1). Report result.
+3. Run `python scripts/data_pipeline/sweep_status.py` — confirm all DONE.
+4. Write + run `scripts/data_pipeline/validate_mfe_parquets.py` (Phase 1). Report result.
 5. STOP if Phase 1 fails; investigate.
-6. Write `scripts/adaptive_rr_model_v1.py` (Phase 2 training).
+6. Write `scripts/models/adaptive_rr_model_v1.py` (Phase 2 training).
    - **Spawn a reviewing agent** after writing, before running (per
      CLAUDE.md "Reviewing Agent Protocol"). This is a new non-trivial
      module touching labels + CV split — review required.

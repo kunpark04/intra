@@ -535,7 +535,7 @@ the rolling recalibrator; static calibrators (V2 or V3) are not
 safe for absolute-probability use on recent bars.
 
 Artifacts: `data/ml/adaptive_rr_v3/rolling_recal_v3.json`,
-`scripts/rolling_recal_v3.py`.
+`scripts/calibration/rolling_recal_v3.py`.
 
 ---
 
@@ -972,7 +972,7 @@ signal either direction.
 
 ## Phase 5C — Portfolio-level simulation (top-5 combos, train partition)
 
-**Script:** `scripts/portfolio_sim_v3.py`
+**Script:** `scripts/evaluation/portfolio_sim_v3.py`
 **Artifact:** `data/ml/adaptive_rr_v3/portfolio_sim_v3.json`
 **Combos:** v10_7649, v10_8617, v10_9264, v10_9393, v6_1676 (top-5 high-freq)
 **Setup:** Shared $50k equity, event-driven event stream (exits before entries at same bar), three sizing policies compared head-to-head.
@@ -1030,7 +1030,7 @@ Phase 5C is a **third null-to-negative result for the per-combo two-stage calibr
 
 ## Phase 5D — B16 FINAL held-out eval (test partition, 20% OOS)
 
-**Script:** `scripts/final_holdout_eval_v3.py`
+**Script:** `scripts/evaluation/final_holdout_eval_v3.py`
 **Artifact:** `data/ml/adaptive_rr_v3/final_holdout_eval_v3.json`
 **Combos:** 10 total — top-5 high-freq (v10_7649, v10_8617, v10_9264, v10_9393, v6_1676) + bottom-5 low-freq (v10_9955, v5_158, v5_2904, v7_2114, v7_215)
 **Partition:** 20% of bars held out from training (post-2018-ish chronological test)
