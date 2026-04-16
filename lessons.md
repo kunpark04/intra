@@ -76,6 +76,71 @@ Persistent log of lessons learned and mistakes encountered while building/runnin
 - **Prevention rule**: Never use `--ExecutePreprocessor.cwd` with nbconvert. Always use `nbclient.NotebookClient(cwd=...)` for in-place notebook execution with a specific working directory.
 - **Related files/commands**: `notebooks/01_backtest_and_log.ipynb`, `notebooks/02_plotly_exploration.ipynb`
 
+### 2026-04-16 scripts_reorg_regex_blind_spots
+
+- **What I ran**: Bulk rename of 49 scripts into 7 content-based subfolders
+  (`scripts/X.py` → `scripts/<group>/X.py`) via `_scripts_reorg.py patch`, followed
+  by `git mv` and AST-parse verification across all 55 files.
+- **What happened**: AST parsing passed on first attempt, but a follow-up sweep
+  found two dependency references the regex missed:
+  1. `scripts/runners/run_filter_compare_v3.py:33` — a bash wrapper string
+     `python3 scripts/filter_backtest_${job}_v3.py` where `${job}` is a shell
+     variable. The regex was anchored on literal filenames and could not match
+     a variable-substituted path, so the remote invocation would have failed
+     with `No such file or directory` on sweep-runner-1.
+  2. `scripts/analysis/build_combo_features_ml1.py:64` — a docstring comment
+     `Replicates scripts/adaptive_vs_fixed_backtest_v1.build_features` (no `.py`
+     suffix). Patcher regex required `\.py` terminator.
+- **Root cause**: Automated rename tools are only as good as the patterns they
+  match. Two failure modes surfaced:
+  1. Runtime-constructed paths (bash variable substitution, string formatting,
+     f-string interpolation) look like partial matches to regex and are
+     silently skipped.
+  2. Natural-language prose (docstrings, comments) can contain path-like
+     references without file extensions that don't match strict
+     `name\.py(?![A-Za-z0-9_])` patterns.
+- **Fix**: Manually patched both sites after a broad grep `scripts/(adaptive_|
+  build_|filter_|...)` across `.py` and other text files.
+- **Prevention rule**: After any bulk rename, run a broad grep of *just the
+  renamed basenames* across all text files — never trust that the patterning
+  regex covered every invocation style. Include bash `$VAR` substitutions,
+  f-string fragments, and prose/docstring references in the post-rename audit.
+  Also: if old and new names share a prefix (e.g. `adaptive_rr_heldout` →
+  `adaptive_rr_heldout_v2`), the rename regex **must** use negative lookahead
+  `(?![A-Za-z0-9_])` to avoid double-patching (`_v2_v2`) on re-runs.
+- **Related files/commands**: removed `_scripts_reorg.py` helper, commits
+  `be7645e`, `2d88a49`.
+
+---
+
+### 2026-04-16 path_depth_tracking_after_file_moves
+
+- **What I ran**: Moved 49 scripts from `scripts/` flat root into `scripts/<group>/`
+  subfolders via `git mv`. The scripts use two path-resolution idioms:
+  `Path(__file__).resolve().parents[N]` and `Path(__file__).parent.parent[...]`.
+- **What happened**: After the move, the `parents[N]` index and
+  `.parent.parent` chain length no longer pointed to the repo root — each
+  moved file was now one directory deeper. If the moves had been committed
+  without fixing these, 24 files would have been looking for data at
+  `scripts/data/...` instead of `<repo>/data/...`.
+- **Root cause**: Both idioms encode the number of directory hops from the
+  file to the repo root. When a file moves deeper, the hop count must increase
+  by exactly the number of new directory levels.
+- **Fix**:
+  - 24 files: `parents[1]` → `parents[2]` (all moved into `scripts/<group>/`).
+  - 16 files: `.parent.parent` → `.parent.parent.parent`.
+  - 11 files: `sys.path.insert(..., REPO / "scripts")` retargeted to
+    `REPO / "scripts" / "models"` (or `"analysis"` for shap_audit_v2) so that
+    sibling-module imports like `import adaptive_rr_model_v2` still resolve.
+- **Prevention rule**: Before any `git mv` of Python files into a new
+  subfolder, grep for `parents\[\d+\]`, `\.parent\.parent`, and
+  `sys\.path\.insert.*scripts` in every file being moved. Count the new
+  directory depth delta (usually +1 per move) and patch atomically with the
+  move — never commit "moves" and "path fixes" as separate steps.
+- **Related files/commands**: `_scripts_reorg.py`, commit `be7645e`.
+
+---
+
 ### 2026-04-10 reviewing_agent_catches_critical_bugs
 
 - **What I ran**: Implemented `zscore_variants.py` + updated `param_sweep.py` for V4 sweep without running a reviewing agent first

@@ -27,8 +27,10 @@ Final hold-out evaluation:
 
 Parameter sweep (Track-B training data):
 
-- `data/ml/ml_dataset_v{N}.parquet` — one row per closed trade across all sampled combos
-- `data/ml/ml_dataset_v{N}_manifest.json` — per-combo status (enables resume)
+- `data/ml/originals/ml_dataset_v{N}.parquet` — one row per closed trade across all sampled combos
+- `data/ml/originals/ml_dataset_v{N}_manifest.json` — per-combo status (enables resume)
+- `data/ml/mfe/ml_dataset_v{N}_mfe.parquet` — MFE/MAE-enriched re-runs (adaptive R:R model input)
+- `data/ml/mfe/ml_dataset_v{N}_mfe_manifest.json` — manifest for the enriched re-run
 
 See [§5](#5-parameter-sweep-ml-dataset-ml_dataset_vnparquet) for its schema.
 
@@ -203,8 +205,11 @@ Store alongside Monte Carlo so ML pipelines can join `Vn` performance + risk cha
 
 ## 5) Parameter-sweep ML dataset (`ml_dataset_v{N}.parquet`)
 
-Produced by `scripts/param_sweep.py`. One row per **closed trade** across all
-sampled combos in the run. Used as Track-B ML training data.
+Produced by `scripts/param_sweep.py` into either
+`data/ml/originals/ml_dataset_v{N}.parquet` (original sweep) or
+`data/ml/mfe/ml_dataset_v{N}_mfe.parquet` (MFE/MAE re-run used by the
+adaptive R:R ML#2 models). One row per **closed trade** across all sampled
+combos in the run. Used as Track-B ML training data.
 
 Row layout = three concatenated groups, in order:
 

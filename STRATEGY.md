@@ -206,14 +206,19 @@ At minimum the strategy/backtest pipeline must produce:
 
 `scripts/param_sweep.py` randomly samples parameter combos within predefined
 `--range-mode`s and runs the backtest core on each, writing one row per closed
-trade to `data/ml/ml_dataset_v{N}.parquet`. Range modes `v4`–`v10` encode
-successive data-driven refinements (see [`CLAUDE.md`](CLAUDE.md) for the
-version history). The sweep reuses all strategy logic in this file; it only
-varies the numeric parameters and the sampled z-score formulation.
+trade to `data/ml/originals/ml_dataset_v{N}.parquet` (or
+`data/ml/mfe/ml_dataset_v{N}_mfe.parquet` for MFE/MAE-enriched re-runs used
+by the adaptive R:R models). Range modes `v4`–`v10` encode successive
+data-driven refinements (see [`CLAUDE.md`](CLAUDE.md) for the version
+history). The sweep reuses all strategy logic in this file; it only varies
+the numeric parameters and the sampled z-score formulation.
+
+## ML pipeline (Track B) — implemented
+
+- **ML#1 combo-grain surrogate** (`scripts/models/ml1_surrogate.py`): LightGBM regressor predicting per-combo Sharpe/return from static parameters.
+- **ML#2 trade-grain adaptive R:R** (`scripts/models/adaptive_rr_model_v{1,2,3}.py`): LightGBM binary classifier predicting `P(win | features, candidate_rr)`. Current production stack is V3 (booster + pooled per-R:R isotonic + fixed 5% sizing); see [`tasks/part_b_findings.md`](tasks/part_b_findings.md).
 
 ## Known future extensions (not yet implemented)
-
-- ML pipeline (Track B): train classifier on `data/ml/ml_dataset_v{N}.parquet` features to predict `label_win` and per-setup optimal R:R
 - Live volume bubbles
 - DOM/Level2 features
 - Execution adapters

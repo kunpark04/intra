@@ -17,8 +17,15 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   default). The 1:3 floor is **not** a non-negotiable — parameter sweeps
   (v4–v10) and the retrained V2-filtered ML#1 surrogate (see
   `tasks/part_b_findings.md`) both prefer R:R near 1:1 under MNQ economics,
-  and the calibrated ML#2 model (`adaptive_rr_v2`) confirms this. Use
-  whatever R:R the data supports for the chosen combo.
+  and the calibrated ML#2 model (`adaptive_rr_v3` — current production)
+  confirms this. Use whatever R:R the data supports for the chosen combo.
+- **ML#2 production stack** (as of Phase 5D, 2026-04-15): V3 LightGBM
+  booster (`data/ml/adaptive_rr_v3/booster_v3.txt`) + pooled per-R:R
+  isotonic calibrator + fixed 5% sizing. The per-combo two-stage
+  calibrator was **deprecated** (three null-to-negative results across
+  Phase 3, 5A, and 5C; Kelly+two-stage failed the B16 held-out gate with
+  91% DD in portfolio sim). Do not reintroduce it without a new experimental
+  mandate. See `tasks/part_b_findings.md` Phase 5D for the full post-mortem.
 - **Backtest mode first**: use CSV input; no live broker integration yet.
 - **Notebooks run in-place**: notebooks must run from repo root and write artifacts to the correct folders without manual path edits.
 
@@ -393,9 +400,15 @@ file at `data/ml/originals/ml_dataset_v{N}.parquet` (or
 `float` across branches causes `ArrowTypeError` at Parquet concat time — this
 is the dominant past failure mode; see the Pre-sweep gate below.
 
+## Track B: ML pipeline — implemented
+
+- **ML#1 combo-grain surrogate** (`scripts/models/ml1_surrogate.py`): LightGBM regressor on combo-level outcomes (Sharpe, return). Filtered variant retrained on V2-ML#2-filtered trades; see `data/ml/ml1_results_v2filtered/`.
+- **ML#2 trade-grain adaptive R:R** (`scripts/models/adaptive_rr_model_v{1,2,3}.py`): LightGBM binary classifier predicting `P(win | features, candidate_rr)`. **Current production stack is V3**: booster + pooled per-R:R isotonic + fixed 5% sizing (`data/ml/adaptive_rr_v3/`). Phase 5D held-out eval retired the per-combo two-stage calibrator.
+- **Inference entry point**: `scripts/models/inference_v3.py::predict_pwin_v3()` consumed by filter/Kelly/portfolio backtests.
+- Full Phase 3–5 experimental record: `tasks/part_b_findings.md`.
+
 ## Future scope (do not implement yet)
 
-- Track B: ML pipeline — train classifier on `data/ml/originals/ml_dataset_v{N}.parquet` (or `data/ml/mfe/ml_dataset_v{N}_mfe.parquet`) to predict `label_win` / per-setup R:R
 - Live volume "bubbles"
 - DOM / Level 2 features
 - Broker execution adapters
