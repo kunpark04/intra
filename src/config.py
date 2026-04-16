@@ -39,6 +39,10 @@ SAME_BAR_COLLISION = "tp_first"   # if SL+TP both hit same bar: assume TP first
 # ── Risk / sizing ─────────────────────────────────────────────────────────────
 STARTING_EQUITY = 50000.0
 RISK_PCT = 0.05                   # risk 5% of equity per trade
+# When set to a positive float, overrides RISK_PCT and sizes every trade to
+# risk this many dollars regardless of running equity (decouples sizing from
+# compounding — useful for signal-quality comparisons across combos).
+FIXED_RISK_DOLLARS = None
 MNQ_DOLLARS_PER_POINT = 2.0       # MNQ: $2 per full index point per contract
 TICK_SIZE = 0.25                  # minimum price increment (points)
 MIN_RR = 3.0                      # minimum reward-to-risk ratio (V2: 1:3)

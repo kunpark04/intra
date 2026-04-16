@@ -552,12 +552,15 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
             if stop_distance_pts > 1e-12 else 0.0
         )
 
+        fixed_risk = getattr(cfg, "FIXED_RISK_DOLLARS", None)
+        max_risk_allowed = (
+            float(fixed_risk) if fixed_risk is not None else equity * cfg.RISK_PCT
+        )
         contracts = (
-            int(equity * cfg.RISK_PCT // (stop_distance_pts * cfg.MNQ_DOLLARS_PER_POINT))
+            int(max_risk_allowed // (stop_distance_pts * cfg.MNQ_DOLLARS_PER_POINT))
             if stop_distance_pts > 0 else 0
         )
         risk_dollars      = stop_distance_pts * contracts * cfg.MNQ_DOLLARS_PER_POINT
-        max_risk_allowed  = equity * cfg.RISK_PCT
 
         gross_pnl_dollars = (
             (exit_price - entry_price) * side * contracts * cfg.MNQ_DOLLARS_PER_POINT

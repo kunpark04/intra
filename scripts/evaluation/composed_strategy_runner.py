@@ -85,6 +85,11 @@ def make_cfg_from_params(params: dict) -> types.SimpleNamespace:
         if not k.startswith("_"):
             setattr(ns, k, getattr(base_cfg, k))
 
+    # Fixed-dollar risk: every trade risks $500, decoupled from compounding.
+    # Eliminates the v8_1190 / v10_9264-style equity-spiral artefact seen
+    # under the default 5%-of-equity sizing on the OOS test partition.
+    ns.FIXED_RISK_DOLLARS = 500.0
+
     ns.Z_BAND_K                = float(params["z_band_k"])
     ns.Z_WINDOW                = int(params["z_window"])
     ns.VOLUME_ZSCORE_WINDOW    = int(params["volume_zscore_window"])
