@@ -625,6 +625,48 @@ refit (~33s total vs 2.5s) but halves ECE (0.0070 → 0.0035).
 
 ---
 
+### Phase 4c — production config lock-in + expanding-window test
+
+Compared four calibration strategies on the V3 held-out tail (artifact:
+`data/ml/adaptive_rr_v3/b6_phase4c.json`, runtime 186s):
+
+| Variant | ECE | Fit time | Verdict |
+|---|---|---|---|
+| raw (no calibration) | 0.0260 | — | reference |
+| rolling (5000, 500) — old default | 0.0070 | 2.6s | PASS |
+| rolling (20000, 100) — 4b winner | **0.0035** | 33.0s | PASS |
+| **expanding (refit=100)** | 0.0039 | 71.4s | PASS |
+| expanding (refit=500) | 0.0043 | 14.6s | PASS |
+
+#### Key findings
+
+1. **Rolling (20000, 100) confirmed optimal at 0.0035** — matches the
+   Phase 4b grid minimum.
+2. **Expanding causal matches rolling to within 0.0004** — (20000, 100)
+   rolling and (refit=100) expanding differ by ECE 0.0004 only.
+   Mechanically this means the "forgetting" aspect of a sliding window
+   isn't load-bearing on this distribution; what matters is fitting on
+   a large pool of recent-enough past data.
+3. **Production pick: expanding causal, refit_every=100**. Simpler to
+   productionize (no window size to tune, no stale-window edge cases),
+   within 0.0004 ECE of the absolute best, and the isotonic fit grows
+   at most linearly in seen-trade count.
+
+#### Updated production recommendation
+
+Replace "(window=5000, refit_every=500)" everywhere (Phase 4 section,
+production runbook) with:
+
+**Causal expanding isotonic, refit_every=100 trades, per R:R level.**
+At each refit, fit `IsotonicRegression(out_of_bounds="clip")` on ALL
+past trades at that R:R. Apply to the next 100 trades. ECE 0.0039 on
+held-out (4.4× better than static 0.0336, 6.7× better than raw 0.0260).
+
+Rolling (20000, 100) remains the absolute-optimum fallback if ECE
+0.0035 vs 0.0039 ever matters for a specific use case.
+
+---
+
 ## Pointers
 
 - Numerical details per task: the JSON files listed in the Scoreboard.
