@@ -123,13 +123,20 @@ def apply_sizing(pnl_base, risk_base, policy, equity0=STARTING_EQUITY):
     return np.diff(np.concatenate([[equity0], equity]))
 
 
-def metrics_from_pnl(pnl, years_span, start_equity=STARTING_EQUITY):
+def metrics_from_pnl(pnl, years_span, policy='fixed_dollars_500', r=None,
+                     start_equity=STARTING_EQUITY):
     '''Headline metrics for a per-trade dollar-PnL series.
 
-    Sharpe is annualized: sharpe = (mean/std) * sqrt(trades_per_year), where
-    trades_per_year = len(pnl) / years_span. The input `pnl` is the
-    policy-adjusted series (from apply_sizing), so this works for both
-    fixed-$500 and pct5_compound consistently.
+    For policy='fixed_dollars_500', Sharpe is annualized on per-trade $-PnL:
+      sharpe = (mean/std) * sqrt(trades_per_year).
+    For policy='pct5_compound', Sharpe is computed on log-returns of the
+    compounded equity curve: log_ret = log1p(RISK_FRAC * r), where r is the
+    per-trade r-multiple (pnl_base / risk_base). This is scale-invariant and
+    the correct annualization under compounding. If `r` is not provided under
+    pct5_compound, falls back to $-PnL Sharpe (same formula as fixed).
+
+    PnL, total return, and drawdown are always computed on the supplied
+    policy-adjusted `pnl` series.
     '''
     p = np.asarray(pnl, dtype=float)
     n = len(p)
@@ -144,8 +151,15 @@ def metrics_from_pnl(pnl, years_span, start_equity=STARTING_EQUITY):
     dd_pct = float(np.nan_to_num((peak - eq_full) / peak, nan=0.0).max() * 100)
     total = float(p.sum())
     tpy = n / years_span if years_span > 0 else 0.0
-    std = p.std(ddof=1) if n > 1 else 0.0
-    sharpe = float(p.mean() / std * np.sqrt(tpy)) if std > 0 and tpy > 0 else 0.0
+    if policy == 'pct5_compound' and r is not None and len(r) == n:
+        log_ret = np.log1p(RISK_FRAC * np.asarray(r, dtype=float))
+        std_s = log_ret.std(ddof=1) if n > 1 else 0.0
+        sharpe = (float(log_ret.mean() / std_s * np.sqrt(tpy))
+                  if std_s > 0 and tpy > 0 else 0.0)
+    else:
+        std_s = p.std(ddof=1) if n > 1 else 0.0
+        sharpe = (float(p.mean() / std_s * np.sqrt(tpy))
+                  if std_s > 0 and tpy > 0 else 0.0)
     return dict(n_trades=int(n),
                 trades_per_year=round(tpy, 1),
                 win_rate=round(float((p > 0).mean()), 4),
@@ -194,26 +208,33 @@ def monte_carlo(pnl_base, risk_base, policy, years_span,
     '''IID bootstrap MC on a trade sequence under `policy`. Returns DD
     percentiles + VaR/CVaR + risk-of-ruin (>=50% DD) + annualized Sharpe CI.
 
-    For fixed_dollars_500: resample dollar-PnL directly.
-    For pct5_compound:    resample r-multiples, compound with RISK_FRAC.
-
-    Sharpe is computed on per-trade dollar PnL (under the applied policy),
-    annualized by sqrt(trades_per_year). VaR/CVaR are on the single-trade
-    dollar-PnL distribution under the applied policy (so they also compound
-    for pct5 sims — we report the p5 across all per-sim-per-trade PnLs).
+    For fixed_dollars_500: resample dollar-PnL directly; Sharpe is annualized
+    on per-sim per-trade $-PnL.
+    For pct5_compound: resample r-multiples, compound with RISK_FRAC; Sharpe
+    is annualized on per-sim per-trade log-returns (log1p(RISK_FRAC*r)),
+    which is scale-invariant under compounding.
     '''
     pnl = np.asarray(pnl_base, dtype=float)
+    risk = np.asarray(risk_base, dtype=float)
     n = len(pnl)
     if n == 0:
         return {'n_sims': n_sims, 'n_trades': 0, 'note': 'empty'}
     samples_pnl, equity_paths = _mc_policy_samples(
-        pnl, risk_base, policy, n_sims=n_sims, seed=seed,
+        pnl, risk, policy, n_sims=n_sims, seed=seed,
         start_equity=start_equity)
     peak = np.maximum.accumulate(equity_paths, axis=1)
     dd_pct = np.nan_to_num((peak - equity_paths) / peak, nan=0.0).max(axis=1) * 100
     tpy = n / years_span if years_span > 0 else 0.0
-    mu = samples_pnl.mean(axis=1)
-    sig = samples_pnl.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
+    rng = np.random.default_rng(seed)
+    if policy == 'pct5_compound':
+        r_full = np.where(risk > 0, pnl / risk, 0.0)
+        idx = rng.integers(0, n, size=(n_sims, n))
+        log_ret = np.log1p(RISK_FRAC * r_full[idx])
+        mu = log_ret.mean(axis=1)
+        sig = log_ret.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
+    else:
+        mu = samples_pnl.mean(axis=1)
+        sig = samples_pnl.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
     sharpe_boot = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)
     # Trade-level VaR under policy: take the p5 of all resampled per-trade PnLs.
     var5 = float(np.percentile(samples_pnl.reshape(-1), 5))
@@ -271,15 +292,23 @@ two_stage = _v3inf._load_per_combo_calibrators()
 
 combo_ids = [s['global_combo_id'] for s in strategies]
 
-# Cache ML2 per-combo trades. Key = (version, booster mtime, sorted combo_ids).
-# combos_ml2 is a deterministic function of (booster, calibrators, combo params,
-# test bars); since the test bars grow via update_bars_yfinance.py, include the
-# test-partition end time too so appending bars invalidates the cache.
-_ML2_CACHE_VERSION = 'v1'
+# Cache ML2 per-combo trades. combos_ml2 is a deterministic function of
+# (booster, calibrators, build_combo_trades_test logic, combo params, test
+# bars). Key includes mtimes for every dependency that can change combos_ml2
+# without changing the combo_ids, so a silent stale-cache hit is impossible:
+#   - V3 booster file
+#   - Pooled per-R:R isotonic calibrators
+#   - Per-combo two-stage calibrators
+#   - The final_holdout_eval_v3_c1_fixed500 module itself (build_combo_trades_test)
+#   - Test-partition end time (bars grow via update_bars_yfinance.py)
+_ML2_CACHE_VERSION = 'v2'
 _ML2_CACHE = REPO / 'evaluation' / '_ml2_cache.pkl'
 _cache_key = (
     _ML2_CACHE_VERSION,
     Path(_v3inf.V3_BOOSTER).stat().st_mtime_ns,
+    Path(_v3inf.V3_CALIBRATORS).stat().st_mtime_ns,
+    Path(_v3inf.V3_PER_COMBO_CALIBRATORS).stat().st_mtime_ns,
+    Path(v3eval.__file__).stat().st_mtime_ns,
     str(bars['time'].iloc[-1]),
     tuple(sorted(combo_ids)),
 )
@@ -601,15 +630,18 @@ for r in results_raw:
     if r['trades'].empty:
         for policy in POLICIES:
             rows.append({'combo_id': r['combo_id'], 'policy': policy,
-                         **metrics_from_pnl(np.array([]), YEARS_SPAN)})
+                         **metrics_from_pnl(np.array([]), YEARS_SPAN,
+                                             policy=policy)})
         continue
     t = r['trades'].sort_values('date', kind='mergesort')
     pnl_base = t['actual_pnl'].to_numpy(dtype=float)
     risk_base = t['dollar_risk'].to_numpy(dtype=float)
+    r_mult = np.where(risk_base > 0, pnl_base / risk_base, 0.0)
     for policy in POLICIES:
         pnl = apply_sizing(pnl_base, risk_base, policy)
         rows.append({'combo_id': r['combo_id'], 'policy': policy,
-                     **metrics_from_pnl(pnl, YEARS_SPAN)})
+                     **metrics_from_pnl(pnl, YEARS_SPAN,
+                                         policy=policy, r=r_mult)})
 perf1 = pd.DataFrame(rows)
 perf1"""
 
@@ -630,12 +662,17 @@ print(f'Combined unfiltered trades: {len(combined_raw):,}')
 rows = []
 for policy in POLICIES:
     if combined_raw.empty:
-        rows.append({'policy': policy, **metrics_from_pnl(np.array([]), YEARS_SPAN)})
+        rows.append({'policy': policy,
+                     **metrics_from_pnl(np.array([]), YEARS_SPAN,
+                                         policy=policy)})
         continue
     pnl_base = combined_raw['actual_pnl'].to_numpy(dtype=float)
     risk_base = combined_raw['dollar_risk'].to_numpy(dtype=float)
+    r_mult = np.where(risk_base > 0, pnl_base / risk_base, 0.0)
     pnl = apply_sizing(pnl_base, risk_base, policy)
-    rows.append({'policy': policy, **metrics_from_pnl(pnl, YEARS_SPAN)})
+    rows.append({'policy': policy,
+                 **metrics_from_pnl(pnl, YEARS_SPAN,
+                                     policy=policy, r=r_mult)})
 combined_table_raw = pd.DataFrame(rows)
 combined_table_raw"""
 
@@ -687,14 +724,17 @@ for c in combos_ml2:
     if len(pnl_base) == 0:
         for policy in POLICIES:
             rows.append({'combo_id': cid, 'policy': policy,
-                         **metrics_from_pnl(np.array([]), YEARS_SPAN)})
+                         **metrics_from_pnl(np.array([]), YEARS_SPAN,
+                                             policy=policy)})
             s4_pnl_by_combo[cid][policy] = (np.array([]), np.array([], dtype=int))
         continue
+    r_mult = np.where(risk_base > 0, pnl_base / risk_base, 0.0)
     for policy in POLICIES:
         pnl = apply_sizing(pnl_base, risk_base, policy)
         s4_pnl_by_combo[cid][policy] = (pnl, exit_bars)
         rows.append({'combo_id': cid, 'policy': policy,
-                     **metrics_from_pnl(pnl, YEARS_SPAN)})
+                     **metrics_from_pnl(pnl, YEARS_SPAN,
+                                         policy=policy, r=r_mult)})
 perf4 = pd.DataFrame(rows)
 perf4"""
 
@@ -764,9 +804,14 @@ for policy in POLICIES:
     df = ml2_portfolio[policy]
     if df.empty:
         rows.append({'policy': policy, 'n_trades': 0}); continue
+    pnl_p = df['actual_pnl'].to_numpy(dtype=float)
+    risk_p = df['dollar_risk'].to_numpy(dtype=float)
+    # r-multiple is sizing-invariant (pnl/risk scales together under any
+    # sizing policy), so log-return Sharpe under compounding is well-defined.
+    r_p = np.where(risk_p > 0, pnl_p / risk_p, 0.0)
     rows.append({'policy': policy,
-                 **metrics_from_pnl(df['actual_pnl'].to_numpy(dtype=float),
-                                    YEARS_SPAN)})
+                 **metrics_from_pnl(pnl_p, YEARS_SPAN,
+                                     policy=policy, r=r_p)})
 combined_table_ml2 = pd.DataFrame(rows)
 combined_table_ml2"""
 
@@ -776,17 +821,18 @@ for policy in POLICIES:
     df = ml2_portfolio[policy]
     if df.empty:
         rows.append({'policy': policy, 'n_trades': 0}); continue
-    pnl_base = df['actual_pnl'].to_numpy(dtype=float)
-    risk_base = df['dollar_risk'].to_numpy(dtype=float)
-    # The portfolio trades were already realized under `policy`, so re-applying
-    # apply_sizing would double-compound. For MC consistency we bootstrap the
-    # r-multiples observed under this policy and recompound from the starting
-    # equity — i.e., we treat each policy's portfolio as the truth and explore
-    # the order sensitivity via bootstrap. policy='fixed_dollars_500' here
-    # means "bootstrap these PnLs directly"; policy='pct5_compound' means
-    # "bootstrap r and recompound". Both mirror Section 3's semantics.
+    pnl_p = df['actual_pnl'].to_numpy(dtype=float)
+    risk_p = df['dollar_risk'].to_numpy(dtype=float)
+    # pnl_p and risk_p are both sized under `policy`, so the ratio r=pnl/risk
+    # is the sizing-invariant r-multiple (identical for fixed and pct5 at the
+    # same trade). That means:
+    #   policy='fixed_dollars_500' -> bootstrap the $-PnLs directly.
+    #   policy='pct5_compound'     -> bootstrap r and re-compound from start
+    #                                 equity; no double-compounding, since the
+    #                                 input r IS sizing-invariant.
+    # Both branches mirror Section 3's semantics exactly.
     rows.append({'policy': policy,
-                 **monte_carlo(pnl_base, risk_base, policy, YEARS_SPAN)})
+                 **monte_carlo(pnl_p, risk_p, policy, YEARS_SPAN)})
 mc_ml2 = pd.DataFrame(rows)
 mc_ml2"""
 
