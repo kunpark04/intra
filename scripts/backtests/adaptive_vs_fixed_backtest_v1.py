@@ -169,7 +169,10 @@ def build_indicators(df: pd.DataFrame, combo: dict) -> pd.DataFrame:
         "zscore": z,
         "atr": atr_arr,
         "volume_zscore": vol_z,
-        "bar_hour": pd.to_datetime(df["time"]).dt.hour.to_numpy(dtype=np.int64),
+        # fillna(0) guards against NaT-derived NaNs that would otherwise
+        # trigger pandas/numpy "invalid value encountered in cast" when
+        # writing into an int64 column.
+        "bar_hour": pd.to_datetime(df["time"]).dt.hour.fillna(0).astype(np.int64).to_numpy(),
     })
     return out
 
