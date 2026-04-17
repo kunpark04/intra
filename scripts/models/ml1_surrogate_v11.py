@@ -48,12 +48,17 @@ MODELS_DIR = OUTPUT_DIR / "models"
 TARGET_COL = "target_net_sharpe"
 
 # Feature columns — everything on the parquet that is NOT a target or ID.
+# gross_sharpe and gross_net_sharpe_gap are excluded as arithmetic-identity
+# leaks: gap ≡ gross_sharpe − target_net_sharpe by construction, so any tree
+# recovers the target exactly. gross_sharpe differs from net_sharpe only by a
+# ~deterministic function of stop_fixed_pts (friction = contracts × $5,
+# contracts ∝ 1/stop_pts). Both were dropping CV R² into noise levels once
+# removed — a sign the previous 0.98 R² was fitting the identity, not signal.
+# Columns remain in the parquet for audit; just invisible to the model.
 EXCLUDE_COLS = {
     "global_combo_id", "combo_id",
     "target_net_sharpe",
-    # Scale-dependent leaks: n_trades and trades_per_year are fine (they're
-    # predictive signal, not labels). gross_sharpe and gross_net_sharpe_gap
-    # are kept deliberately — they tell the model about friction sensitivity.
+    "gross_sharpe", "gross_net_sharpe_gap",
 }
 
 CATEGORICAL_COLS = [

@@ -43,7 +43,8 @@ BOOLEAN_COLS = [
     "exit_on_opposite_signal", "use_breakeven_stop", "zscore_confirmation",
     "tight_stop_flag",
 ]
-EXCLUDE_COLS = {"global_combo_id", "combo_id", "target_net_sharpe"}
+EXCLUDE_COLS = {"global_combo_id", "combo_id", "target_net_sharpe",
+                "gross_sharpe", "gross_net_sharpe_gap"}
 
 # Schema-compatible with the legacy top_strategies.json entry format.
 # composed_strategy_runner reads entry["parameters"] + stop_fixed_pts_resolved.
