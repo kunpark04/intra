@@ -75,17 +75,6 @@ python3 /root/intra/run_eval_nbs_exec.py
 echo "[eval_nbs] --- Building trade log xlsx ---"
 python3 /root/intra/scripts/evaluation/build_trade_log_xlsx.py
 
-echo "[eval_nbs] --- Publishing artifacts via git ---"
-git -C /root/intra config user.email "sweep-runner@local" 2>/dev/null || true
-git -C /root/intra config user.name  "sweep-runner-1"     2>/dev/null || true
-git -C /root/intra add evaluation/top_performance.ipynb evaluation/top_trade_log.xlsx
-if git -C /root/intra diff --cached --quiet; then
-  echo "[eval_nbs] No artifact changes to commit"
-else
-  git -C /root/intra commit -m "eval artifacts: top_performance.ipynb + top_trade_log.xlsx ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
-  git -C /root/intra push origin master
-fi
-
 echo "[eval_nbs] ALL DONE $(date)"
 """
 
