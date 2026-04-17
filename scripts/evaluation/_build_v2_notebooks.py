@@ -74,7 +74,7 @@ from scripts.evaluation._top_perf_common import (
     plot_mc_sims, plot_mc_pnl, plot_mc_sharpe, plot_mc_dd,
 )
 
-_ctx = load_setup(cost_per_contract_rt={cost_rt})
+_ctx = load_setup(cost_per_contract_rt={cost_rt}, top_strategies_path={tsp})
 bars            = _ctx['bars']
 YEARS_SPAN      = _ctx['years_span']
 strategies      = _ctx['strategies']
@@ -85,8 +85,13 @@ s4_pnl_by_combo = _ctx['s4_pnl_by_combo']
 ml2_portfolio   = _ctx['ml2_portfolio']
 '''
 
-SETUP = SETUP_TEMPLATE.format(cost_rt="0.0")
-SETUP_NET = SETUP_TEMPLATE.format(cost_rt="5.0")
+
+def _setup(cost_rt: str, tsp_expr: str) -> str:
+    return SETUP_TEMPLATE.format(cost_rt=cost_rt, tsp=tsp_expr)
+
+
+SETUP = _setup("0.0", "None")
+SETUP_NET = _setup("5.0", "None")
 
 NET_COST_BANNER = (
     "\n\n**Cost model:** every trade is charged "
@@ -309,28 +314,47 @@ def build_section(section, setup_src: str, title_suffix: str = "",
 OUTPUTS = [s["filename"] for s in SECTIONS]
 
 
-def main() -> None:
-    gross_dir = EVAL / "v10_topk"
-    net_dir = EVAL / "v10_topk_net"
+def _build_variant(gross_dir: Path, net_dir: Path,
+                   setup_src: str, setup_net_src: str,
+                   title_tag: str = "") -> None:
     gross_dir.mkdir(parents=True, exist_ok=True)
     net_dir.mkdir(parents=True, exist_ok=True)
-
-    # Gross notebooks (no friction)
+    title_suffix = f" {title_tag}" if title_tag else ""
     for section in SECTIONS:
-        nb = build_section(section, SETUP)
+        nb = build_section(section, setup_src, title_suffix=title_suffix)
         path = gross_dir / section["filename"]
         nbf.write(nb, str(path))
         print(f"Wrote {path}")
-
-    # Net-of-cost notebooks (liberal friction applied)
     for section in SECTIONS:
         net_name = section["filename"].replace(".ipynb", "_net.ipynb")
-        nb = build_section(section, SETUP_NET,
-                           title_suffix=" — net of costs",
+        nb = build_section(section, setup_net_src,
+                           title_suffix=f"{title_suffix} — net of costs",
                            body_suffix=NET_COST_BANNER)
         path = net_dir / net_name
         nbf.write(nb, str(path))
         print(f"Wrote {path}")
+
+
+def main() -> None:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--variant", choices=["v10", "v11", "all"], default="all",
+                    help="Which top-K source to build for.")
+    args = ap.parse_args()
+
+    if args.variant in ("v10", "all"):
+        _build_variant(
+            EVAL / "v10_topk", EVAL / "v10_topk_net",
+            SETUP, SETUP_NET,
+        )
+
+    if args.variant in ("v11", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v11.json'"
+        _build_variant(
+            EVAL / "v11_topk", EVAL / "v11_topk_net",
+            _setup("0.0", tsp), _setup("5.0", tsp),
+            title_tag="(v11)",
+        )
 
     # Remove the old monolithic notebook if present — it's replaced by the
     # 6 section notebooks above.

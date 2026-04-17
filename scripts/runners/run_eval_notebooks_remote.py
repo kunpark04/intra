@@ -31,7 +31,20 @@ UPLOAD_FILES = [
     "evaluation/v10_topk_net/s4_individual_ml2_net.ipynb",
     "evaluation/v10_topk_net/s5_combined_ml2_net.ipynb",
     "evaluation/v10_topk_net/s6_mc_combined_ml2_net.ipynb",
+    "evaluation/v11_topk/s1_individual.ipynb",
+    "evaluation/v11_topk/s2_combined.ipynb",
+    "evaluation/v11_topk/s3_mc_combined.ipynb",
+    "evaluation/v11_topk/s4_individual_ml2.ipynb",
+    "evaluation/v11_topk/s5_combined_ml2.ipynb",
+    "evaluation/v11_topk/s6_mc_combined_ml2.ipynb",
+    "evaluation/v11_topk_net/s1_individual_net.ipynb",
+    "evaluation/v11_topk_net/s2_combined_net.ipynb",
+    "evaluation/v11_topk_net/s3_mc_combined_net.ipynb",
+    "evaluation/v11_topk_net/s4_individual_ml2_net.ipynb",
+    "evaluation/v11_topk_net/s5_combined_ml2_net.ipynb",
+    "evaluation/v11_topk_net/s6_mc_combined_ml2_net.ipynb",
     "evaluation/top_strategies.json",
+    "evaluation/top_strategies_v11.json",
     "scripts/evaluation/_top_perf_common.py",
     "scripts/evaluation/composed_strategy_runner.py",
     "scripts/evaluation/final_holdout_eval_v3_c1_fixed500.py",
@@ -72,6 +85,18 @@ NOTEBOOKS = [
     'evaluation/v10_topk_net/s4_individual_ml2_net.ipynb',
     'evaluation/v10_topk_net/s5_combined_ml2_net.ipynb',
     'evaluation/v10_topk_net/s6_mc_combined_ml2_net.ipynb',
+    'evaluation/v11_topk/s1_individual.ipynb',
+    'evaluation/v11_topk/s2_combined.ipynb',
+    'evaluation/v11_topk/s3_mc_combined.ipynb',
+    'evaluation/v11_topk/s4_individual_ml2.ipynb',
+    'evaluation/v11_topk/s5_combined_ml2.ipynb',
+    'evaluation/v11_topk/s6_mc_combined_ml2.ipynb',
+    'evaluation/v11_topk_net/s1_individual_net.ipynb',
+    'evaluation/v11_topk_net/s2_combined_net.ipynb',
+    'evaluation/v11_topk_net/s3_mc_combined_net.ipynb',
+    'evaluation/v11_topk_net/s4_individual_ml2_net.ipynb',
+    'evaluation/v11_topk_net/s5_combined_ml2_net.ipynb',
+    'evaluation/v11_topk_net/s6_mc_combined_ml2_net.ipynb',
 ]
 
 for rel in NOTEBOOKS:
@@ -114,7 +139,10 @@ def main() -> None:
     sftp = ssh.open_sftp()
 
     ssh.exec_command(
-        f"mkdir -p {REMOTE_DIR}/evaluation {REMOTE_DIR}/scripts/evaluation "
+        f"mkdir -p {REMOTE_DIR}/evaluation "
+        f"{REMOTE_DIR}/evaluation/v10_topk {REMOTE_DIR}/evaluation/v10_topk_net "
+        f"{REMOTE_DIR}/evaluation/v11_topk {REMOTE_DIR}/evaluation/v11_topk_net "
+        f"{REMOTE_DIR}/scripts/evaluation "
         f"{REMOTE_DIR}/src {REMOTE_DIR}/src/indicators"
     )[1].channel.recv_exit_status()
 

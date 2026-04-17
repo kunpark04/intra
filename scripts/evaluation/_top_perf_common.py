@@ -355,7 +355,7 @@ def _apply_friction_unfiltered(results_raw, cost_per_contract_rt: float):
     return out
 
 
-def load_setup(cost_per_contract_rt: float = 0.0):
+def load_setup(cost_per_contract_rt: float = 0.0, top_strategies_path=None):
     """Returns dict with bars, years_span, strategies, results_raw,
     combined_raw, combos_ml2, s4_pnl_by_combo, ml2_portfolio. All expensive
     inputs (results_raw, combos_ml2) are loaded from disk cache when valid.
@@ -363,7 +363,15 @@ def load_setup(cost_per_contract_rt: float = 0.0):
     When cost_per_contract_rt > 0, subtract `contracts * cost` from every
     trade's PnL (both unfiltered and ML2). Caches always store gross data;
     friction is applied in-memory so both modes share the on-disk cache.
+
+    top_strategies_path defaults to evaluation/top_strategies.json (v10);
+    pass a different path (e.g. evaluation/top_strategies_v11.json) to
+    evaluate a different top-K source. The JSON must have a `top` list of
+    entries each with `global_combo_id` and `parameters`.
     """
+    tsp = Path(top_strategies_path) if top_strategies_path else TOP_STRATEGIES_PATH
+    print(f"Top-K source: {tsp.name}")
+
     bars = load_test_bars()
     print(f"Test partition: {len(bars):,} bars  "
           f"{bars['time'].iloc[0]} -> {bars['time'].iloc[-1]}")
@@ -375,7 +383,7 @@ def load_setup(cost_per_contract_rt: float = 0.0):
         print(f"Applying friction: ${cost_per_contract_rt:.2f}/contract RT "
               f"(commission + slippage).")
 
-    payload = json.loads(TOP_STRATEGIES_PATH.read_text())
+    payload = json.loads(tsp.read_text())
     strategies = payload["top"]
     combo_ids = [s["global_combo_id"] for s in strategies]
     print(f"Loaded {len(strategies)} strategies.")
