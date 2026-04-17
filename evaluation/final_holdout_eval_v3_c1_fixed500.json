@@ -1,0 +1,599 @@
+{
+  "timestamp": "2026-04-16 23:41:00",
+  "elapsed_s": 51.4,
+  "combos": [
+    "v10_9955",
+    "v5_2725",
+    "v9_837",
+    "v10_4391",
+    "v10_1214",
+    "v7_2736",
+    "v10_9264",
+    "v7_327",
+    "v7_898",
+    "v5_1097"
+  ],
+  "source": "evaluation/top_strategies.json (C1-selected top-10)",
+  "sizing_configs": {
+    "fixed5_2500": "5% of starting equity = $2500/trade, no compounding",
+    "fixed_dollars_500": "FIXED $500/trade, sizing-invariant convention",
+    "kelly_simple": "Kelly f = p - (1-p)/rr capped at 5%, compounded",
+    "kelly_twostage": "Same but P(win) from per-combo two-stage calibrator"
+  },
+  "per_combo": [
+    {
+      "combo_id": "v10_9955",
+      "n_trades": 165,
+      "rr": 1.3956454877881024,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 165,
+        "win_rate": 0.697,
+        "total_return_pct": 550.81,
+        "sharpe": 7.7898,
+        "max_drawdown_pct": 18.99,
+        "sum_pnl_dollars": 275402.66
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 165,
+        "win_rate": 0.697,
+        "total_return_pct": 110.16,
+        "sharpe": 7.7898,
+        "max_drawdown_pct": 4.41,
+        "sum_pnl_dollars": 55080.53
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 101,
+        "win_rate": 0.7228,
+        "total_return_pct": 2479.46,
+        "sharpe": 4.4502,
+        "max_drawdown_pct": 19.37,
+        "sum_pnl_dollars": 1239728.53
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 101,
+        "win_rate": 0.7228,
+        "total_return_pct": 2479.46,
+        "sharpe": 4.4502,
+        "max_drawdown_pct": 19.37,
+        "sum_pnl_dollars": 1239728.53
+      },
+      "cal_simple": {
+        "brier": 0.275,
+        "ece": 0.2571,
+        "mean_pwin": 0.4399,
+        "observed_wr": 0.697
+      },
+      "cal_twostage": {
+        "brier": 0.275,
+        "ece": 0.2571,
+        "mean_pwin": 0.4399,
+        "observed_wr": 0.697
+      }
+    },
+    {
+      "combo_id": "v5_2725",
+      "n_trades": 21,
+      "rr": 1.0315362179305076,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 21,
+        "win_rate": 0.8571,
+        "total_return_pct": 77.49,
+        "sharpe": 4.6636,
+        "max_drawdown_pct": 9.24,
+        "sum_pnl_dollars": 38743.99
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 21,
+        "win_rate": 0.8571,
+        "total_return_pct": 15.41,
+        "sharpe": 4.6636,
+        "max_drawdown_pct": 2.65,
+        "sum_pnl_dollars": 7705.99
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 18,
+        "win_rate": 0.8333,
+        "total_return_pct": 82.04,
+        "sharpe": 3.3314,
+        "max_drawdown_pct": 14.25,
+        "sum_pnl_dollars": 41021.44
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 18,
+        "win_rate": 0.8333,
+        "total_return_pct": 82.04,
+        "sharpe": 3.3314,
+        "max_drawdown_pct": 14.25,
+        "sum_pnl_dollars": 41021.44
+      },
+      "cal_simple": {
+        "brier": 0.2003,
+        "ece": 0.2735,
+        "mean_pwin": 0.6109,
+        "observed_wr": 0.8571
+      },
+      "cal_twostage": {
+        "brier": 0.2003,
+        "ece": 0.2735,
+        "mean_pwin": 0.6109,
+        "observed_wr": 0.8571
+      }
+    },
+    {
+      "combo_id": "v9_837",
+      "n_trades": 13,
+      "rr": 1.0211547122608127,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 13,
+        "win_rate": 0.7692,
+        "total_return_pct": 35.97,
+        "sharpe": 2.2566,
+        "max_drawdown_pct": 9.48,
+        "sum_pnl_dollars": 17983.42
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 13,
+        "win_rate": 0.7692,
+        "total_return_pct": 7.12,
+        "sharpe": 2.2566,
+        "max_drawdown_pct": 1.95,
+        "sum_pnl_dollars": 3558.22
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 7,
+        "win_rate": 1.0,
+        "total_return_pct": 41.66,
+        "sharpe": 24.6277,
+        "max_drawdown_pct": 0.0,
+        "sum_pnl_dollars": 20827.8
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 7,
+        "win_rate": 1.0,
+        "total_return_pct": 41.66,
+        "sharpe": 24.6277,
+        "max_drawdown_pct": 0.0,
+        "sum_pnl_dollars": 20827.8
+      },
+      "cal_simple": {
+        "brier": 0.1629,
+        "ece": 0.1905,
+        "mean_pwin": 0.5788,
+        "observed_wr": 0.7692
+      },
+      "cal_twostage": {
+        "brier": 0.1629,
+        "ece": 0.1905,
+        "mean_pwin": 0.5788,
+        "observed_wr": 0.7692
+      }
+    },
+    {
+      "combo_id": "v10_4391",
+      "n_trades": 150,
+      "rr": 1.7863777229250521,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 150,
+        "win_rate": 0.7467,
+        "total_return_pct": 889.88,
+        "sharpe": 13.6926,
+        "max_drawdown_pct": 8.21,
+        "sum_pnl_dollars": 444942.38
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 150,
+        "win_rate": 0.7467,
+        "total_return_pct": 177.66,
+        "sharpe": 13.6926,
+        "max_drawdown_pct": 1.91,
+        "sum_pnl_dollars": 88829.85
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 82,
+        "win_rate": 0.9146,
+        "total_return_pct": 23366.23,
+        "sharpe": 5.7183,
+        "max_drawdown_pct": 5.0,
+        "sum_pnl_dollars": 11683117.18
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 82,
+        "win_rate": 0.9146,
+        "total_return_pct": 23366.23,
+        "sharpe": 5.7183,
+        "max_drawdown_pct": 5.0,
+        "sum_pnl_dollars": 11683117.18
+      },
+      "cal_simple": {
+        "brier": 0.2922,
+        "ece": 0.3683,
+        "mean_pwin": 0.3783,
+        "observed_wr": 0.7467
+      },
+      "cal_twostage": {
+        "brier": 0.2922,
+        "ece": 0.3683,
+        "mean_pwin": 0.3783,
+        "observed_wr": 0.7467
+      }
+    },
+    {
+      "combo_id": "v10_1214",
+      "n_trades": 29,
+      "rr": 1.416542902853947,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 29,
+        "win_rate": 0.6552,
+        "total_return_pct": 89.38,
+        "sharpe": 2.9314,
+        "max_drawdown_pct": 11.3,
+        "sum_pnl_dollars": 44687.88
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 29,
+        "win_rate": 0.6552,
+        "total_return_pct": 17.66,
+        "sharpe": 2.9314,
+        "max_drawdown_pct": 2.78,
+        "sum_pnl_dollars": 8829.46
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 22,
+        "win_rate": 0.5909,
+        "total_return_pct": 62.5,
+        "sharpe": 1.7039,
+        "max_drawdown_pct": 13.93,
+        "sum_pnl_dollars": 31249.48
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 22,
+        "win_rate": 0.5909,
+        "total_return_pct": 62.5,
+        "sharpe": 1.7039,
+        "max_drawdown_pct": 13.93,
+        "sum_pnl_dollars": 31249.48
+      },
+      "cal_simple": {
+        "brier": 0.272,
+        "ece": 0.1766,
+        "mean_pwin": 0.4786,
+        "observed_wr": 0.6552
+      },
+      "cal_twostage": {
+        "brier": 0.272,
+        "ece": 0.1766,
+        "mean_pwin": 0.4786,
+        "observed_wr": 0.6552
+      }
+    },
+    {
+      "combo_id": "v7_2736",
+      "n_trades": 16,
+      "rr": 1.0322257570029887,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 16,
+        "win_rate": 0.75,
+        "total_return_pct": 41.78,
+        "sharpe": 2.307,
+        "max_drawdown_pct": 7.91,
+        "sum_pnl_dollars": 20891.29
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 16,
+        "win_rate": 0.75,
+        "total_return_pct": 8.28,
+        "sharpe": 2.307,
+        "max_drawdown_pct": 1.88,
+        "sum_pnl_dollars": 4138.84
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 9,
+        "win_rate": 0.8889,
+        "total_return_pct": 41.99,
+        "sharpe": 3.4304,
+        "max_drawdown_pct": 5.0,
+        "sum_pnl_dollars": 20996.12
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 9,
+        "win_rate": 0.8889,
+        "total_return_pct": 41.99,
+        "sharpe": 3.4304,
+        "max_drawdown_pct": 5.0,
+        "sum_pnl_dollars": 20996.12
+      },
+      "cal_simple": {
+        "brier": 0.2089,
+        "ece": 0.2569,
+        "mean_pwin": 0.5587,
+        "observed_wr": 0.75
+      },
+      "cal_twostage": {
+        "brier": 0.2089,
+        "ece": 0.2569,
+        "mean_pwin": 0.5587,
+        "observed_wr": 0.75
+      }
+    },
+    {
+      "combo_id": "v10_9264",
+      "n_trades": 3061,
+      "rr": 1.1105979527366818,
+      "has_per_combo_cal": true,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 3061,
+        "win_rate": 0.7308,
+        "total_return_pct": 8737.12,
+        "sharpe": 34.9869,
+        "max_drawdown_pct": 9.32,
+        "sum_pnl_dollars": 4368562.1
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 3061,
+        "win_rate": 0.7308,
+        "total_return_pct": 1747.42,
+        "sharpe": 34.9869,
+        "max_drawdown_pct": 2.91,
+        "sum_pnl_dollars": 873712.42
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 2119,
+        "win_rate": 0.7924,
+        "total_return_pct": 3.000555029647405e+29,
+        "sharpe": 4.75,
+        "max_drawdown_pct": 18.33,
+        "sum_pnl_dollars": 1.5002775148237026e+32
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 3061,
+        "win_rate": 0.7308,
+        "total_return_pct": 1.2818414133814368e+38,
+        "sharpe": 4.4512,
+        "max_drawdown_pct": 30.17,
+        "sum_pnl_dollars": 6.409207066907183e+40
+      },
+      "cal_simple": {
+        "brier": 0.2389,
+        "ece": 0.225,
+        "mean_pwin": 0.5059,
+        "observed_wr": 0.7308
+      },
+      "cal_twostage": {
+        "brier": 0.2637,
+        "ece": 0.2624,
+        "mean_pwin": 0.9932,
+        "observed_wr": 0.7308
+      }
+    },
+    {
+      "combo_id": "v7_327",
+      "n_trades": 14,
+      "rr": 1.1950106027072689,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 14,
+        "win_rate": 0.7857,
+        "total_return_pct": 44.8,
+        "sharpe": 2.5547,
+        "max_drawdown_pct": 4.7,
+        "sum_pnl_dollars": 22400.71
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 14,
+        "win_rate": 0.7857,
+        "total_return_pct": 8.88,
+        "sharpe": 2.5547,
+        "max_drawdown_pct": 0.98,
+        "sum_pnl_dollars": 4437.88
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 8,
+        "win_rate": 1.0,
+        "total_return_pct": 58.97,
+        "sharpe": 19.829,
+        "max_drawdown_pct": 0.0,
+        "sum_pnl_dollars": 29486.89
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 8,
+        "win_rate": 1.0,
+        "total_return_pct": 58.97,
+        "sharpe": 19.829,
+        "max_drawdown_pct": 0.0,
+        "sum_pnl_dollars": 29486.89
+      },
+      "cal_simple": {
+        "brier": 0.1982,
+        "ece": 0.2849,
+        "mean_pwin": 0.5008,
+        "observed_wr": 0.7857
+      },
+      "cal_twostage": {
+        "brier": 0.1982,
+        "ece": 0.2849,
+        "mean_pwin": 0.5008,
+        "observed_wr": 0.7857
+      }
+    },
+    {
+      "combo_id": "v7_898",
+      "n_trades": 16,
+      "rr": 1.1474525337065957,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 16,
+        "win_rate": 0.75,
+        "total_return_pct": 48.67,
+        "sharpe": 2.5431,
+        "max_drawdown_pct": 8.01,
+        "sum_pnl_dollars": 24335.65
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 16,
+        "win_rate": 0.75,
+        "total_return_pct": 9.64,
+        "sharpe": 2.5431,
+        "max_drawdown_pct": 1.88,
+        "sum_pnl_dollars": 4821.21
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 10,
+        "win_rate": 0.9,
+        "total_return_pct": 56.79,
+        "sharpe": 4.2038,
+        "max_drawdown_pct": 4.99,
+        "sum_pnl_dollars": 28395.01
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 10,
+        "win_rate": 0.9,
+        "total_return_pct": 56.79,
+        "sharpe": 4.2038,
+        "max_drawdown_pct": 4.99,
+        "sum_pnl_dollars": 28395.01
+      },
+      "cal_simple": {
+        "brier": 0.2148,
+        "ece": 0.2591,
+        "mean_pwin": 0.5259,
+        "observed_wr": 0.75
+      },
+      "cal_twostage": {
+        "brier": 0.2148,
+        "ece": 0.2591,
+        "mean_pwin": 0.5259,
+        "observed_wr": 0.75
+      }
+    },
+    {
+      "combo_id": "v5_1097",
+      "n_trades": 21,
+      "rr": 1.4796072670789069,
+      "has_per_combo_cal": false,
+      "fixed5_2500": {
+        "policy": "fixed5",
+        "n_trades_taken": 21,
+        "win_rate": 0.8571,
+        "total_return_pct": 117.74,
+        "sharpe": 5.8003,
+        "max_drawdown_pct": 7.93,
+        "sum_pnl_dollars": 58869.63
+      },
+      "fixed_dollars_500": {
+        "policy": "fixed_dollars",
+        "n_trades_taken": 21,
+        "win_rate": 0.8571,
+        "total_return_pct": 23.33,
+        "sharpe": 5.8003,
+        "max_drawdown_pct": 2.52,
+        "sum_pnl_dollars": 11662.85
+      },
+      "kelly_simple": {
+        "policy": "kelly:pwin_simple",
+        "n_trades_taken": 17,
+        "win_rate": 0.8824,
+        "total_return_pct": 162.9,
+        "sharpe": 4.9554,
+        "max_drawdown_pct": 9.74,
+        "sum_pnl_dollars": 81448.84
+      },
+      "kelly_twostage": {
+        "policy": "kelly:pwin_twostage",
+        "n_trades_taken": 17,
+        "win_rate": 0.8824,
+        "total_return_pct": 162.9,
+        "sharpe": 4.9554,
+        "max_drawdown_pct": 9.74,
+        "sum_pnl_dollars": 81448.84
+      },
+      "cal_simple": {
+        "brier": 0.2716,
+        "ece": 0.4231,
+        "mean_pwin": 0.5033,
+        "observed_wr": 0.8571
+      },
+      "cal_twostage": {
+        "brier": 0.2716,
+        "ece": 0.4231,
+        "mean_pwin": 0.5033,
+        "observed_wr": 0.8571
+      }
+    }
+  ],
+  "portfolio": {
+    "fixed5_2500": {
+      "policy": "fixed5",
+      "total_return_pct": 77.0,
+      "final_equity": 88500.19,
+      "sharpe_ratio": 1.3233,
+      "max_drawdown_pct": 33.8,
+      "n_trades_taken": 119
+    },
+    "fixed_dollars_500": {
+      "policy": "fixed_dollars",
+      "total_return_pct": 15.33,
+      "final_equity": 57663.51,
+      "sharpe_ratio": 1.3205,
+      "max_drawdown_pct": 8.54,
+      "n_trades_taken": 119
+    },
+    "kelly_simple": {
+      "policy": "kelly:pwin_simple",
+      "total_return_pct": 18.82,
+      "final_equity": 59409.45,
+      "sharpe_ratio": 2.3441,
+      "max_drawdown_pct": 1.14,
+      "n_trades_taken": 5
+    },
+    "kelly_twostage": {
+      "policy": "kelly:pwin_twostage",
+      "total_return_pct": 24.45,
+      "final_equity": 62226.14,
+      "sharpe_ratio": 0.4503,
+      "max_drawdown_pct": 22.61,
+      "n_trades_taken": 75
+    }
+  }
+}

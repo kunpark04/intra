@@ -1,0 +1,705 @@
+"""Build the 6-section top-performance / top-trade-log notebooks.
+
+Section layout for each notebook:
+  1) individual              (unfiltered, raw composed_strategy_runner)
+  2) combined                (unfiltered portfolio aggregate)
+  3) Monte Carlo on combined (unfiltered)
+  4) individual with ML2     (V3 booster + calibrator filter)
+  5) combined with ML2       (event-driven portfolio of V3-filtered trades)
+  6) Monte Carlo on combined ML2
+
+Both $500-fixed and $2500 (5% of starting equity) sizing policies are shown.
+Sharpe is annualized by `sqrt(trades_per_year)` using the test-partition span,
+applied consistently across every section.
+
+Execute the notebooks in-place with nbclient afterwards.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+import nbformat as nbf
+
+REPO = Path(__file__).resolve().parent.parent.parent
+EVAL = REPO / "evaluation"
+
+NB_META = {
+    "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+    "language_info": {
+        "codemirror_mode": {"name": "ipython", "version": 3},
+        "file_extension": ".py",
+        "mimetype": "text/x-python",
+        "name": "python",
+        "nbconvert_exporter": "python",
+        "pygments_lexer": "ipython3",
+        "version": "3.13.12",
+    },
+}
+
+
+def _md(src: str, cid: str) -> nbf.NotebookNode:
+    c = nbf.v4.new_markdown_cell(src)
+    c["id"] = cid
+    return c
+
+
+def _code(src: str, cid: str) -> nbf.NotebookNode:
+    c = nbf.v4.new_code_cell(src)
+    c["id"] = cid
+    return c
+
+
+# ─── Shared setup ────────────────────────────────────────────────────────────
+
+SETUP_IMPORTS = """import importlib.util
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+REPO = Path.cwd().resolve()
+while not (REPO / 'src').exists() and REPO.parent != REPO:
+    REPO = REPO.parent
+sys.path.insert(0, str(REPO))
+
+from scripts.evaluation.composed_strategy_runner import run_strategy, load_test_bars
+
+# Import the V3 phase-2 eval module (provides build_combo_trades_test,
+# solo_metrics, simulate_portfolio). We load it by file path because it
+# sits under scripts/evaluation/ which isn't a proper package.
+_spec = importlib.util.spec_from_file_location(
+    '_v3eval', REPO / 'scripts/evaluation/final_holdout_eval_v3_c1_fixed500.py'
+)
+v3eval = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(v3eval)
+
+TOP_STRATEGIES_PATH = REPO / 'evaluation' / 'top_strategies.json'
+STARTING_EQUITY = 50_000.0
+SIZINGS = [('fixed_dollars_500', 1.0), ('fixed5_2500', 5.0)]
+
+
+def metrics_from_pnl(pnl, years_span, start_equity=STARTING_EQUITY):
+    '''Headline metrics for a trade-PnL series.
+
+    Sharpe is annualized: sharpe = (mean/std) * sqrt(trades_per_year), where
+    trades_per_year = len(pnl) / years_span. This matches the standard
+    convention for per-trade PnL under an i.i.d. assumption and is consistent
+    across Sections 1/2/4/5.
+    '''
+    p = np.asarray(pnl, dtype=float)
+    n = len(p)
+    if n == 0:
+        return dict(n_trades=0, trades_per_year=0.0, win_rate=0.0,
+                    total_pnl_dollars=0.0, total_return_pct=0.0,
+                    sharpe_ratio=0.0, max_drawdown_pct=0.0,
+                    max_drawdown_dollars=0.0)
+    eq_full = np.concatenate([[start_equity], start_equity + np.cumsum(p)])
+    peak = np.maximum.accumulate(eq_full)
+    dd_d = float((peak - eq_full).max())
+    dd_pct = float(np.nan_to_num((peak - eq_full) / peak, nan=0.0).max() * 100)
+    total = float(p.sum())
+    tpy = n / years_span if years_span > 0 else 0.0
+    std = p.std(ddof=1) if n > 1 else 0.0
+    sharpe = float(p.mean() / std * np.sqrt(tpy)) if std > 0 and tpy > 0 else 0.0
+    return dict(n_trades=int(n),
+                trades_per_year=round(tpy, 1),
+                win_rate=round(float((p > 0).mean()), 4),
+                total_pnl_dollars=round(total, 2),
+                total_return_pct=round(total / start_equity * 100, 2),
+                sharpe_ratio=round(sharpe, 4),
+                max_drawdown_pct=round(dd_pct, 2),
+                max_drawdown_dollars=round(dd_d, 2))
+
+
+def monte_carlo(pnl, start_equity=STARTING_EQUITY, n_sims=10_000, seed=42):
+    '''IID bootstrap MC on a PnL series. Returns DD percentiles + VaR/CVaR +
+    risk-of-ruin (>=50% DD) + permutation-test p-value on win rate.'''
+    rng = np.random.default_rng(seed)
+    p = np.asarray(pnl, dtype=float)
+    n = len(p)
+    if n == 0:
+        return {'n_sims': n_sims, 'n_trades': 0, 'note': 'empty'}
+    # Bootstrap DD distribution
+    idx = rng.integers(0, n, size=(n_sims, n))
+    samples = p[idx]
+    equity = start_equity + np.cumsum(samples, axis=1)
+    equity = np.concatenate([np.full((n_sims, 1), start_equity), equity], axis=1)
+    peak = np.maximum.accumulate(equity, axis=1)
+    dd_pct = np.nan_to_num((peak - equity) / peak, nan=0.0).max(axis=1) * 100
+    # VaR / CVaR at 5th percentile trade level
+    var5 = float(np.percentile(p, 5))
+    tail = p[p <= var5]
+    cvar = float(tail.mean()) if len(tail) else var5
+    # Permutation test on win rate (one-tailed vs break-even 1/(1+avg_rr))
+    # Use a simple two-sided bootstrap CI on wr for notebook readability
+    wr = float((p > 0).mean())
+    boot_wr = (samples > 0).mean(axis=1)
+    wr_ci = (float(np.percentile(boot_wr, 2.5)), float(np.percentile(boot_wr, 97.5)))
+    return {
+        'n_sims': n_sims, 'n_trades': int(n),
+        'win_rate': round(wr, 4),
+        'wr_ci_95': (round(wr_ci[0], 4), round(wr_ci[1], 4)),
+        'dd_p50_pct': round(float(np.percentile(dd_pct, 50)), 2),
+        'dd_p90_pct': round(float(np.percentile(dd_pct, 90)), 2),
+        'dd_p95_pct': round(float(np.percentile(dd_pct, 95)), 2),
+        'dd_p99_pct': round(float(np.percentile(dd_pct, 99)), 2),
+        'dd_worst_pct': round(float(dd_pct.max()), 2),
+        'var_5pct_trade': round(var5, 2),
+        'cvar_5pct_trade': round(cvar, 2),
+        'risk_of_ruin_50pct_dd': round(float((dd_pct >= 50.0).mean()), 4),
+    }
+"""
+
+RUN_UNFILTERED = """payload = json.loads(TOP_STRATEGIES_PATH.read_text())
+strategies = payload['top']
+print(f'Loaded {len(strategies)} strategies (min_trades={payload["min_trades"]}, '
+      f'eligible={payload["pool_sizes"]["eligible_combos"]:,}/'
+      f'{payload["pool_sizes"]["total_combos"]:,})')
+bars = load_test_bars()
+print(f'Test partition: {len(bars):,} bars  {bars["time"].iloc[0]} -> {bars["time"].iloc[-1]}')
+
+YEARS_SPAN = (pd.to_datetime(bars['time'].iloc[-1]) -
+              pd.to_datetime(bars['time'].iloc[0])).total_seconds() / (365.25 * 86400)
+print(f'Years span: {YEARS_SPAN:.3f}  (used to annualize Sharpe)')
+
+print('\\nRunning unfiltered composed_strategy_runner for each combo...')
+results_raw = []
+for s in strategies:
+    print(f'  {s["global_combo_id"]}...', flush=True)
+    results_raw.append(run_strategy(s, bars=bars))
+print('Done (unfiltered).')"""
+
+RUN_ML2 = """import lightgbm as lgb
+print('Loading V3 booster + calibrators...')
+_v3inf = v3eval.v3inf
+booster = lgb.Booster(model_file=str(_v3inf.V3_BOOSTER))
+simple_cals = _v3inf._load_calibrators()
+two_stage = _v3inf._load_per_combo_calibrators()
+
+print('\\nBuilding V3-filtered trades per combo (may take a few minutes)...')
+combo_ids = [s['global_combo_id'] for s in strategies]
+combos_ml2 = []
+for gcid in combo_ids:
+    print(f'  {gcid}...', flush=True)
+    try:
+        c = v3eval.build_combo_trades_test(gcid, booster, simple_cals, two_stage)
+        print(f'    n_trades={c.get("n_trades", 0)}  rr={c.get("rr", float("nan")):.2f}')
+    except Exception as e:
+        c = {'combo_id': gcid, 'error': str(e)}
+        print(f'    ERROR: {e}')
+    combos_ml2.append(c)
+print('Done (ML2).')"""
+
+
+# ─── Section 1 / 2 / 3 (unfiltered) ──────────────────────────────────────────
+
+S1_PERF = """rows = []
+for r in results_raw:
+    pnl = r['trades']['actual_pnl'].to_numpy() if not r['trades'].empty else np.array([])
+    for label, scale in SIZINGS:
+        m = metrics_from_pnl(pnl * scale, YEARS_SPAN)
+        rows.append({'combo_id': r['combo_id'], 'sizing': label, **m})
+perf1 = pd.DataFrame(rows)
+perf1"""
+
+S1_EQUITY = """# Per-combo equity curves (overlaid).
+fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+for ax, (label, scale) in zip(axes, SIZINGS):
+    for r in results_raw:
+        if r['trades'].empty:
+            continue
+        t = r['trades'].sort_values('date')
+        pnl = t['actual_pnl'].to_numpy() * scale
+        eq = STARTING_EQUITY + np.cumsum(pnl)
+        ax.plot(t['date'], eq, linewidth=1.0, alpha=0.85, label=r['combo_id'])
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
+    ax.set_title(f'individual unfiltered - equity ({label})')
+    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=7, loc='upper left', ncol=2)
+plt.tight_layout(); plt.show()"""
+
+S1_DD = """# Per-combo drawdown curves (overlaid).
+fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+for ax, (label, scale) in zip(axes, SIZINGS):
+    for r in results_raw:
+        if r['trades'].empty:
+            continue
+        t = r['trades'].sort_values('date')
+        pnl = t['actual_pnl'].to_numpy() * scale
+        eq_full = np.concatenate([[STARTING_EQUITY], STARTING_EQUITY + np.cumsum(pnl)])
+        peak = np.maximum.accumulate(eq_full)
+        dd = (peak - eq_full) / peak * 100
+        times = pd.concat([pd.Series([t['date'].iloc[0]]),
+                           pd.Series(t['date'].values)]).reset_index(drop=True)
+        ax.plot(times, dd, linewidth=1.0, alpha=0.85, label=r['combo_id'])
+    ax.invert_yaxis()
+    ax.set_title(f'individual unfiltered - drawdown ({label})')
+    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=7, loc='lower left', ncol=2)
+plt.tight_layout(); plt.show()"""
+
+S2_COMBINED_BUILD = """frames = []
+for r in results_raw:
+    if r['trades'].empty:
+        continue
+    t = r['trades'][['date', 'actual_pnl']].copy()
+    t.insert(0, 'combo_id', r['combo_id'])
+    frames.append(t)
+combined_raw = (pd.concat(frames, ignore_index=True)
+                .sort_values('date', kind='mergesort')
+                .reset_index(drop=True)
+                if frames else pd.DataFrame())
+print(f'Combined unfiltered trades: {len(combined_raw):,}')
+rows = []
+for label, scale in SIZINGS:
+    pnl = combined_raw['actual_pnl'].to_numpy() * scale if not combined_raw.empty else np.array([])
+    rows.append({'sizing': label, **metrics_from_pnl(pnl, YEARS_SPAN)})
+combined_table_raw = pd.DataFrame(rows)
+combined_table_raw"""
+
+S2_EQUITY = """if not combined_raw.empty:
+    fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+    for ax, (label, scale) in zip(axes, SIZINGS):
+        pnl = combined_raw['actual_pnl'].to_numpy() * scale
+        eq = STARTING_EQUITY + np.cumsum(pnl)
+        ax.plot(combined_raw['date'], eq, linewidth=1.3)
+        ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
+        ax.set_title(f'combined unfiltered - equity ({label})')
+        ax.set_xlabel('time'); ax.set_ylabel('equity ($)')
+        ax.grid(alpha=0.3)
+    plt.tight_layout(); plt.show()
+else:
+    print('No trades.')"""
+
+S2_DD = """if not combined_raw.empty:
+    fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+    for ax, (label, scale) in zip(axes, SIZINGS):
+        pnl = combined_raw['actual_pnl'].to_numpy() * scale
+        eq_full = np.concatenate([[STARTING_EQUITY], STARTING_EQUITY + np.cumsum(pnl)])
+        peak = np.maximum.accumulate(eq_full)
+        dd = (peak - eq_full) / peak * 100
+        times = pd.concat([pd.Series([bars['time'].iloc[0]]),
+                           pd.Series(combined_raw['date'].values)]).reset_index(drop=True)
+        ax.plot(times, dd, linewidth=1.3, color='#d62728')
+        ax.invert_yaxis()
+        ax.set_title(f'combined unfiltered - drawdown ({label})')
+        ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+    plt.tight_layout(); plt.show()
+else:
+    print('No trades.')"""
+
+S3_MC = """rows = []
+if not combined_raw.empty:
+    for label, scale in SIZINGS:
+        pnl = combined_raw['actual_pnl'].to_numpy() * scale
+        rows.append({'sizing': label, **monte_carlo(pnl)})
+mc_raw = pd.DataFrame(rows)
+mc_raw"""
+
+
+# ─── Section 4 / 5 / 6 (ML2) ─────────────────────────────────────────────────
+
+S4_PERF = """# Per-combo ML2-filtered PnL under fixed-$ sizing, computed locally so the
+# Sharpe annualization matches Sections 1-2-5 (via metrics_from_pnl + YEARS_SPAN).
+def _combo_pnl(c, fixed_dollars):
+    if c.get('error') or c.get('n_trades', 0) == 0:
+        return np.array([]), None
+    sl = np.asarray(c['sl_pts'], dtype=float)
+    pts = np.asarray(c['pnl_pts'], dtype=float)
+    contracts = (fixed_dollars // (sl * v3eval.DOLLARS_PER_POINT)).astype(int)
+    mask = contracts > 0
+    pnl = (pts[mask] * contracts[mask] * v3eval.DOLLARS_PER_POINT).astype(float)
+    exit_bars = np.asarray(c['exit_bar'])[mask]
+    return pnl, exit_bars
+
+s4_pnl_by_combo = {}  # combo_id -> {label -> (pnl, exit_bars)}
+rows = []
+for c in combos_ml2:
+    cid = c.get('combo_id')
+    s4_pnl_by_combo[cid] = {}
+    if c.get('error') or c.get('n_trades', 0) == 0:
+        for label, _ in SIZINGS:
+            rows.append({'combo_id': cid, 'sizing': label, 'n_trades': 0,
+                         'note': c.get('error', 'no trades')})
+            s4_pnl_by_combo[cid][label] = (np.array([]), np.array([]))
+        continue
+    for label, fixed in [('fixed_dollars_500', 500.0), ('fixed5_2500', 2500.0)]:
+        pnl, exit_bars = _combo_pnl(c, fixed)
+        s4_pnl_by_combo[cid][label] = (pnl, exit_bars)
+        rows.append({'combo_id': cid, 'sizing': label,
+                     **metrics_from_pnl(pnl, YEARS_SPAN)})
+perf4 = pd.DataFrame(rows)
+perf4"""
+
+S4_EQUITY = """# Per-combo ML2 equity curves (overlaid), x-axis = exit bar time.
+fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+for ax, (label, _) in zip(axes, SIZINGS):
+    for cid, by_lab in s4_pnl_by_combo.items():
+        pnl, exit_bars = by_lab.get(label, (np.array([]), np.array([])))
+        if len(pnl) == 0:
+            continue
+        times = pd.to_datetime(bars['time'].to_numpy()[exit_bars])
+        eq = STARTING_EQUITY + np.cumsum(pnl)
+        ax.plot(times, eq, linewidth=1.0, alpha=0.85, label=cid)
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
+    ax.set_title(f'individual ML2-filtered - equity ({label})')
+    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=7, loc='upper left', ncol=2)
+plt.tight_layout(); plt.show()"""
+
+S4_DD = """# Per-combo ML2 drawdown curves (overlaid).
+fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+for ax, (label, _) in zip(axes, SIZINGS):
+    for cid, by_lab in s4_pnl_by_combo.items():
+        pnl, exit_bars = by_lab.get(label, (np.array([]), np.array([])))
+        if len(pnl) == 0:
+            continue
+        times = pd.to_datetime(bars['time'].to_numpy()[exit_bars])
+        eq_full = np.concatenate([[STARTING_EQUITY], STARTING_EQUITY + np.cumsum(pnl)])
+        peak = np.maximum.accumulate(eq_full)
+        dd = (peak - eq_full) / peak * 100
+        t0 = times.min() if len(times) else pd.to_datetime(bars['time'].iloc[0])
+        t_full = pd.concat([pd.Series([t0]), pd.Series(times)]).reset_index(drop=True)
+        ax.plot(t_full, dd, linewidth=1.0, alpha=0.85, label=cid)
+    ax.invert_yaxis()
+    ax.set_title(f'individual ML2-filtered - drawdown ({label})')
+    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=7, loc='lower left', ncol=2)
+plt.tight_layout(); plt.show()"""
+
+S5_PORTFOLIO_BUILD = """# Event-driven portfolio per sizing (uses v3eval.simulate_portfolio).
+# Also reconstruct equity curve per sizing by replaying events inline.
+
+def _sim_with_equity_curve(combos, fixed_dollars):
+    events = []
+    for ci, c in enumerate(combos):
+        if c.get('error') or c.get('n_trades', 0) == 0:
+            continue
+        for ti in range(c['n_trades']):
+            events.append((int(c['entry_bar'][ti]), 0, ci, ti))
+            events.append((int(c['exit_bar'][ti]), 1, ci, ti))
+    events.sort(key=lambda e: (e[0], -e[1]))
+    equity = STARTING_EQUITY
+    realized = 0.0
+    open_pos = {}
+    trade_rows = []
+    for bar, kind, ci, ti in events:
+        c = combos[ci]
+        if kind == 0:
+            contracts = int(fixed_dollars // (c['sl_pts'][ti] * v3eval.DOLLARS_PER_POINT))
+            if contracts <= 0:
+                continue
+            open_pos[(ci, ti)] = contracts
+        else:
+            key = (ci, ti)
+            if key not in open_pos:
+                continue
+            contracts = open_pos.pop(key)
+            pnl = c['pnl_pts'][ti] * contracts * v3eval.DOLLARS_PER_POINT
+            realized += pnl
+            equity = STARTING_EQUITY + realized
+            exit_time = pd.to_datetime(bars['time'].iloc[bar]) \
+                if bar < len(bars) else pd.NaT
+            trade_rows.append({
+                'combo_id': c['combo_id'], 'exit_time': exit_time,
+                'pnl_dollars': pnl, 'equity_after': equity,
+            })
+    return pd.DataFrame(trade_rows)
+
+ml2_portfolio = {label: _sim_with_equity_curve(combos_ml2, fixed)
+                 for label, fixed in [('fixed_dollars_500', 500.0),
+                                      ('fixed5_2500', 2500.0)]}
+
+rows = []
+for label, df in ml2_portfolio.items():
+    if df.empty:
+        rows.append({'sizing': label, 'n_trades': 0})
+        continue
+    pnl = df['pnl_dollars'].to_numpy()
+    rows.append({'sizing': label, **metrics_from_pnl(pnl, YEARS_SPAN)})
+combined_table_ml2 = pd.DataFrame(rows)
+combined_table_ml2"""
+
+S5_EQUITY = """fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+for ax, (label, df) in zip(axes, ml2_portfolio.items()):
+    if df.empty:
+        ax.set_title(f'ML2 portfolio {label} - no trades'); continue
+    ax.plot(df['exit_time'], df['equity_after'], linewidth=1.3, color='#1f77b4')
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
+    ax.set_title(f'ML2 combined portfolio - equity ({label})')
+    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+plt.tight_layout(); plt.show()"""
+
+S5_DD = """fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
+for ax, (label, df) in zip(axes, ml2_portfolio.items()):
+    if df.empty:
+        ax.set_title(f'ML2 portfolio {label} - no trades'); continue
+    eq_full = np.concatenate([[STARTING_EQUITY], df['equity_after'].to_numpy()])
+    peak = np.maximum.accumulate(eq_full)
+    dd = (peak - eq_full) / peak * 100
+    times = pd.concat([pd.Series([bars['time'].iloc[0]]),
+                       pd.Series(df['exit_time'].values)]).reset_index(drop=True)
+    ax.plot(times, dd, linewidth=1.3, color='#d62728'); ax.invert_yaxis()
+    ax.set_title(f'ML2 combined portfolio - drawdown ({label})')
+    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+plt.tight_layout(); plt.show()"""
+
+S6_MC = """rows = []
+for label, df in ml2_portfolio.items():
+    if df.empty:
+        rows.append({'sizing': label, 'n_trades': 0}); continue
+    rows.append({'sizing': label, **monte_carlo(df['pnl_dollars'].to_numpy())})
+mc_ml2 = pd.DataFrame(rows)
+mc_ml2"""
+
+
+# ─── Top-performance notebook ────────────────────────────────────────────────
+
+def build_performance() -> nbf.NotebookNode:
+    nb = nbf.v4.new_notebook(); nb.metadata = NB_META
+    nb.cells = [
+        _md("# Top-K composed strategies - 6-section evaluation\n\n"
+            "Evaluates the C1-selected top-10 combos on the 20% OOS test partition,\n"
+            "under two sizing policies: `fixed_dollars_500` ($500/trade) and\n"
+            "`fixed5_2500` (5% of $50k starting equity = $2500/trade).\n\n"
+            "Sections:\n"
+            "1. Individual (unfiltered)\n"
+            "2. Combined portfolio (unfiltered)\n"
+            "3. Monte Carlo on combined (unfiltered)\n"
+            "4. Individual with ML#2 (V3 booster + calibrator)\n"
+            "5. Combined portfolio with ML#2\n"
+            "6. Monte Carlo on combined ML#2", "intro"),
+        _code(SETUP_IMPORTS, "setup"),
+        _code(RUN_UNFILTERED, "run-unfiltered"),
+        _code(RUN_ML2, "run-ml2"),
+        _md("## 1) Individual (unfiltered)", "s1-md"),
+        _code(S1_PERF, "s1-perf"),
+        _code(S1_EQUITY, "s1-equity"),
+        _code(S1_DD, "s1-dd"),
+        _md("## 2) Combined portfolio (unfiltered)", "s2-md"),
+        _code(S2_COMBINED_BUILD, "s2-table"),
+        _code(S2_EQUITY, "s2-equity"),
+        _code(S2_DD, "s2-dd"),
+        _md("## 3) Monte Carlo on combined (unfiltered)", "s3-md"),
+        _code(S3_MC, "s3-mc"),
+        _md("## 4) Individual with ML#2 (V3 filter)", "s4-md"),
+        _code(S4_PERF, "s4-perf"),
+        _code(S4_EQUITY, "s4-equity"),
+        _code(S4_DD, "s4-dd"),
+        _md("## 5) Combined portfolio with ML#2", "s5-md"),
+        _code(S5_PORTFOLIO_BUILD, "s5-table"),
+        _code(S5_EQUITY, "s5-equity"),
+        _code(S5_DD, "s5-dd"),
+        _md("## 6) Monte Carlo on combined ML#2", "s6-md"),
+        _code(S6_MC, "s6-mc"),
+    ]
+    return nb
+
+
+# ─── Top-trade-log notebook ──────────────────────────────────────────────────
+
+TL_RENDER_FN = """_EXIT_MAP = {'sl': 'SL', 'tp': 'TP', 'time': 'EOD', 'force': 'EOD'}
+
+def render_trade_log(df, columns=None):
+    default = ['combo_id', 'date', 'direction', 'entry_px', 'sl_px', 'tp_px',
+               'contracts', 'dollar_risk', 'dollar_reward', 'exit_px',
+               'exit_reason', 'actual_pnl']
+    cols = [c for c in (columns or default) if c in df.columns]
+    styled = df[cols].copy()
+    if 'date' in styled.columns and pd.api.types.is_datetime64_any_dtype(styled['date']):
+        styled['date'] = styled['date'].dt.strftime('%Y-%m-%d %H:%M')
+    if 'exit_reason' in styled.columns:
+        styled['exit_reason'] = (styled['exit_reason'].astype(str).str.lower()
+                                 .map(_EXIT_MAP).fillna(styled['exit_reason']))
+    fmt = {}
+    for col in ['entry_px', 'sl_px', 'tp_px', 'dollar_risk', 'dollar_reward',
+                'exit_px', 'actual_pnl']:
+        if col in styled.columns:
+            fmt[col] = '{:.2f}'
+    if 'contracts' in styled.columns:
+        fmt['contracts'] = '{:.0f}'
+    def colour(row):
+        n = len(row)
+        v = row.get('actual_pnl')
+        if pd.notna(v) and str(v).strip() not in ('', 'nan'):
+            try:
+                return (['background-color: #c8e6c9; color: #1b5e20'] * n
+                        if float(v) > 0
+                        else ['background-color: #ffcdd2; color: #b71c1c'] * n)
+            except (ValueError, TypeError):
+                pass
+        return [''] * n
+    try:
+        from IPython.display import display
+        display(styled.style.apply(colour, axis=1).format(fmt, na_rep='-').hide(axis='index'))
+    except Exception:
+        print(styled.to_string(index=False))"""
+
+S1_TL = """from IPython.display import display, Markdown
+for r in results_raw:
+    display(Markdown(f"### {r['combo_id']} - {len(r['trades'])} trades"))
+    if r['trades'].empty:
+        print('(no trades)')
+    else:
+        t = r['trades'].copy(); t.insert(0, 'combo_id', r['combo_id'])
+        render_trade_log(t)"""
+
+S2_TL_COMBINED = """frames = []
+for r in results_raw:
+    if r['trades'].empty: continue
+    t = r['trades'].copy(); t.insert(0, 'combo_id', r['combo_id'])
+    frames.append(t)
+combined_raw = (pd.concat(frames, ignore_index=True)
+                .sort_values('date', kind='mergesort')
+                .reset_index(drop=True)
+                if frames else pd.DataFrame())
+display(Markdown(f"### Combined unfiltered - {len(combined_raw):,} trades across "
+                 f"{combined_raw['combo_id'].nunique() if not combined_raw.empty else 0} combos"))
+if combined_raw.empty:
+    print('(no trades)')
+else:
+    render_trade_log(combined_raw)"""
+
+S3_TL_MC = """rows = []
+if not combined_raw.empty:
+    for label, scale in SIZINGS:
+        pnl = combined_raw['actual_pnl'].to_numpy() * scale
+        rows.append({'sizing': label, **monte_carlo(pnl)})
+mc_raw = pd.DataFrame(rows)
+mc_raw"""
+
+S4_TL = """# Build V3-filtered trade logs per combo (event-driven, fixed $500).
+def _shape_ml2_trades(c, fixed_dollars):
+    if c.get('error') or c.get('n_trades', 0) == 0:
+        return pd.DataFrame()
+    rows = []
+    for ti in range(c['n_trades']):
+        contracts = int(fixed_dollars // (c['sl_pts'][ti] * v3eval.DOLLARS_PER_POINT))
+        if contracts <= 0:
+            continue
+        pnl = c['pnl_pts'][ti] * contracts * v3eval.DOLLARS_PER_POINT
+        rows.append({
+            'combo_id': c['combo_id'],
+            'date': pd.to_datetime(c['entry_time'][ti]),
+            'contracts': contracts,
+            'dollar_risk': fixed_dollars,
+            'pnl_pts': float(c['pnl_pts'][ti]),
+            'actual_pnl': pnl,
+            'label_win': int(c['label_win'][ti]),
+            'pwin_simple': float(c['pwin_simple'][ti]),
+        })
+    return pd.DataFrame(rows)
+
+for c in combos_ml2:
+    trades_500 = _shape_ml2_trades(c, 500.0)
+    display(Markdown(f"### {c.get('combo_id')} - {len(trades_500)} trades (V3-filtered, $500 sizing)"))
+    if trades_500.empty:
+        print(c.get('error', '(no trades)'))
+    else:
+        render_trade_log(trades_500, columns=['combo_id', 'date', 'contracts',
+                                              'dollar_risk', 'pnl_pts',
+                                              'label_win', 'pwin_simple',
+                                              'actual_pnl'])"""
+
+S5_TL_COMBINED = """# Event-driven combined trade log (fixed $500).
+def _sim_trades(combos, fixed_dollars):
+    events = []
+    for ci, c in enumerate(combos):
+        if c.get('error') or c.get('n_trades', 0) == 0:
+            continue
+        for ti in range(c['n_trades']):
+            events.append((int(c['entry_bar'][ti]), 0, ci, ti))
+            events.append((int(c['exit_bar'][ti]), 1, ci, ti))
+    events.sort(key=lambda e: (e[0], -e[1]))
+    open_pos = {}
+    rows = []
+    for bar, kind, ci, ti in events:
+        c = combos[ci]
+        if kind == 0:
+            contracts = int(fixed_dollars // (c['sl_pts'][ti] * v3eval.DOLLARS_PER_POINT))
+            if contracts <= 0: continue
+            open_pos[(ci, ti)] = contracts
+        else:
+            key = (ci, ti)
+            if key not in open_pos: continue
+            contracts = open_pos.pop(key)
+            pnl = c['pnl_pts'][ti] * contracts * v3eval.DOLLARS_PER_POINT
+            rows.append({
+                'combo_id': c['combo_id'],
+                'date': pd.to_datetime(bars['time'].iloc[bar]) if bar < len(bars) else pd.NaT,
+                'contracts': contracts,
+                'dollar_risk': fixed_dollars,
+                'pnl_pts': float(c['pnl_pts'][ti]),
+                'actual_pnl': pnl,
+                'label_win': int(c['label_win'][ti]),
+                'pwin_simple': float(c['pwin_simple'][ti]),
+            })
+    return pd.DataFrame(rows)
+
+combined_ml2 = _sim_trades(combos_ml2, 500.0)
+display(Markdown(f"### Combined ML2 portfolio - {len(combined_ml2):,} trades "
+                 f"(fixed $500, event-driven bar-overlap arbitration)"))
+if combined_ml2.empty:
+    print('(no trades)')
+else:
+    render_trade_log(combined_ml2, columns=['combo_id', 'date', 'contracts',
+                                            'dollar_risk', 'pnl_pts',
+                                            'label_win', 'pwin_simple',
+                                            'actual_pnl'])"""
+
+S6_TL_MC = """rows = []
+if not combined_ml2.empty:
+    for label, scale in SIZINGS:
+        pnl = combined_ml2['actual_pnl'].to_numpy() * scale
+        rows.append({'sizing': label, **monte_carlo(pnl)})
+mc_ml2 = pd.DataFrame(rows)
+mc_ml2"""
+
+
+def build_trade_log() -> nbf.NotebookNode:
+    nb = nbf.v4.new_notebook(); nb.metadata = NB_META
+    nb.cells = [
+        _md("# Top-K trade logs - 6-section evaluation\n\n"
+            "Full trade logs for the C1-selected top-10 combos on the 20% OOS\n"
+            "test partition. Wins shaded green, losses red.\n\n"
+            "Sections:\n"
+            "1. Individual trade logs (unfiltered)\n"
+            "2. Combined trade log (unfiltered)\n"
+            "3. Monte Carlo on combined (unfiltered)\n"
+            "4. Individual trade logs with ML#2 (V3 filter)\n"
+            "5. Combined ML#2 trade log (event-driven)\n"
+            "6. Monte Carlo on combined ML#2", "intro"),
+        _code(SETUP_IMPORTS, "setup"),
+        _code(RUN_UNFILTERED, "run-unfiltered"),
+        _code(RUN_ML2, "run-ml2"),
+        _code(TL_RENDER_FN, "render-fn"),
+        _md("## 1) Individual trade logs (unfiltered)", "s1-md"),
+        _code(S1_TL, "s1-tl"),
+        _md("## 2) Combined trade log (unfiltered)", "s2-md"),
+        _code(S2_TL_COMBINED, "s2-tl"),
+        _md("## 3) Monte Carlo on combined (unfiltered)", "s3-md"),
+        _code(S3_TL_MC, "s3-mc"),
+        _md("## 4) Individual trade logs with ML#2 (V3 filter, fixed $500)", "s4-md"),
+        _code(S4_TL, "s4-tl"),
+        _md("## 5) Combined ML#2 trade log (fixed $500)", "s5-md"),
+        _code(S5_TL_COMBINED, "s5-tl"),
+        _md("## 6) Monte Carlo on combined ML#2", "s6-md"),
+        _code(S6_TL_MC, "s6-mc"),
+    ]
+    return nb
+
+
+def main() -> None:
+    perf = build_performance()
+    tl = build_trade_log()
+    nbf.write(perf, str(EVAL / 'top_performance.ipynb'))
+    print(f"Wrote {EVAL / 'top_performance.ipynb'}")
+    nbf.write(tl, str(EVAL / 'top_trade_log.ipynb'))
+    print(f"Wrote {EVAL / 'top_trade_log.ipynb'}")
+
+
+if __name__ == "__main__":
+    main()

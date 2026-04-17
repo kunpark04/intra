@@ -136,15 +136,17 @@ def add_family_a(df: pd.DataFrame) -> pd.DataFrame:
     gp_win = win_prev.groupby(df["global_combo_id"], sort=False, observed=True)
     gp_r = r_prev.groupby(df["global_combo_id"], sort=False, observed=True)
 
+    # fillna BEFORE cast — pandas 2.x emits "invalid value encountered in cast"
+    # when .astype(np.float32) sees NaN from short rolling windows (min_periods).
     df["prior_wr_10"] = gp_win.transform(
         lambda s: s.rolling(10, min_periods=3).mean()
-    ).astype(np.float32).fillna(0.5)
+    ).fillna(0.5).astype(np.float32)
     df["prior_wr_50"] = gp_win.transform(
         lambda s: s.rolling(50, min_periods=10).mean()
-    ).astype(np.float32).fillna(0.5)
+    ).fillna(0.5).astype(np.float32)
     df["prior_r_ma10"] = gp_r.transform(
         lambda s: s.rolling(10, min_periods=3).mean()
-    ).astype(np.float32).fillna(0.0)
+    ).fillna(0.0).astype(np.float32)
 
     combo_rank = g.cumcount()
     df["has_history_50"] = (combo_rank >= 25).astype(np.int8)
