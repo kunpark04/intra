@@ -68,7 +68,21 @@ DEFAULT_COST_PER_CONTRACT_RT = 5.0
 _CACHE_DIR = REPO / "evaluation" / "_cache"
 _RESULTS_RAW_CACHE = _CACHE_DIR / "results_raw.pkl"
 _ML2_CACHE = REPO / "evaluation" / "_ml2_cache.pkl"
-_ML2_CACHE_VERSION = "v2"
+
+# ML#2 is applied as a net-of-friction E[R] filter: keep a trade only if
+# p*rr - (1-p) - friction_in_R > 0, where friction_in_R = cost_rt /
+# (sl_pts * DOLLARS_PER_POINT). This is sizing-invariant (friction scales
+# with contracts and so does dollar risk), and it makes the filter
+# tightness depend on both the calibrated win probability AND the stop's
+# size relative to the cost model. Trades with tight stops have higher
+# friction-in-R, so they require a higher pwin to clear the filter — which
+# is exactly the friction-awareness that was missing.
+ML2_PWIN_KEY = "pwin_simple"
+# CLAUDE.md Phase 5D: per-combo two-stage calibrator is deprecated; pooled
+# per-R:R isotonic is the production calibrator. Use pwin_simple.
+# v3: net-of-friction E[R] filter now applied in _combo_ml2_base and
+# _sim_ml2_portfolio. Previous v2 cached unfiltered pass-through outputs.
+_ML2_CACHE_VERSION = "v3"
 
 
 # ─── Metrics ─────────────────────────────────────────────────────────────────
@@ -212,22 +226,51 @@ def _build_combined_raw(results_raw):
             .reset_index(drop=True))
 
 
+def _ml2_net_ev_mask(c, cost_per_contract_rt: float) -> np.ndarray:
+    """Boolean mask selecting trades with positive net-of-friction E[R].
+
+    net_ev_R = pwin * rr - (1 - pwin) - cost_rt / (sl_pts * $/pt)
+
+    The last term converts the dollar-per-contract round-trip friction into
+    R-multiples, making the filter sizing-invariant. Trades on tight stops
+    pay relatively more friction-per-R, so they need a higher pwin to
+    clear the threshold — the friction-awareness the old path was missing.
+
+    When cost_rt == 0, this reduces to the standard positive-gross-EV filter.
+    """
+    n = int(c.get("n_trades", 0))
+    if n == 0 or c.get("error"):
+        return np.zeros(0, dtype=bool)
+    rr = float(c["rr"])
+    pwin = np.asarray(c[ML2_PWIN_KEY], dtype=np.float64)
+    sl = np.asarray(c["sl_pts"], dtype=np.float64)
+    gross_ev_R = pwin * rr - (1.0 - pwin)
+    friction_R = (cost_per_contract_rt /
+                  np.maximum(sl * v3eval.DOLLARS_PER_POINT, 1e-9))
+    return (gross_ev_R - friction_R) > 0.0
+
+
 def _combo_ml2_base(c, cost_per_contract_rt: float = 0.0):
     """Return (pnl_base, risk_base, exit_bars) at $500 fixed sizing for an
-    ML2-filtered combo dict. If cost_per_contract_rt > 0, subtract
-    contracts*cost from pnl (friction model: commission + slippage per trade).
+    ML2-filtered combo dict. Applies a net-of-friction E[R] filter using
+    calibrated pwin first, then the contracts>0 mask, then (if cost>0)
+    subtracts contracts*cost from each surviving trade's PnL.
     """
     if c.get("error") or c.get("n_trades", 0) == 0:
         return (np.array([]), np.array([]), np.array([], dtype=int))
-    sl = np.asarray(c["sl_pts"], dtype=float)
-    pts = np.asarray(c["pnl_pts"], dtype=float)
+    ev_keep = _ml2_net_ev_mask(c, cost_per_contract_rt)
+    sl = np.asarray(c["sl_pts"], dtype=float)[ev_keep]
+    pts = np.asarray(c["pnl_pts"], dtype=float)[ev_keep]
+    eb = np.asarray(c["exit_bar"], dtype=int)[ev_keep]
+    if len(sl) == 0:
+        return (np.array([]), np.array([]), np.array([], dtype=int))
     contracts = (500.0 // (sl * v3eval.DOLLARS_PER_POINT)).astype(int)
     mask = contracts > 0
     pnl = (pts[mask] * contracts[mask] * v3eval.DOLLARS_PER_POINT).astype(float)
     if cost_per_contract_rt > 0:
         pnl = pnl - contracts[mask].astype(float) * cost_per_contract_rt
     risk = (sl[mask] * contracts[mask] * v3eval.DOLLARS_PER_POINT).astype(float)
-    exit_bars = np.asarray(c["exit_bar"], dtype=int)[mask]
+    exit_bars = eb[mask]
     return pnl, risk, exit_bars
 
 
@@ -254,7 +297,10 @@ def _sim_ml2_portfolio(combos_ml2, policy, bars, cost_per_contract_rt: float = 0
     for ci, c in enumerate(combos_ml2):
         if c.get("error") or c.get("n_trades", 0) == 0:
             continue
+        ev_keep = _ml2_net_ev_mask(c, cost_per_contract_rt)
         for ti in range(c["n_trades"]):
+            if not ev_keep[ti]:
+                continue
             events.append((int(c["entry_bar"][ti]), 0, ci, ti))
             events.append((int(c["exit_bar"][ti]), 1, ci, ti))
     events.sort(key=lambda e: (e[0], -e[1]))
