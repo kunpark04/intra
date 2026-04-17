@@ -344,6 +344,19 @@ on the above four points. Any CRITICAL finding blocks the sweep.
   - winning trades: green row background
   - losing trades: red row background
   - zero PnL: neutral
+- **Sharpe basis by sizing policy**: reporting code that quotes a Sharpe ratio
+  must match the basis to the sizing policy:
+  - **Flat-dollar sizing** (e.g. `fixed_dollars_500`): Sharpe = `mean(pnl_$) / std(pnl_$) × sqrt(trades_per_year)`.
+  - **Compounding / %-of-equity sizing** (e.g. `pct5_compound`): Sharpe must use
+    **per-trade log returns**, `log1p(RISK_FRAC * r)` where `r = pnl_base / risk_base`.
+    Dollar-PnL Sharpe is scale-dependent under compounding and not comparable
+    across sizing policies. Same rule applies to MC-bootstrap Sharpe CIs.
+  - When a notebook column / table mixes both policies side-by-side, annotate
+    the Sharpe column with the basis (e.g. "Sharpe (log-ret)" vs "Sharpe ($)").
+- **Remote eval-notebook memory cap**: `run_eval_notebooks_remote.py` launches
+  under `systemd-run --scope -p MemoryMax=9G` on sweep-runner-1 (9.7G RAM).
+  MC-heavy notebooks (§3 + §6 bootstrap ×2 sizings) exceed the 7G headroom used
+  for simpler backtest notebooks. Do not downsize without re-profiling peak RSS.
 
 ## Dependencies (Python)
 

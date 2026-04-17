@@ -154,3 +154,53 @@ Persistent log of lessons learned and mistakes encountered while building/runnin
 - **Prevention rule**: Every logical code change (new indicator, sweep parameter, formula, cache) must have a reviewing agent spawned before marking complete. The prompt must include an explicit severity-tagged checklist — not just "check for bugs." See `CLAUDE.md` Reviewing Agent Protocol section.
 - **Related files**: `src/indicators/zscore_variants.py`, `scripts/param_sweep.py`
 
+---
+
+### 2026-04-17 eval_notebook_oom_at_7g_memorymax
+
+- **What I ran**: `scripts/runners/run_eval_notebooks_remote.py` — remote execution of `top_performance.ipynb` (6-section refactor with compounding sizing + ML#2 trade cache). Wrapper launched via `systemd-run --scope -p MemoryMax=7G -p CPUQuota=400%`.
+- **What happened**: Notebook died ~3 min in with `DeadKernelError: Kernel died, restarting`. `dmesg` on sweep-runner-1 showed `oom-kill: ... python3 ... total-vm=8.2G RSS=7.2G` under a 7G cgroup cap. Node RAM is 9.7G total.
+- **Root cause**: The new 6-section layout bootstraps 10,000 MC sims × 2 sizing policies × 2 sections (§3 + §6), each producing a `(n_sims, n_trades)` resample matrix. ML#2 stack (V3 booster + isotonic calibrators) also holds the full feature frame in memory for scoring. Aggregate peak RSS exceeds the old 7G headroom that was adequate for the flat-$500 pre-refactor notebook.
+- **Fix**: Bumped `MemoryMax=7G` → `MemoryMax=9G` in the runner's wrapper command. Leaves ~700 MiB for the OS.
+- **Prevention rule**: When adding new bootstrap / MC sections or new ML inference pipelines to a notebook, recompute the remote memory budget. Rule of thumb on sweep-runner-1 (9.7G RAM): MC-heavy notebooks need ≥9G cap; pure backtest notebooks can stay at 7G. Always check `dmesg | grep -i oom` on first failure before increasing any timeout — OOM masquerades as kernel timeouts.
+- **Related files/commands**: `scripts/runners/run_eval_notebooks_remote.py` WRAPPER_SH.
+
+---
+
+### 2026-04-17 sharpe_under_compounding_must_use_log_returns
+
+- **What I ran**: Added `pct5_compound` sizing policy to `top_performance.ipynb` via `_build_v2_notebooks.py`. First pass used the same `metrics_from_pnl(pnl_dollars, years) → mean/std(pnl) × sqrt(tpy)` Sharpe formula for both sizing policies.
+- **What happened (error summary)**: Logical review agent flagged as WARN: Sharpe on raw $-PnL under compounding is scale-dependent. A strategy that multiplies every $-PnL by a growing equity factor inflates both mean and std by the same factor *per trade*, but the ratio is path-dependent because later trades see larger absolute dollars. This biases the Sharpe upward in compounded regimes vs. fixed-$ regimes — not comparable across the two sizing columns.
+- **Root cause**: Sharpe under compounding should be computed on **per-trade log returns** `log(1 + 0.05 * r_t)`, which are additive and scale-invariant. Dollar PnL is not.
+- **Fix**: Extended `metrics_from_pnl(pnl, years_span, policy, r=None, start_equity=...)`:
+  - `policy == 'fixed_dollars_500'`: unchanged (mean/std of $-PnL).
+  - `policy == 'pct5_compound'`: `log_ret = np.log1p(RISK_FRAC * r)`; `sharpe = log_ret.mean() / log_ret.std(ddof=1) * sqrt(trades_per_year)`.
+  - Same split in `monte_carlo`'s `sharpe_boot` branch (bootstrap r-multiples, compute log-return Sharpe per sim).
+  - Updated all 7 call sites to pass both `policy` and `r = pnl_base / risk_base`.
+- **Prevention rule**: Whenever introducing a compounding sizing policy (position size scales with equity), Sharpe must switch to log-returns. Dollar-PnL Sharpe is only valid under flat-dollar sizing. If a reviewer can't tell at a glance which basis is used, add a docstring line naming the policy → metric convention. Same rule applies to Sortino, Calmar ratios when they're wired in.
+- **Related files/commands**: `scripts/evaluation/_build_v2_notebooks.py` — `metrics_from_pnl`, `monte_carlo`, all 7 cell-source constants invoking them.
+
+---
+
+### 2026-04-17 cache_key_must_include_all_content_source_mtimes
+
+- **What I ran**: Added ML#2 trade cache to `top_performance.ipynb` to skip the 15–25 min rebuild between iterations. First pass keyed on `(top_strategies.json mtime, V3 booster mtime, cache version)`.
+- **What happened**: Logical review agent flagged as WARN: cache would serve stale results if any of (a) pooled per-R:R isotonic calibrators, (b) per-combo calibrators, or (c) `final_holdout_eval_v3_c1_fixed500.py` eval script were touched without bumping the booster. All three feed directly into ML#2 trade dicts.
+- **Root cause**: The cache key reflected only the "lead artifact" (booster) and the "lead input" (strategies JSON), not the full set of files whose contents change the cached output. Any silent update to calibrators or eval code would produce a cache hit with stale trades.
+- **Fix**:
+  - Expanded `_cache_key` to include mtimes of: `V3_CALIBRATORS`, `V3_PER_COMBO_CALIBRATORS`, and `scripts/evaluation/final_holdout_eval_v3_c1_fixed500.py`.
+  - Bumped `_ML2_CACHE_VERSION = 'v1' → 'v2'` to force a one-shot rebuild of any existing cache.
+- **Prevention rule**: A cache key must include an identity signal (name + mtime or content hash) for **every** file whose contents affect the cached output. When in doubt, over-include — a false miss costs one rebuild; a false hit silently corrupts downstream results. Always pair any schema/code change to the cached function with a cache-version bump.
+- **Related files/commands**: `scripts/evaluation/_build_v2_notebooks.py` — `run-ml2` cell source.
+
+---
+
+### 2026-04-17 remote_git_credentials_empty_blocks_push_workflow
+
+- **What I ran**: Attempted to convert the evaluation-notebook artifact pipeline from SFTP-pull to git-based: remote wrapper would `git commit -am '…' && git push origin master`, local side would `git pull --ff-only`.
+- **What happened (error summary)**: Remote `git push` failed with `remote: Invalid username or token. Password authentication is not supported for Git operations.` Remote had created a local-only commit (`93b0391`) that couldn't reach origin. Local side had no way to pull the artifacts.
+- **Root cause**: `~/.git-credentials` on sweep-runner-1 is 0 bytes. GitHub removed password auth in 2021; only PATs and SSH deploy keys work. The VM was never configured with either.
+- **Fix** (interim): Reverted `_pull_eval_nbs.py` + `run_eval_notebooks_remote.py` to SFTP-based transfer (paramiko `sftp.get` for `top_performance.ipynb` + `top_trade_log.xlsx`). Hard-reset the orphan commit on remote: `git reset --hard origin/master`.
+- **Prevention rule**: Before proposing a git-based remote artifact workflow, verify remote auth works: `ssh <host> 'cd /root/intra && git ls-remote origin &>/dev/null && echo OK || echo NEEDS_AUTH'`. If NEEDS_AUTH, either (a) install a fine-grained PAT in `~/.git-credentials` with `credential.helper=store`, or (b) add an SSH deploy key and switch origin to `git@github.com:...`. Until one of these lands, SFTP-pull is the only option for fetching remote-generated artifacts. Never assume `git push` works on a VM without testing it.
+- **Related files/commands**: `scripts/runners/run_eval_notebooks_remote.py`, `scripts/runners/_pull_eval_nbs.py`.
+

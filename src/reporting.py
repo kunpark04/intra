@@ -161,27 +161,199 @@ def write_metadata(cfg, extra: dict, path: Path) -> None:
         json.dump(meta, f, indent=2, default=str)
 
 
-# ── 6. run_monte_carlo ────────────────────────────────────────────────────────
+# ── 6. Monte Carlo primitives (shared with notebook) ──────────────────────────
 
-def run_monte_carlo(trades: List[Dict[str, Any]], cfg) -> dict:
-    """Bootstrap Monte Carlo risk summary on observed trade PnL.
+STARTING_EQUITY_DEFAULT = 50_000.0
+RISK_FRAC_DEFAULT = 0.05
 
-    Draws `cfg.MC_N_SIMS` simulated equity paths via IID bootstrap of
-    `net_pnl_dollars` (each path has the same number of trades as the
-    observed sample), then reports the max-drawdown distribution
-    (p50/p90/p95/p99/worst), single-trade VaR/CVaR at 5%, and
-    risk-of-ruin probability (`drawdown ≥ cfg.MC_RUIN_THRESHOLD`).
-    A permutation test against the break-even win rate is embedded under
-    the `permutation_test` key. Seeded via `cfg.MC_SEED`.
 
-    Args:
-        trades: List of per-trade dicts; empty list is handled gracefully.
-        cfg: Config exposing `MC_N_SIMS`, `MC_SEED`, `MC_BOOTSTRAP`,
-            `MC_RUIN_THRESHOLD`.
+def apply_sizing(
+    pnl_base,
+    risk_base,
+    policy: str,
+    equity0: float = STARTING_EQUITY_DEFAULT,
+    risk_frac: float = RISK_FRAC_DEFAULT,
+) -> np.ndarray:
+    """Return per-trade dollar PnL (ordered) under the named sizing policy.
+
+    `pnl_base` and `risk_base` are the $500-fixed baseline series
+    (`actual_pnl`, `dollar_risk`). The policy-invariant r-multiple is
+    `r_t = pnl_base[t] / risk_base[t]`.
+
+    - `fixed_dollars_500`: returns `pnl_base` unchanged.
+    - `pct5_compound`: equity compounds as
+      `eq_{t+1} = eq_t * (1 + risk_frac * r_t)` from `equity0`, and
+      per-trade PnL is the diff of that equity path.
+    """
+    pnl = np.asarray(pnl_base, dtype=float)
+    risk = np.asarray(risk_base, dtype=float)
+    if policy == "fixed_dollars_500":
+        return pnl
+    if policy != "pct5_compound":
+        raise ValueError(f"unknown policy: {policy}")
+    r = np.where(risk > 0, pnl / risk, 0.0)
+    equity = equity0 * np.cumprod(1.0 + risk_frac * r)
+    return np.diff(np.concatenate([[equity0], equity]))
+
+
+def mc_policy_samples(
+    pnl_base,
+    risk_base,
+    policy: str,
+    n_sims: int = 10_000,
+    seed: int = 42,
+    equity0: float = STARTING_EQUITY_DEFAULT,
+    risk_frac: float = RISK_FRAC_DEFAULT,
+):
+    """Vectorized IID bootstrap of trade order under `policy`.
 
     Returns:
-        Dict with the summary stats described above. Returns a stub dict
-        with an `error` field when there are no trades.
+        samples_pnl (n_sims, n): per-trade $PnL under the policy.
+        equity_paths (n_sims, n+1): equity paths with column 0 = equity0.
+    """
+    rng = np.random.default_rng(seed)
+    pnl = np.asarray(pnl_base, dtype=float)
+    risk = np.asarray(risk_base, dtype=float)
+    n = len(pnl)
+    if n == 0:
+        return np.empty((0, 0)), np.empty((0, 0))
+    idx = rng.integers(0, n, size=(n_sims, n))
+    if policy == "fixed_dollars_500":
+        samples_pnl = pnl[idx]
+    elif policy == "pct5_compound":
+        r = np.where(risk > 0, pnl / risk, 0.0)
+        growth = 1.0 + risk_frac * r[idx]
+        equity = equity0 * np.cumprod(growth, axis=1)
+        samples_pnl = np.diff(
+            np.concatenate([np.full((n_sims, 1), equity0), equity], axis=1)
+        )
+    else:
+        raise ValueError(f"unknown policy: {policy}")
+    equity_paths = np.concatenate(
+        [np.full((n_sims, 1), equity0),
+         equity0 + np.cumsum(samples_pnl, axis=1)], axis=1,
+    )
+    return samples_pnl, equity_paths
+
+
+def monte_carlo(
+    pnl_base,
+    risk_base=None,
+    policy: str = "fixed_dollars_500",
+    years_span: float | None = None,
+    start_equity: float = STARTING_EQUITY_DEFAULT,
+    risk_frac: float = RISK_FRAC_DEFAULT,
+    n_sims: int = 10_000,
+    seed: int = 42,
+    ruin_threshold: float = 0.5,
+    ruin_basis: str = "peak",
+    var_source: str = "bootstrap",
+) -> dict:
+    """Unified policy-aware IID bootstrap Monte Carlo summary.
+
+    - Bootstraps `n_sims` paths of trade order via `mc_policy_samples`.
+    - Reports max-drawdown distribution in both % and $, VaR/CVaR on the
+      per-trade $PnL under the policy, risk-of-ruin probability
+      (dd_% ≥ `ruin_threshold`*100), and — when `years_span` is given —
+      annualized Sharpe p50 + 95% CI.
+    - Under `pct5_compound`, the bootstrap Sharpe is computed on per-trade
+      log-returns `log1p(risk_frac * r)`, which is scale-invariant under
+      compounding. Under `fixed_dollars_500`, it's on $PnL directly.
+
+    Args:
+        pnl_base: Per-trade $PnL at the $500-fixed baseline sizing.
+        risk_base: Per-trade $-at-risk at $500-fixed. Required under
+            `pct5_compound`; may be None or ones under `fixed_dollars_500`.
+        policy: 'fixed_dollars_500' or 'pct5_compound'.
+        years_span: Span of the bar series in years (drives `trades_per_year`
+            and Sharpe annualization). If None, Sharpe CI is omitted.
+    """
+    if policy == "pct5_compound" and risk_base is None:
+        raise ValueError("pct5_compound requires risk_base (r-multiples undefined without it)")
+    pnl = np.asarray(pnl_base, dtype=float)
+    risk = np.ones_like(pnl) if risk_base is None else np.asarray(risk_base, dtype=float)
+    n = len(pnl)
+    if n == 0:
+        return {"n_sims": n_sims, "n_trades": 0, "note": "empty"}
+
+    samples_pnl, equity_paths = mc_policy_samples(
+        pnl, risk, policy,
+        n_sims=n_sims, seed=seed, equity0=start_equity, risk_frac=risk_frac,
+    )
+    peak = np.maximum.accumulate(equity_paths, axis=1)
+    dd_dollars = (peak - equity_paths).max(axis=1)
+    dd_pct = np.nan_to_num((peak - equity_paths) / peak, nan=0.0).max(axis=1) * 100
+
+    wins = (samples_pnl > 0).mean(axis=1)
+    wr_ci = (float(np.percentile(wins, 2.5)), float(np.percentile(wins, 97.5)))
+
+    if var_source == "observed":
+        var5 = float(np.percentile(pnl, 5))
+        tail_obs = pnl[pnl <= var5]
+        cvar = float(tail_obs.mean()) if tail_obs.size else var5
+    elif var_source == "bootstrap":
+        var5 = float(np.percentile(samples_pnl.reshape(-1), 5))
+        tail = samples_pnl[samples_pnl <= var5]
+        cvar = float(tail.mean()) if tail.size else var5
+    else:
+        raise ValueError(f"unknown var_source: {var_source}")
+
+    if ruin_basis == "peak":
+        ruin_prob = float((dd_pct >= ruin_threshold * 100).mean())
+    elif ruin_basis == "start_equity":
+        ruin_prob = float((dd_dollars >= ruin_threshold * start_equity).mean())
+    else:
+        raise ValueError(f"unknown ruin_basis: {ruin_basis}")
+
+    out = {
+        "n_sims": n_sims, "n_trades": int(n), "policy": policy,
+        "win_rate": round(float(wins.mean()), 4),
+        "wr_ci_95": (round(wr_ci[0], 4), round(wr_ci[1], 4)),
+        "dd_p50_pct": round(float(np.percentile(dd_pct, 50)), 2),
+        "dd_p90_pct": round(float(np.percentile(dd_pct, 90)), 2),
+        "dd_p95_pct": round(float(np.percentile(dd_pct, 95)), 2),
+        "dd_p99_pct": round(float(np.percentile(dd_pct, 99)), 2),
+        "dd_worst_pct": round(float(dd_pct.max()), 2),
+        "dd_p50_dollars": round(float(np.percentile(dd_dollars, 50)), 2),
+        "dd_p90_dollars": round(float(np.percentile(dd_dollars, 90)), 2),
+        "dd_p95_dollars": round(float(np.percentile(dd_dollars, 95)), 2),
+        "dd_p99_dollars": round(float(np.percentile(dd_dollars, 99)), 2),
+        "dd_worst_dollars": round(float(dd_dollars.max()), 2),
+        "var_5pct_trade": round(var5, 2),
+        "cvar_5pct_trade": round(cvar, 2),
+        "risk_of_ruin_prob": round(ruin_prob, 6),
+    }
+
+    if years_span is not None and years_span > 0:
+        tpy = n / years_span
+        if policy == "pct5_compound":
+            r_full = np.where(risk > 0, pnl / risk, 0.0)
+            rng = np.random.default_rng(seed)
+            idx = rng.integers(0, n, size=(n_sims, n))
+            sim_vals = np.log1p(risk_frac * r_full[idx])
+        else:
+            sim_vals = samples_pnl
+        mu = sim_vals.mean(axis=1)
+        sig = sim_vals.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
+        sharpe_boot = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)
+        out["trades_per_year"] = round(tpy, 1)
+        out["sharpe_p50"] = round(float(np.percentile(sharpe_boot, 50)), 4)
+        out["sharpe_ci_95"] = (
+            round(float(np.percentile(sharpe_boot, 2.5)), 4),
+            round(float(np.percentile(sharpe_boot, 97.5)), 4),
+        )
+        out["sharpe_pos_prob"] = round(float((sharpe_boot > 0).mean()), 4)
+    return out
+
+
+def run_monte_carlo(trades: List[Dict[str, Any]], cfg) -> dict:
+    """Legacy iteration-artifact MC wrapper.
+
+    Extracts per-trade $PnL from `trades`, delegates to the unified
+    vectorized `monte_carlo` under `fixed_dollars_500` (equivalent to the
+    prior behavior), and reshapes the output back to the nested
+    `iterations/Vn/monte_carlo.json` schema. Adds the win-rate
+    permutation test under `permutation_test`.
     """
     if not trades:
         return {
@@ -193,53 +365,33 @@ def run_monte_carlo(trades: List[Dict[str, Any]], cfg) -> dict:
 
     pnls = np.array([t["net_pnl_dollars"] for t in trades], dtype=np.float64)
     starting_equity = float(trades[0]["equity_before"])
-    n = len(pnls)
-    rng = np.random.default_rng(cfg.MC_SEED)
 
-    n_sims = cfg.MC_N_SIMS
-    max_dds = np.empty(n_sims, dtype=np.float64)
-    final_equities = np.empty(n_sims, dtype=np.float64)
+    summary = monte_carlo(
+        pnl_base=pnls, risk_base=None, policy="fixed_dollars_500",
+        years_span=None, start_equity=starting_equity,
+        n_sims=cfg.MC_N_SIMS, seed=cfg.MC_SEED,
+        ruin_threshold=cfg.MC_RUIN_THRESHOLD,
+        ruin_basis="start_equity",  # legacy artifact convention
+        var_source="observed",       # legacy VaR/CVaR on observed pnls, not bootstrap
+    )
     ruin_threshold_dollars = starting_equity * cfg.MC_RUIN_THRESHOLD
-    ruin_count = 0
-
-    for i in range(n_sims):
-        # IID bootstrap: resample n trades with replacement
-        sample = rng.choice(pnls, size=n, replace=True)
-        equity_path = starting_equity + np.cumsum(sample)
-
-        # Peak-to-trough max drawdown in dollars
-        running_max = np.maximum.accumulate(
-            np.concatenate([[starting_equity], equity_path])
-        )
-        drawdowns = running_max[1:] - equity_path  # positive = drawdown
-        max_dd = float(drawdowns.max())
-        max_dds[i] = max_dd
-        final_equities[i] = float(equity_path[-1])
-
-        if max_dd >= ruin_threshold_dollars:
-            ruin_count += 1
-
-    # VaR / CVaR on trade-level PnL (5th percentile horizon = 1 trade)
-    var_5 = float(np.percentile(pnls, 5))
-    cvar_mask = pnls <= var_5
-    cvar = float(pnls[cvar_mask].mean()) if cvar_mask.any() else var_5
 
     mc_result = {
         "version":          getattr(cfg, "_VERSION", "unknown"),
-        "n_trades":         n,
-        "n_sims":           n_sims,
+        "n_trades":         summary["n_trades"],
+        "n_sims":           summary["n_sims"],
         "seed":             cfg.MC_SEED,
         "bootstrap_method": cfg.MC_BOOTSTRAP,
         "max_drawdown": {
-            "p50":   float(np.percentile(max_dds, 50)),
-            "p90":   float(np.percentile(max_dds, 90)),
-            "p95":   float(np.percentile(max_dds, 95)),
-            "p99":   float(np.percentile(max_dds, 99)),
-            "worst": float(max_dds.max()),
+            "p50":   summary["dd_p50_dollars"],
+            "p90":   summary["dd_p90_dollars"],
+            "p95":   summary["dd_p95_dollars"],
+            "p99":   summary["dd_p99_dollars"],
+            "worst": summary["dd_worst_dollars"],
         },
-        "var_trade_pnl":     var_5,
-        "cvar_trade_pnl":    cvar,
-        "risk_of_ruin_prob": ruin_count / n_sims,
+        "var_trade_pnl":     summary["var_5pct_trade"],
+        "cvar_trade_pnl":    summary["cvar_5pct_trade"],
+        "risk_of_ruin_prob": summary["risk_of_ruin_prob"],
         "ruin_definition": (
             f"max_drawdown >= {cfg.MC_RUIN_THRESHOLD * 100:.0f}% of starting equity"
             f" (${ruin_threshold_dollars:.0f})"
@@ -251,9 +403,14 @@ def run_monte_carlo(trades: List[Dict[str, Any]], cfg) -> dict:
         ),
     }
 
-    # Permutation test on win rate
+    # Permutation RNG matches legacy behavior: advance a generator seeded
+    # with MC_SEED past the same N_SIMS*n draws the bootstrap would have
+    # consumed, then hand it to the permutation test. Preserves byte-for-byte
+    # reproducibility with the pre-refactor loop-based run_monte_carlo.
+    rng = np.random.default_rng(cfg.MC_SEED)
+    _ = rng.choice(pnls, size=(cfg.MC_N_SIMS, len(pnls)), replace=True)
     mc_result["permutation_test"] = _permutation_win_rate_test(
-        trades, n_sims=n_sims, seed=cfg.MC_SEED + 1, rng=rng
+        trades, n_sims=cfg.MC_N_SIMS, seed=cfg.MC_SEED + 1, rng=rng,
     )
 
     return mc_result

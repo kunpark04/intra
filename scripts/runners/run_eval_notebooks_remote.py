@@ -19,8 +19,20 @@ REMOTE_DIR = "/root/intra"
 REPO = Path(__file__).resolve().parent.parent.parent
 
 UPLOAD_FILES = [
-    "evaluation/top_performance.ipynb",
+    "evaluation/s1_individual.ipynb",
+    "evaluation/s2_combined.ipynb",
+    "evaluation/s3_mc_combined.ipynb",
+    "evaluation/s4_individual_ml2.ipynb",
+    "evaluation/s5_combined_ml2.ipynb",
+    "evaluation/s6_mc_combined_ml2.ipynb",
+    "evaluation/s1_individual_net.ipynb",
+    "evaluation/s2_combined_net.ipynb",
+    "evaluation/s3_mc_combined_net.ipynb",
+    "evaluation/s4_individual_ml2_net.ipynb",
+    "evaluation/s5_combined_ml2_net.ipynb",
+    "evaluation/s6_mc_combined_ml2_net.ipynb",
     "evaluation/top_strategies.json",
+    "scripts/evaluation/_top_perf_common.py",
     "scripts/evaluation/composed_strategy_runner.py",
     "scripts/evaluation/final_holdout_eval_v3_c1_fixed500.py",
     "scripts/evaluation/build_trade_log_xlsx.py",
@@ -47,16 +59,32 @@ import nbformat
 from nbclient import NotebookClient
 from pathlib import Path
 
-p = Path('evaluation') / 'top_performance.ipynb'
-nb = nbformat.read(str(p), as_version=4)
-print(f'=== Executing top_performance.ipynb ({len(nb.cells)} cells) ===', flush=True)
-client = NotebookClient(
-    nb, timeout=3600, kernel_name='python3',
-    resources={'metadata': {'path': str(Path.cwd())}},
-)
-client.execute()
-nbformat.write(nb, str(p))
-print(f'  Done -> {p}')
+NOTEBOOKS = [
+    'evaluation/s1_individual.ipynb',
+    'evaluation/s2_combined.ipynb',
+    'evaluation/s3_mc_combined.ipynb',
+    'evaluation/s4_individual_ml2.ipynb',
+    'evaluation/s5_combined_ml2.ipynb',
+    'evaluation/s6_mc_combined_ml2.ipynb',
+    'evaluation/s1_individual_net.ipynb',
+    'evaluation/s2_combined_net.ipynb',
+    'evaluation/s3_mc_combined_net.ipynb',
+    'evaluation/s4_individual_ml2_net.ipynb',
+    'evaluation/s5_combined_ml2_net.ipynb',
+    'evaluation/s6_mc_combined_ml2_net.ipynb',
+]
+
+for rel in NOTEBOOKS:
+    p = Path(rel)
+    nb = nbformat.read(str(p), as_version=4)
+    print(f'=== Executing {rel} ({len(nb.cells)} cells) ===', flush=True)
+    client = NotebookClient(
+        nb, timeout=3600, kernel_name='python3',
+        resources={'metadata': {'path': str(Path.cwd())}},
+    )
+    client.execute()
+    nbformat.write(nb, str(p))
+    print(f'  Done -> {p}', flush=True)
 """
 
 # Bash wrapper: install deps, register kernel, run notebook, then build xlsx.
