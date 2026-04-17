@@ -99,6 +99,11 @@ _FIXED = dict(
     MNQ_DOLLARS_PER_POINT = 2.0,
     ZSCORE_DDOF           = 0,
     SWING_BUFFER_TICKS    = 1,
+    # Liberal MNQ round-trip friction model (~$3 retail commission + 2 ticks
+    # slippage/side). Subtracted from every trade's PnL inside
+    # _run_backtest_light, so net_pnl_dollars in the v11+ parquet is already
+    # net of friction. Set to 0.0 to reproduce the v10 (gross-only) behavior.
+    COST_PER_CONTRACT_RT  = 5.0,
 )
 
 # ── Column groups ─────────────────────────────────────────────────────────────
@@ -125,7 +130,8 @@ _TRADE_FEATURE_KEYS = [
     "distance_to_ema_fast_points", "distance_to_ema_slow_points",
     "side",
 ]
-_LABEL_KEYS = ["label_win", "net_pnl_dollars", "r_multiple"]
+_LABEL_KEYS = ["label_win", "net_pnl_dollars", "r_multiple",
+               "gross_pnl_dollars", "friction_dollars"]
 _PATH_METRIC_KEYS = ["mfe_points", "mae_points", "stop_distance_pts", "hold_bars"]
 
 # ── Parkinson volatility constants ────────────────────────────────────────────
@@ -578,6 +584,92 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "tod_exit_hour":          0,
                 "stop_fixed_pts_resolved": None,
             }
+        elif range_mode == "v11":
+            # V11: friction-aware sweep. Clones V10's broad qualitative
+            # diversity (z-score formulation, filters, dual-window, etc.)
+            # but tightens stop ranges to exclude friction-toxic regions.
+            #
+            # Why narrower stops: contracts = $2500 / (stop_pts * $2/pt), so
+            # per-trade friction = contracts * $5 = $12500 / stop_pts.
+            # Expressed as fraction of the $2500 risk: friction_pct = 5 / stop_pts.
+            #   stop_pts=2   → 250% of risk (wipeout)
+            #   stop_pts=10  → 50%  of risk
+            #   stop_pts=15  → 33%  of risk   (v11 lower bound)
+            #   stop_pts=25  → 20%  of risk
+            #   stop_pts=100 → 5%   of risk
+            # Below ~15pt the edge must be enormous to overcome friction.
+            #
+            # Changes vs V10:
+            #   - stop_fixed_pts:   [2, 100]      → [15, 100]
+            #   - atr_multiplier:   [0.5, 6.0]    → [1.5, 6.0]   (atr~5-15pts)
+            #   - swing_lookback:   [2, 20)       → [5, 30)      (bigger swings)
+            # Everything else identical to V10.
+            #
+            # This works with the friction-aware backtest (_FIXED.COST_PER_CONTRACT_RT
+            # = $5/RT subtracted inside _run_backtest_light). v10 parquet was
+            # gross; v11 parquet's net_pnl_dollars is already net of friction.
+            ema_fast    = int(rng.integers(3, 20))
+            ema_slow    = int(rng.integers(ema_fast + 5, min(ema_fast + 45, 61)))
+            stop_method = str(rng.choice(["fixed", "atr", "swing"]))
+
+            z_window_1 = int(rng.integers(5, 51))
+            use_w2     = bool(rng.integers(0, 2))
+            w2_low     = z_window_1 + 5
+            if use_w2 and w2_low < 51:
+                z_window_2        = int(rng.integers(w2_low, 51))
+                z_window_2_weight = float(rng.uniform(0.1, 0.5))
+            else:
+                z_window_2        = 0
+                z_window_2_weight = 0.0
+
+            z_type  = str(rng.choice(["parametric", "parametric", "parametric", "quantile_rank"]))
+            z_input = str(rng.choice(["close", "returns", "typical_price"]))
+            if z_input == "returns":
+                z_anchor = "rolling_mean"
+            else:
+                z_anchor = str(rng.choice(["rolling_mean", "vwap_session", "ema_fast", "ema_slow"]))
+            if z_type == "quantile_rank":
+                z_denom = "n/a"
+            elif z_input == "returns":
+                z_denom = str(rng.choice(["rolling_std", "parkinson"]))
+            else:
+                z_denom = str(rng.choice(["rolling_std", "atr", "parkinson"]))
+
+            if bool(rng.integers(0, 2)):
+                volume_entry_threshold = float(rng.uniform(0.5, 2.5))
+            else:
+                volume_entry_threshold = 0.0
+
+            combo = {
+                "combo_id":                i,
+                "z_band_k":               float(rng.uniform(1.5, 4.5)),
+                "z_window":               z_window_1,
+                "volume_zscore_window":   int(rng.integers(5, 51)),
+                "ema_fast":               ema_fast,
+                "ema_slow":               ema_slow,
+                "stop_method":            stop_method,
+                "stop_fixed_pts":         float(rng.uniform(15, 100))  if stop_method == "fixed" else None,
+                "atr_multiplier":         float(rng.uniform(1.5, 6.0)) if stop_method == "atr"   else None,
+                "swing_lookback":         float(rng.integers(5, 30))   if stop_method == "swing" else None,
+                "min_rr":                 float(rng.uniform(1.0, 5.0)),
+                "exit_on_opposite_signal": bool(rng.integers(0, 2)),
+                "use_breakeven_stop":     bool(rng.integers(0, 2)),
+                "max_hold_bars":          int(rng.choice([0, 15, 30, 60, 120, 240, 480, 720])),
+                "zscore_confirmation":    bool(rng.integers(0, 2)),
+                "z_input":            z_input,
+                "z_anchor":           z_anchor,
+                "z_denom":            z_denom,
+                "z_type":             z_type,
+                "z_window_2":         z_window_2,
+                "z_window_2_weight":  z_window_2_weight,
+                "volume_entry_threshold": volume_entry_threshold,
+                "vol_regime_lookback":    0,
+                "vol_regime_min_pct":     0.0,
+                "vol_regime_max_pct":     1.0,
+                "session_filter_mode":    int(rng.choice([0, 1, 2])),
+                "tod_exit_hour":          0,
+                "stop_fixed_pts_resolved": None,
+            }
         elif range_mode == "v10":
             # V10: ultra-diversity sweep for ML training — extends V9's numeric ranges
             # with variation on the z-score formulation axis and previously-fixed flags.
@@ -871,7 +963,8 @@ def _run_backtest_light(df: pd.DataFrame, cfg) -> dict:
                      if stop_distance_pts > 0 else 0)
 
         gross_pnl    = (exit_price - entry_price) * side * contracts * cfg.MNQ_DOLLARS_PER_POINT
-        net_pnl      = gross_pnl
+        friction     = contracts * float(getattr(cfg, "COST_PER_CONTRACT_RT", 0.0))
+        net_pnl      = gross_pnl - friction
         risk_dollars = stop_distance_pts * contracts * cfg.MNQ_DOLLARS_PER_POINT
         r_multiple   = net_pnl / risk_dollars if risk_dollars > 0 else 0.0
 
@@ -923,10 +1016,15 @@ def _run_backtest_light(df: pd.DataFrame, cfg) -> dict:
             "distance_to_ema_fast_points": sig_close - sig_ema_fast,
             "distance_to_ema_slow_points": sig_close - sig_ema_slow,
             "side":                        "long" if side == 1 else "short",
-            # Labels
-            "label_win":       int(net_pnl > 0),
-            "net_pnl_dollars": net_pnl,
-            "r_multiple":      r_multiple,
+            # Labels (net_pnl_dollars is already net of friction under v11+;
+            # under v10 COST_PER_CONTRACT_RT=5 was not set so friction=0 and
+            # net_pnl_dollars == gross_pnl_dollars. gross_pnl_dollars and
+            # friction_dollars are new in v11 for auditability.)
+            "label_win":         int(net_pnl > 0),
+            "net_pnl_dollars":   net_pnl,
+            "r_multiple":        r_multiple,
+            "gross_pnl_dollars": gross_pnl,
+            "friction_dollars":  friction,
             # Path metrics (for adaptive R:R model)
             "mfe_points":        float(raw_mfe[i]),
             "mae_points":        float(raw_mae[i]),
@@ -1189,8 +1287,8 @@ def _parse_args() -> argparse.Namespace:
                    help="Max runtime in hours (0 = unlimited, default: 0)")
     p.add_argument("--seed", type=int, default=0,
                    help="RNG seed for combo sampling (default: 0). Use 1 for second sweep.")
-    p.add_argument("--range-mode", choices=["default", "winrate", "zscore_variants", "v4", "v5", "v6", "v7", "v8", "v9", "v10"], default="default",
-                   help="Parameter range mode: 'default' | 'winrate' | 'zscore_variants' | 'v4'–'v10'")
+    p.add_argument("--range-mode", choices=["default", "winrate", "zscore_variants", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"], default="default",
+                   help="Parameter range mode: 'default' | 'winrate' | 'zscore_variants' | 'v4'–'v11'")
     p.add_argument("--output", type=str, default=None,
                    help="Output parquet path (default: data/ml/ml_dataset.parquet)")
     p.add_argument("--workers", type=int, default=1,
