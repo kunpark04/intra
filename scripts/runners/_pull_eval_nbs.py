@@ -9,7 +9,7 @@ REPO = Path(__file__).resolve().parent.parent.parent
 
 FILES = [
     "evaluation/top_performance.ipynb",
-    "evaluation/top_trade_log.ipynb",
+    "evaluation/top_trade_log.xlsx",
 ]
 
 

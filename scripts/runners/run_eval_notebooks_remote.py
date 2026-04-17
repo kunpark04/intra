@@ -1,11 +1,13 @@
-"""Upload notebooks + deps to sweep-runner-1 and execute them in a screen session.
+"""Upload eval notebook + xlsx builder to sweep-runner-1 and execute them.
 
-Uploads the 2 .ipynb files (built locally via _build_v2_notebooks.py) and the
-notebook-side helpers (composed_strategy_runner, eval script, top strategies
-JSON) into /root/intra/.
+Uploads the perf .ipynb (built locally via _build_v2_notebooks.py), the xlsx
+builder, and the notebook-side helpers (composed_strategy_runner, eval script,
+top strategies JSON, full src/ tree) into /root/intra/.
 
-Remote runner (`run_eval_nbs.sh`) executes the notebooks in-place via nbclient.
-Poll with `_poll_eval_nbs.py` and pull with `_pull_eval_nbs.py`.
+Remote runner (`run_eval_nbs.sh`) executes the perf notebook in-place via
+nbclient, then runs build_trade_log_xlsx.py to produce
+`evaluation/top_trade_log.xlsx`. Poll with `_poll_eval_nbs.py` and pull with
+`_pull_eval_nbs.py`.
 """
 from __future__ import annotations
 import time
@@ -18,10 +20,10 @@ REPO = Path(__file__).resolve().parent.parent.parent
 
 UPLOAD_FILES = [
     "evaluation/top_performance.ipynb",
-    "evaluation/top_trade_log.ipynb",
     "evaluation/top_strategies.json",
     "scripts/evaluation/composed_strategy_runner.py",
     "scripts/evaluation/final_holdout_eval_v3_c1_fixed500.py",
+    "scripts/evaluation/build_trade_log_xlsx.py",
     "src/__init__.py",
     "src/config.py",
     "src/data_loader.py",
@@ -45,32 +47,33 @@ import nbformat
 from nbclient import NotebookClient
 from pathlib import Path
 
-BASES = ['top_performance', 'top_trade_log']
-for base in BASES:
-    p = Path('evaluation') / f'{base}.ipynb'
-    nb = nbformat.read(str(p), as_version=4)
-    print(f'=== Executing {base}.ipynb ({len(nb.cells)} cells) ===', flush=True)
-    client = NotebookClient(
-        nb, timeout=3600, kernel_name='python3',
-        resources={'metadata': {'path': str(Path.cwd())}},
-    )
-    client.execute()
-    nbformat.write(nb, str(p))
-    print(f'  Done -> {p}')
-print('All notebooks executed.')
+p = Path('evaluation') / 'top_performance.ipynb'
+nb = nbformat.read(str(p), as_version=4)
+print(f'=== Executing top_performance.ipynb ({len(nb.cells)} cells) ===', flush=True)
+client = NotebookClient(
+    nb, timeout=3600, kernel_name='python3',
+    resources={'metadata': {'path': str(Path.cwd())}},
+)
+client.execute()
+nbformat.write(nb, str(p))
+print(f'  Done -> {p}')
 """
 
-# Bash wrapper: install deps, register kernel, run EXEC_PY.
+# Bash wrapper: install deps, register kernel, run notebook, then build xlsx.
 WRAPPER_SH = """\
 #!/usr/bin/env bash
 set -e
 cd /root/intra
 echo "[eval_nbs] Starting $(date)"
 
-python3 -m pip install --quiet --break-system-packages nbformat nbclient ipykernel matplotlib 2>&1 | tail -5
+python3 -m pip install --quiet --break-system-packages nbformat nbclient ipykernel matplotlib openpyxl 2>&1 | tail -5
 python3 -m ipykernel install --user --name python3 --display-name "Python 3" 2>&1 | tail -3
 
+echo "[eval_nbs] --- Executing perf notebook ---"
 python3 /root/intra/run_eval_nbs_exec.py
+
+echo "[eval_nbs] --- Building trade log xlsx ---"
+python3 /root/intra/scripts/evaluation/build_trade_log_xlsx.py
 
 echo "[eval_nbs] ALL DONE $(date)"
 """

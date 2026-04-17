@@ -1,6 +1,6 @@
-"""Build the 6-section top-performance / top-trade-log notebooks.
+"""Build the 6-section top-performance notebook.
 
-Section layout for each notebook:
+Section layout:
   1) individual              (unfiltered, raw composed_strategy_runner)
   2) combined                (unfiltered portfolio aggregate)
   3) Monte Carlo on combined (unfiltered)
@@ -12,7 +12,10 @@ Both $500-fixed and $2500 (5% of starting equity) sizing policies are shown.
 Sharpe is annualized by `sqrt(trades_per_year)` using the test-partition span,
 applied consistently across every section.
 
-Execute the notebooks in-place with nbclient afterwards.
+The full trade log is produced separately by `build_trade_log_xlsx.py` as an
+Excel workbook (`evaluation/top_trade_log.xlsx`).
+
+Execute the notebook in-place with nbclient afterwards.
 """
 from __future__ import annotations
 
@@ -499,206 +502,10 @@ def build_performance() -> nbf.NotebookNode:
     return nb
 
 
-# ─── Top-trade-log notebook ──────────────────────────────────────────────────
-
-TL_RENDER_FN = """_EXIT_MAP = {'sl': 'SL', 'tp': 'TP', 'time': 'EOD', 'force': 'EOD'}
-
-def render_trade_log(df, columns=None):
-    default = ['combo_id', 'date', 'direction', 'entry_px', 'sl_px', 'tp_px',
-               'contracts', 'dollar_risk', 'dollar_reward', 'exit_px',
-               'exit_reason', 'actual_pnl']
-    cols = [c for c in (columns or default) if c in df.columns]
-    styled = df[cols].copy()
-    if 'date' in styled.columns and pd.api.types.is_datetime64_any_dtype(styled['date']):
-        styled['date'] = styled['date'].dt.strftime('%Y-%m-%d %H:%M')
-    if 'exit_reason' in styled.columns:
-        styled['exit_reason'] = (styled['exit_reason'].astype(str).str.lower()
-                                 .map(_EXIT_MAP).fillna(styled['exit_reason']))
-    fmt = {}
-    for col in ['entry_px', 'sl_px', 'tp_px', 'dollar_risk', 'dollar_reward',
-                'exit_px', 'actual_pnl']:
-        if col in styled.columns:
-            fmt[col] = '{:.2f}'
-    if 'contracts' in styled.columns:
-        fmt['contracts'] = '{:.0f}'
-    def colour(row):
-        n = len(row)
-        v = row.get('actual_pnl')
-        if pd.notna(v) and str(v).strip() not in ('', 'nan'):
-            try:
-                return (['background-color: #c8e6c9; color: #1b5e20'] * n
-                        if float(v) > 0
-                        else ['background-color: #ffcdd2; color: #b71c1c'] * n)
-            except (ValueError, TypeError):
-                pass
-        return [''] * n
-    try:
-        from IPython.display import display
-        display(styled.style.apply(colour, axis=1).format(fmt, na_rep='-').hide(axis='index'))
-    except Exception:
-        print(styled.to_string(index=False))"""
-
-S1_TL = """from IPython.display import display, Markdown
-for r in results_raw:
-    display(Markdown(f"### {r['combo_id']} - {len(r['trades'])} trades"))
-    if r['trades'].empty:
-        print('(no trades)')
-    else:
-        t = r['trades'].copy(); t.insert(0, 'combo_id', r['combo_id'])
-        render_trade_log(t)"""
-
-S2_TL_COMBINED = """frames = []
-for r in results_raw:
-    if r['trades'].empty: continue
-    t = r['trades'].copy(); t.insert(0, 'combo_id', r['combo_id'])
-    frames.append(t)
-combined_raw = (pd.concat(frames, ignore_index=True)
-                .sort_values('date', kind='mergesort')
-                .reset_index(drop=True)
-                if frames else pd.DataFrame())
-display(Markdown(f"### Combined unfiltered - {len(combined_raw):,} trades across "
-                 f"{combined_raw['combo_id'].nunique() if not combined_raw.empty else 0} combos"))
-if combined_raw.empty:
-    print('(no trades)')
-else:
-    render_trade_log(combined_raw)"""
-
-S3_TL_MC = """rows = []
-if not combined_raw.empty:
-    for label, scale in SIZINGS:
-        pnl = combined_raw['actual_pnl'].to_numpy() * scale
-        rows.append({'sizing': label, **monte_carlo(pnl)})
-mc_raw = pd.DataFrame(rows)
-mc_raw"""
-
-S4_TL = """# Build V3-filtered trade logs per combo (event-driven, fixed $500).
-def _shape_ml2_trades(c, fixed_dollars):
-    if c.get('error') or c.get('n_trades', 0) == 0:
-        return pd.DataFrame()
-    rows = []
-    for ti in range(c['n_trades']):
-        contracts = int(fixed_dollars // (c['sl_pts'][ti] * v3eval.DOLLARS_PER_POINT))
-        if contracts <= 0:
-            continue
-        pnl = c['pnl_pts'][ti] * contracts * v3eval.DOLLARS_PER_POINT
-        rows.append({
-            'combo_id': c['combo_id'],
-            'date': pd.to_datetime(c['entry_time'][ti]),
-            'contracts': contracts,
-            'dollar_risk': fixed_dollars,
-            'pnl_pts': float(c['pnl_pts'][ti]),
-            'actual_pnl': pnl,
-            'label_win': int(c['label_win'][ti]),
-            'pwin_simple': float(c['pwin_simple'][ti]),
-        })
-    return pd.DataFrame(rows)
-
-for c in combos_ml2:
-    trades_500 = _shape_ml2_trades(c, 500.0)
-    display(Markdown(f"### {c.get('combo_id')} - {len(trades_500)} trades (V3-filtered, $500 sizing)"))
-    if trades_500.empty:
-        print(c.get('error', '(no trades)'))
-    else:
-        render_trade_log(trades_500, columns=['combo_id', 'date', 'contracts',
-                                              'dollar_risk', 'pnl_pts',
-                                              'label_win', 'pwin_simple',
-                                              'actual_pnl'])"""
-
-S5_TL_COMBINED = """# Event-driven combined trade log (fixed $500).
-def _sim_trades(combos, fixed_dollars):
-    events = []
-    for ci, c in enumerate(combos):
-        if c.get('error') or c.get('n_trades', 0) == 0:
-            continue
-        for ti in range(c['n_trades']):
-            events.append((int(c['entry_bar'][ti]), 0, ci, ti))
-            events.append((int(c['exit_bar'][ti]), 1, ci, ti))
-    events.sort(key=lambda e: (e[0], -e[1]))
-    open_pos = {}
-    rows = []
-    for bar, kind, ci, ti in events:
-        c = combos[ci]
-        if kind == 0:
-            contracts = int(fixed_dollars // (c['sl_pts'][ti] * v3eval.DOLLARS_PER_POINT))
-            if contracts <= 0: continue
-            open_pos[(ci, ti)] = contracts
-        else:
-            key = (ci, ti)
-            if key not in open_pos: continue
-            contracts = open_pos.pop(key)
-            pnl = c['pnl_pts'][ti] * contracts * v3eval.DOLLARS_PER_POINT
-            rows.append({
-                'combo_id': c['combo_id'],
-                'date': pd.to_datetime(bars['time'].iloc[bar]) if bar < len(bars) else pd.NaT,
-                'contracts': contracts,
-                'dollar_risk': fixed_dollars,
-                'pnl_pts': float(c['pnl_pts'][ti]),
-                'actual_pnl': pnl,
-                'label_win': int(c['label_win'][ti]),
-                'pwin_simple': float(c['pwin_simple'][ti]),
-            })
-    return pd.DataFrame(rows)
-
-combined_ml2 = _sim_trades(combos_ml2, 500.0)
-display(Markdown(f"### Combined ML2 portfolio - {len(combined_ml2):,} trades "
-                 f"(fixed $500, event-driven bar-overlap arbitration)"))
-if combined_ml2.empty:
-    print('(no trades)')
-else:
-    render_trade_log(combined_ml2, columns=['combo_id', 'date', 'contracts',
-                                            'dollar_risk', 'pnl_pts',
-                                            'label_win', 'pwin_simple',
-                                            'actual_pnl'])"""
-
-S6_TL_MC = """rows = []
-if not combined_ml2.empty:
-    for label, scale in SIZINGS:
-        pnl = combined_ml2['actual_pnl'].to_numpy() * scale
-        rows.append({'sizing': label, **monte_carlo(pnl)})
-mc_ml2 = pd.DataFrame(rows)
-mc_ml2"""
-
-
-def build_trade_log() -> nbf.NotebookNode:
-    nb = nbf.v4.new_notebook(); nb.metadata = NB_META
-    nb.cells = [
-        _md("# Top-K trade logs - 6-section evaluation\n\n"
-            "Full trade logs for the C1-selected top-10 combos on the 20% OOS\n"
-            "test partition. Wins shaded green, losses red.\n\n"
-            "Sections:\n"
-            "1. Individual trade logs (unfiltered)\n"
-            "2. Combined trade log (unfiltered)\n"
-            "3. Monte Carlo on combined (unfiltered)\n"
-            "4. Individual trade logs with ML#2 (V3 filter)\n"
-            "5. Combined ML#2 trade log (event-driven)\n"
-            "6. Monte Carlo on combined ML#2", "intro"),
-        _code(SETUP_IMPORTS, "setup"),
-        _code(RUN_UNFILTERED, "run-unfiltered"),
-        _code(RUN_ML2, "run-ml2"),
-        _code(TL_RENDER_FN, "render-fn"),
-        _md("## 1) Individual trade logs (unfiltered)", "s1-md"),
-        _code(S1_TL, "s1-tl"),
-        _md("## 2) Combined trade log (unfiltered)", "s2-md"),
-        _code(S2_TL_COMBINED, "s2-tl"),
-        _md("## 3) Monte Carlo on combined (unfiltered)", "s3-md"),
-        _code(S3_TL_MC, "s3-mc"),
-        _md("## 4) Individual trade logs with ML#2 (V3 filter, fixed $500)", "s4-md"),
-        _code(S4_TL, "s4-tl"),
-        _md("## 5) Combined ML#2 trade log (fixed $500)", "s5-md"),
-        _code(S5_TL_COMBINED, "s5-tl"),
-        _md("## 6) Monte Carlo on combined ML#2", "s6-md"),
-        _code(S6_TL_MC, "s6-mc"),
-    ]
-    return nb
-
-
 def main() -> None:
     perf = build_performance()
-    tl = build_trade_log()
     nbf.write(perf, str(EVAL / 'top_performance.ipynb'))
     print(f"Wrote {EVAL / 'top_performance.ipynb'}")
-    nbf.write(tl, str(EVAL / 'top_trade_log.ipynb'))
-    print(f"Wrote {EVAL / 'top_trade_log.ipynb'}")
 
 
 if __name__ == "__main__":
