@@ -54,7 +54,8 @@ def _code(src: str, cid: str) -> nbf.NotebookNode:
 
 # ─── Shared setup ────────────────────────────────────────────────────────────
 
-SETUP_IMPORTS = """import importlib.util
+SETUP_IMPORTS = """%matplotlib inline
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -117,34 +118,44 @@ def metrics_from_pnl(pnl, years_span, start_equity=STARTING_EQUITY):
                 max_drawdown_dollars=round(dd_d, 2))
 
 
-def monte_carlo(pnl, start_equity=STARTING_EQUITY, n_sims=10_000, seed=42):
+def monte_carlo(pnl, years_span, start_equity=STARTING_EQUITY, n_sims=10_000, seed=42):
     '''IID bootstrap MC on a PnL series. Returns DD percentiles + VaR/CVaR +
-    risk-of-ruin (>=50% DD) + permutation-test p-value on win rate.'''
+    risk-of-ruin (>=50% DD) + annualized Sharpe CI + permutation-test on WR.
+
+    Annualized Sharpe per resample: (mean/std)*sqrt(trades_per_year) where
+    trades_per_year = n / years_span. Matches metrics_from_pnl convention.
+    '''
     rng = np.random.default_rng(seed)
     p = np.asarray(pnl, dtype=float)
     n = len(p)
     if n == 0:
         return {'n_sims': n_sims, 'n_trades': 0, 'note': 'empty'}
-    # Bootstrap DD distribution
     idx = rng.integers(0, n, size=(n_sims, n))
     samples = p[idx]
     equity = start_equity + np.cumsum(samples, axis=1)
     equity = np.concatenate([np.full((n_sims, 1), start_equity), equity], axis=1)
     peak = np.maximum.accumulate(equity, axis=1)
     dd_pct = np.nan_to_num((peak - equity) / peak, nan=0.0).max(axis=1) * 100
-    # VaR / CVaR at 5th percentile trade level
+    # Annualized Sharpe per resample (i.i.d. assumption).
+    tpy = n / years_span if years_span > 0 else 0.0
+    mu = samples.mean(axis=1)
+    sig = samples.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
+    sharpe_boot = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)
     var5 = float(np.percentile(p, 5))
     tail = p[p <= var5]
     cvar = float(tail.mean()) if len(tail) else var5
-    # Permutation test on win rate (one-tailed vs break-even 1/(1+avg_rr))
-    # Use a simple two-sided bootstrap CI on wr for notebook readability
     wr = float((p > 0).mean())
     boot_wr = (samples > 0).mean(axis=1)
     wr_ci = (float(np.percentile(boot_wr, 2.5)), float(np.percentile(boot_wr, 97.5)))
+    sharpe_ci = (float(np.percentile(sharpe_boot, 2.5)),
+                 float(np.percentile(sharpe_boot, 97.5)))
     return {
         'n_sims': n_sims, 'n_trades': int(n),
         'win_rate': round(wr, 4),
         'wr_ci_95': (round(wr_ci[0], 4), round(wr_ci[1], 4)),
+        'sharpe_p50': round(float(np.percentile(sharpe_boot, 50)), 4),
+        'sharpe_ci_95': (round(sharpe_ci[0], 4), round(sharpe_ci[1], 4)),
+        'sharpe_pos_prob': round(float((sharpe_boot > 0).mean()), 4),
         'dd_p50_pct': round(float(np.percentile(dd_pct, 50)), 2),
         'dd_p90_pct': round(float(np.percentile(dd_pct, 90)), 2),
         'dd_p95_pct': round(float(np.percentile(dd_pct, 95)), 2),
@@ -298,9 +309,67 @@ S3_MC = """rows = []
 if not combined_raw.empty:
     for label, scale in SIZINGS:
         pnl = combined_raw['actual_pnl'].to_numpy() * scale
-        rows.append({'sizing': label, **monte_carlo(pnl)})
+        rows.append({'sizing': label, **monte_carlo(pnl, YEARS_SPAN)})
 mc_raw = pd.DataFrame(rows)
 mc_raw"""
+
+# Helper shared by both MC plot cells: bootstrap final-PnL + annualized-Sharpe
+# distributions, then draw 2x2 (row=metric, col=sizing) with percentile lines.
+MC_PLOT_HELPER = """def _mc_plot_grid(title, pnl_series_per_sizing, years_span, n_sims=10_000, seed=42):
+    '''pnl_series_per_sizing: list[(label, pnl_array)].'''
+    sizings = [(lab, p) for lab, p in pnl_series_per_sizing if len(p) > 0]
+    if not sizings:
+        print('No trades.'); return
+    rng = np.random.default_rng(seed)
+    fig, axes = plt.subplots(2, len(sizings), figsize=(7 * len(sizings), 8),
+                             squeeze=False)
+    for col, (label, pnl_src) in enumerate(sizings):
+        n = len(pnl_src)
+        idx = rng.integers(0, n, size=(n_sims, n))
+        samples = pnl_src[idx]
+        final_pnl = samples.sum(axis=1)
+        tpy = n / years_span if years_span > 0 else 0.0
+        mu = samples.mean(axis=1)
+        sig = samples.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
+        sharpe = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)
+        # Top row: final PnL ($)
+        ax = axes[0, col]
+        ax.hist(final_pnl, bins=60, color='#6a8cbb', alpha=0.85, edgecolor='white')
+        ax.axvline(0, color='k', linewidth=0.8, alpha=0.6)
+        for pct, colour, ls in [(2.5, '#b2182b', ':'), (50, '#1a9850', '--'),
+                                (97.5, '#b2182b', ':')]:
+            v = np.percentile(final_pnl, pct)
+            ax.axvline(v, color=colour, linestyle=ls, linewidth=1.2,
+                       label=f'p{pct:g}=${v:,.0f}')
+        ax.set_title(f'{title} MC - final PnL ({label})')
+        ax.set_xlabel('final PnL ($)'); ax.set_ylabel('freq')
+        ax.grid(alpha=0.3); ax.legend(fontsize=8, loc='upper right')
+        # Bottom row: annualized Sharpe
+        ax = axes[1, col]
+        ax.hist(sharpe, bins=60, color='#d48c6a', alpha=0.85, edgecolor='white')
+        ax.axvline(0, color='k', linewidth=0.8, alpha=0.6)
+        for pct, colour, ls in [(2.5, '#b2182b', ':'), (50, '#1a9850', '--'),
+                                (97.5, '#b2182b', ':')]:
+            v = np.percentile(sharpe, pct)
+            ax.axvline(v, color=colour, linestyle=ls, linewidth=1.2,
+                       label=f'p{pct:g}={v:.2f}')
+        ax.set_title(f'{title} MC - annualized Sharpe ({label})')
+        ax.set_xlabel('Sharpe'); ax.set_ylabel('freq')
+        ax.grid(alpha=0.3); ax.legend(fontsize=8, loc='upper right')
+    plt.tight_layout(); plt.show()"""
+
+S3_MC_PLOT = """# Bootstrap final-PnL + annualized-Sharpe distributions (unfiltered).
+if not combined_raw.empty:
+    pnl_by_sizing = [(label, combined_raw['actual_pnl'].to_numpy() * scale)
+                     for label, scale in SIZINGS]
+    _mc_plot_grid('unfiltered', pnl_by_sizing, YEARS_SPAN)
+else:
+    print('No trades.')"""
+
+S6_MC_PLOT = """# Bootstrap final-PnL + annualized-Sharpe distributions (ML2).
+pnl_by_sizing = [(label, df['pnl_dollars'].to_numpy())
+                 for label, df in ml2_portfolio.items()]
+_mc_plot_grid('ML2', pnl_by_sizing, YEARS_SPAN)"""
 
 
 # ─── Section 4 / 5 / 6 (ML2) ─────────────────────────────────────────────────
@@ -454,7 +523,8 @@ S6_MC = """rows = []
 for label, df in ml2_portfolio.items():
     if df.empty:
         rows.append({'sizing': label, 'n_trades': 0}); continue
-    rows.append({'sizing': label, **monte_carlo(df['pnl_dollars'].to_numpy())})
+    rows.append({'sizing': label,
+                 **monte_carlo(df['pnl_dollars'].to_numpy(), YEARS_SPAN)})
 mc_ml2 = pd.DataFrame(rows)
 mc_ml2"""
 
@@ -476,6 +546,7 @@ def build_performance() -> nbf.NotebookNode:
             "5. Combined portfolio with ML#2\n"
             "6. Monte Carlo on combined ML#2", "intro"),
         _code(SETUP_IMPORTS, "setup"),
+        _code(MC_PLOT_HELPER, "mc-plot-helper"),
         _code(RUN_UNFILTERED, "run-unfiltered"),
         _code(RUN_ML2, "run-ml2"),
         _md("## 1) Individual (unfiltered)", "s1-md"),
@@ -488,6 +559,7 @@ def build_performance() -> nbf.NotebookNode:
         _code(S2_DD, "s2-dd"),
         _md("## 3) Monte Carlo on combined (unfiltered)", "s3-md"),
         _code(S3_MC, "s3-mc"),
+        _code(S3_MC_PLOT, "s3-mc-plot"),
         _md("## 4) Individual with ML#2 (V3 filter)", "s4-md"),
         _code(S4_PERF, "s4-perf"),
         _code(S4_EQUITY, "s4-equity"),
@@ -498,6 +570,7 @@ def build_performance() -> nbf.NotebookNode:
         _code(S5_DD, "s5-dd"),
         _md("## 6) Monte Carlo on combined ML#2", "s6-md"),
         _code(S6_MC, "s6-mc"),
+        _code(S6_MC_PLOT, "s6-mc-plot"),
     ]
     return nb
 
