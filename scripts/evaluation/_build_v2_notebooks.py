@@ -310,10 +310,15 @@ OUTPUTS = [s["filename"] for s in SECTIONS]
 
 
 def main() -> None:
+    gross_dir = EVAL / "v10_topk"
+    net_dir = EVAL / "v10_topk_net"
+    gross_dir.mkdir(parents=True, exist_ok=True)
+    net_dir.mkdir(parents=True, exist_ok=True)
+
     # Gross notebooks (no friction)
     for section in SECTIONS:
         nb = build_section(section, SETUP)
-        path = EVAL / section["filename"]
+        path = gross_dir / section["filename"]
         nbf.write(nb, str(path))
         print(f"Wrote {path}")
 
@@ -323,7 +328,7 @@ def main() -> None:
         nb = build_section(section, SETUP_NET,
                            title_suffix=" — net of costs",
                            body_suffix=NET_COST_BANNER)
-        path = EVAL / net_name
+        path = net_dir / net_name
         nbf.write(nb, str(path))
         print(f"Wrote {path}")
 

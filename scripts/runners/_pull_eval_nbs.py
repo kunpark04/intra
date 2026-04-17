@@ -14,18 +14,18 @@ REMOTE_DIR = "/root/intra"
 REPO = Path(__file__).resolve().parent.parent.parent
 
 FILES = [
-    "evaluation/s1_individual.ipynb",
-    "evaluation/s2_combined.ipynb",
-    "evaluation/s3_mc_combined.ipynb",
-    "evaluation/s4_individual_ml2.ipynb",
-    "evaluation/s5_combined_ml2.ipynb",
-    "evaluation/s6_mc_combined_ml2.ipynb",
-    "evaluation/s1_individual_net.ipynb",
-    "evaluation/s2_combined_net.ipynb",
-    "evaluation/s3_mc_combined_net.ipynb",
-    "evaluation/s4_individual_ml2_net.ipynb",
-    "evaluation/s5_combined_ml2_net.ipynb",
-    "evaluation/s6_mc_combined_ml2_net.ipynb",
+    "evaluation/v10_topk/s1_individual.ipynb",
+    "evaluation/v10_topk/s2_combined.ipynb",
+    "evaluation/v10_topk/s3_mc_combined.ipynb",
+    "evaluation/v10_topk/s4_individual_ml2.ipynb",
+    "evaluation/v10_topk/s5_combined_ml2.ipynb",
+    "evaluation/v10_topk/s6_mc_combined_ml2.ipynb",
+    "evaluation/v10_topk_net/s1_individual_net.ipynb",
+    "evaluation/v10_topk_net/s2_combined_net.ipynb",
+    "evaluation/v10_topk_net/s3_mc_combined_net.ipynb",
+    "evaluation/v10_topk_net/s4_individual_ml2_net.ipynb",
+    "evaluation/v10_topk_net/s5_combined_ml2_net.ipynb",
+    "evaluation/v10_topk_net/s6_mc_combined_ml2_net.ipynb",
     "evaluation/top_trade_log.xlsx",
 ]
 
