@@ -8,9 +8,14 @@ Section layout:
   5) combined with ML2       (event-driven portfolio of V3-filtered trades)
   6) Monte Carlo on combined ML2
 
-Both $500-fixed and $2500 (5% of starting equity) sizing policies are shown.
-Sharpe is annualized by `sqrt(trades_per_year)` using the test-partition span,
-applied consistently across every section.
+Two sizing policies are compared:
+  - fixed_dollars_500: risk $500 on every trade, forever.
+  - pct5_compound:     risk 5% of *current* equity on every trade.
+                       Starts at $2,500 (=5% of $50k) and compounds trade-by-trade.
+
+Every plot is its own cell, and every plot cell is rendered once per policy
+(separate cells — no side-by-side). Sharpe is annualized by sqrt(trades_per_year)
+from the test-partition span, applied consistently across every section.
 
 The full trade log is produced separately by `build_trade_log_xlsx.py` as an
 Excel workbook (`evaluation/top_trade_log.xlsx`).
@@ -54,15 +59,23 @@ def _code(src: str, cid: str) -> nbf.NotebookNode:
 
 # ─── Shared setup ────────────────────────────────────────────────────────────
 
-SETUP_IMPORTS = """%matplotlib inline
-import importlib.util
+SETUP_IMPORTS = """import importlib.util
 import json
 import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # headless; we render explicitly via IPython.display
 import matplotlib.pyplot as plt
+from IPython.display import display
+
+def show(fig):
+    '''Render a matplotlib Figure as an image output cell, then close it.
+    Used in place of plt.show() because nbclient + inline backend is unreliable
+    across package combos; display(fig) always produces image/png output.'''
+    display(fig); plt.close(fig)
 
 REPO = Path.cwd().resolve()
 while not (REPO / 'src').exists() and REPO.parent != REPO:
@@ -82,16 +95,41 @@ _spec.loader.exec_module(v3eval)
 
 TOP_STRATEGIES_PATH = REPO / 'evaluation' / 'top_strategies.json'
 STARTING_EQUITY = 50_000.0
-SIZINGS = [('fixed_dollars_500', 1.0), ('fixed5_2500', 5.0)]
+RISK_FRAC = 0.05  # 5% of current equity per trade under pct5_compound
+POLICIES = ['fixed_dollars_500', 'pct5_compound']
+
+
+def apply_sizing(pnl_base, risk_base, policy, equity0=STARTING_EQUITY):
+    '''Return per-trade dollar PnL (ordered) under the named sizing policy.
+
+    Inputs are the $500-fixed baseline series:
+      - pnl_base[t]:  realized $PnL for trade t at fixed-$500 sizing
+      - risk_base[t]: realized $ at risk for trade t at fixed-$500 sizing
+                     (= contracts_500 * sl_pts * DOLLARS_PER_POINT)
+
+    Define the policy-invariant r-multiple r_t = pnl_base/risk_base. Then:
+      - fixed_dollars_500: pnl_t = pnl_base[t] (unchanged)
+      - pct5_compound:    eq_{t+1} = eq_t * (1 + RISK_FRAC * r_t), starting
+                          eq_0 = equity0; pnl_t = eq_{t+1} - eq_t.
+    '''
+    pnl = np.asarray(pnl_base, dtype=float)
+    risk = np.asarray(risk_base, dtype=float)
+    if policy == 'fixed_dollars_500':
+        return pnl
+    if policy != 'pct5_compound':
+        raise ValueError(f'unknown policy: {policy}')
+    r = np.where(risk > 0, pnl / risk, 0.0)
+    equity = equity0 * np.cumprod(1.0 + RISK_FRAC * r)
+    return np.diff(np.concatenate([[equity0], equity]))
 
 
 def metrics_from_pnl(pnl, years_span, start_equity=STARTING_EQUITY):
-    '''Headline metrics for a trade-PnL series.
+    '''Headline metrics for a per-trade dollar-PnL series.
 
     Sharpe is annualized: sharpe = (mean/std) * sqrt(trades_per_year), where
-    trades_per_year = len(pnl) / years_span. This matches the standard
-    convention for per-trade PnL under an i.i.d. assumption and is consistent
-    across Sections 1/2/4/5.
+    trades_per_year = len(pnl) / years_span. The input `pnl` is the
+    policy-adjusted series (from apply_sizing), so this works for both
+    fixed-$500 and pct5_compound consistently.
     '''
     p = np.asarray(pnl, dtype=float)
     n = len(p)
@@ -118,40 +156,76 @@ def metrics_from_pnl(pnl, years_span, start_equity=STARTING_EQUITY):
                 max_drawdown_dollars=round(dd_d, 2))
 
 
-def monte_carlo(pnl, years_span, start_equity=STARTING_EQUITY, n_sims=10_000, seed=42):
-    '''IID bootstrap MC on a PnL series. Returns DD percentiles + VaR/CVaR +
-    risk-of-ruin (>=50% DD) + annualized Sharpe CI + permutation-test on WR.
+def _mc_policy_samples(pnl_base, risk_base, policy, n_sims=10_000, seed=42,
+                       start_equity=STARTING_EQUITY):
+    '''Bootstrap resample the trade-order and return per-sim per-trade $PnL
+    under `policy`. For fixed_dollars_500 we resample pnl_base directly; for
+    pct5_compound we resample r-multiples and compound from start_equity.
 
-    Annualized Sharpe per resample: (mean/std)*sqrt(trades_per_year) where
-    trades_per_year = n / years_span. Matches metrics_from_pnl convention.
+    Returns: samples_pnl (n_sims, n), equity_paths (n_sims, n+1) where path
+    column 0 is start_equity.
     '''
     rng = np.random.default_rng(seed)
-    p = np.asarray(pnl, dtype=float)
-    n = len(p)
+    pnl = np.asarray(pnl_base, dtype=float)
+    risk = np.asarray(risk_base, dtype=float)
+    n = len(pnl)
+    if n == 0:
+        return np.empty((0, 0)), np.empty((0, 0))
+    idx = rng.integers(0, n, size=(n_sims, n))
+    if policy == 'fixed_dollars_500':
+        samples_pnl = pnl[idx]
+    elif policy == 'pct5_compound':
+        r = np.where(risk > 0, pnl / risk, 0.0)
+        r_samples = r[idx]
+        growth = 1.0 + RISK_FRAC * r_samples
+        equity = start_equity * np.cumprod(growth, axis=1)
+        samples_pnl = np.diff(np.concatenate(
+            [np.full((n_sims, 1), start_equity), equity], axis=1))
+    else:
+        raise ValueError(f'unknown policy: {policy}')
+    equity_paths = np.concatenate(
+        [np.full((n_sims, 1), start_equity),
+         start_equity + np.cumsum(samples_pnl, axis=1)], axis=1)
+    return samples_pnl, equity_paths
+
+
+def monte_carlo(pnl_base, risk_base, policy, years_span,
+                start_equity=STARTING_EQUITY, n_sims=10_000, seed=42):
+    '''IID bootstrap MC on a trade sequence under `policy`. Returns DD
+    percentiles + VaR/CVaR + risk-of-ruin (>=50% DD) + annualized Sharpe CI.
+
+    For fixed_dollars_500: resample dollar-PnL directly.
+    For pct5_compound:    resample r-multiples, compound with RISK_FRAC.
+
+    Sharpe is computed on per-trade dollar PnL (under the applied policy),
+    annualized by sqrt(trades_per_year). VaR/CVaR are on the single-trade
+    dollar-PnL distribution under the applied policy (so they also compound
+    for pct5 sims — we report the p5 across all per-sim-per-trade PnLs).
+    '''
+    pnl = np.asarray(pnl_base, dtype=float)
+    n = len(pnl)
     if n == 0:
         return {'n_sims': n_sims, 'n_trades': 0, 'note': 'empty'}
-    idx = rng.integers(0, n, size=(n_sims, n))
-    samples = p[idx]
-    equity = start_equity + np.cumsum(samples, axis=1)
-    equity = np.concatenate([np.full((n_sims, 1), start_equity), equity], axis=1)
-    peak = np.maximum.accumulate(equity, axis=1)
-    dd_pct = np.nan_to_num((peak - equity) / peak, nan=0.0).max(axis=1) * 100
-    # Annualized Sharpe per resample (i.i.d. assumption).
+    samples_pnl, equity_paths = _mc_policy_samples(
+        pnl, risk_base, policy, n_sims=n_sims, seed=seed,
+        start_equity=start_equity)
+    peak = np.maximum.accumulate(equity_paths, axis=1)
+    dd_pct = np.nan_to_num((peak - equity_paths) / peak, nan=0.0).max(axis=1) * 100
     tpy = n / years_span if years_span > 0 else 0.0
-    mu = samples.mean(axis=1)
-    sig = samples.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
+    mu = samples_pnl.mean(axis=1)
+    sig = samples_pnl.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
     sharpe_boot = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)
-    var5 = float(np.percentile(p, 5))
-    tail = p[p <= var5]
-    cvar = float(tail.mean()) if len(tail) else var5
-    wr = float((p > 0).mean())
-    boot_wr = (samples > 0).mean(axis=1)
-    wr_ci = (float(np.percentile(boot_wr, 2.5)), float(np.percentile(boot_wr, 97.5)))
+    # Trade-level VaR under policy: take the p5 of all resampled per-trade PnLs.
+    var5 = float(np.percentile(samples_pnl.reshape(-1), 5))
+    tail = samples_pnl[samples_pnl <= var5]
+    cvar = float(tail.mean()) if tail.size else var5
+    wins = (samples_pnl > 0).mean(axis=1)
+    wr_ci = (float(np.percentile(wins, 2.5)), float(np.percentile(wins, 97.5)))
     sharpe_ci = (float(np.percentile(sharpe_boot, 2.5)),
                  float(np.percentile(sharpe_boot, 97.5)))
     return {
         'n_sims': n_sims, 'n_trades': int(n),
-        'win_rate': round(wr, 4),
+        'win_rate': round(float(wins.mean()), 4),
         'wr_ci_95': (round(wr_ci[0], 4), round(wr_ci[1], 4)),
         'sharpe_p50': round(float(np.percentile(sharpe_boot, 50)), 4),
         'sharpe_ci_95': (round(sharpe_ci[0], 4), round(sharpe_ci[1], 4)),
@@ -166,6 +240,7 @@ def monte_carlo(pnl, years_span, start_equity=STARTING_EQUITY, n_sims=10_000, se
         'risk_of_ruin_50pct_dd': round(float((dd_pct >= 50.0).mean()), 4),
     }
 """
+
 
 RUN_UNFILTERED = """payload = json.loads(TOP_STRATEGIES_PATH.read_text())
 strategies = payload['top']
@@ -186,266 +261,455 @@ for s in strategies:
     results_raw.append(run_strategy(s, bars=bars))
 print('Done (unfiltered).')"""
 
-RUN_ML2 = """import lightgbm as lgb
+
+RUN_ML2 = """import lightgbm as lgb, pickle
 print('Loading V3 booster + calibrators...')
 _v3inf = v3eval.v3inf
 booster = lgb.Booster(model_file=str(_v3inf.V3_BOOSTER))
 simple_cals = _v3inf._load_calibrators()
 two_stage = _v3inf._load_per_combo_calibrators()
 
-print('\\nBuilding V3-filtered trades per combo (may take a few minutes)...')
 combo_ids = [s['global_combo_id'] for s in strategies]
-combos_ml2 = []
-for gcid in combo_ids:
-    print(f'  {gcid}...', flush=True)
+
+# Cache ML2 per-combo trades. Key = (version, booster mtime, sorted combo_ids).
+# combos_ml2 is a deterministic function of (booster, calibrators, combo params,
+# test bars); since the test bars grow via update_bars_yfinance.py, include the
+# test-partition end time too so appending bars invalidates the cache.
+_ML2_CACHE_VERSION = 'v1'
+_ML2_CACHE = REPO / 'evaluation' / '_ml2_cache.pkl'
+_cache_key = (
+    _ML2_CACHE_VERSION,
+    Path(_v3inf.V3_BOOSTER).stat().st_mtime_ns,
+    str(bars['time'].iloc[-1]),
+    tuple(sorted(combo_ids)),
+)
+
+combos_ml2 = None
+if _ML2_CACHE.exists():
     try:
-        c = v3eval.build_combo_trades_test(gcid, booster, simple_cals, two_stage)
-        print(f'    n_trades={c.get("n_trades", 0)}  rr={c.get("rr", float("nan")):.2f}')
+        with open(_ML2_CACHE, 'rb') as f:
+            blob = pickle.load(f)
+        if blob.get('key') == _cache_key:
+            combos_ml2 = blob['combos_ml2']
+            print(f'Loaded combos_ml2 from cache: {_ML2_CACHE.name} '
+                  f'({len(combos_ml2)} combos).')
+        else:
+            print(f'Cache {_ML2_CACHE.name} is stale; rebuilding.')
     except Exception as e:
-        c = {'combo_id': gcid, 'error': str(e)}
-        print(f'    ERROR: {e}')
-    combos_ml2.append(c)
+        print(f'Cache read failed ({e!r}); rebuilding.')
+
+if combos_ml2 is None:
+    print('\\nBuilding V3-filtered trades per combo (may take a few minutes)...')
+    combos_ml2 = []
+    for gcid in combo_ids:
+        print(f'  {gcid}...', flush=True)
+        try:
+            c = v3eval.build_combo_trades_test(gcid, booster, simple_cals, two_stage)
+            print(f'    n_trades={c.get("n_trades", 0)}  '
+                  f'rr={c.get("rr", float("nan")):.2f}')
+        except Exception as e:
+            c = {'combo_id': gcid, 'error': str(e)}
+            print(f'    ERROR: {e}')
+        combos_ml2.append(c)
+    _ML2_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    with open(_ML2_CACHE, 'wb') as f:
+        pickle.dump({'key': _cache_key, 'combos_ml2': combos_ml2}, f)
+    print(f'Wrote cache -> {_ML2_CACHE.name}')
 print('Done (ML2).')"""
+
+
+# ─── Plot helpers ────────────────────────────────────────────────────────────
+#
+# Every plot helper takes a `policy` string (one of POLICIES) and internally
+# calls apply_sizing / _mc_policy_samples. Each helper returns no value; it
+# builds a single Figure and renders it via show(fig).
+
+PLOT_HELPERS = """_FIG_W, _FIG_H = 9, 4.5
+_MC_SIM_PATHS = 200  # number of overlaid equity paths in plot_mc_sims
+
+
+def _combo_base_pnl(trades):
+    '''Per-trade ($500-fixed baseline) PnL and $-at-risk from the unfiltered
+    composed_strategy_runner trade log. Trades are assumed already sorted by
+    date upstream; we sort defensively here too.'''
+    if trades.empty:
+        return np.array([]), np.array([]), np.array([], dtype='datetime64[ns]')
+    t = trades.sort_values('date', kind='mergesort')
+    pnl = t['actual_pnl'].to_numpy(dtype=float)
+    risk = t['dollar_risk'].to_numpy(dtype=float)
+    times = t['date'].to_numpy()
+    return pnl, risk, times
+
+
+def _equity_curve(pnl_policy, start_equity=STARTING_EQUITY):
+    return start_equity + np.cumsum(pnl_policy)
+
+
+def _drawdown_curve(pnl_policy, start_equity=STARTING_EQUITY):
+    eq_full = np.concatenate([[start_equity], start_equity + np.cumsum(pnl_policy)])
+    peak = np.maximum.accumulate(eq_full)
+    return (peak - eq_full) / peak * 100
+
+
+def plot_indiv_equity(results, policy):
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    for r in results:
+        if r['trades'].empty:
+            continue
+        pnl_base, risk_base, times = _combo_base_pnl(r['trades'])
+        pnl = apply_sizing(pnl_base, risk_base, policy)
+        ax.plot(times, _equity_curve(pnl), linewidth=1.0, alpha=0.85,
+                label=r['combo_id'])
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8,
+               alpha=0.6)
+    ax.set_title(f'individual unfiltered - equity ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=8, loc='upper left', ncol=2)
+    fig.tight_layout(); show(fig)
+
+
+def plot_indiv_dd(results, policy):
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    for r in results:
+        if r['trades'].empty:
+            continue
+        pnl_base, risk_base, times = _combo_base_pnl(r['trades'])
+        pnl = apply_sizing(pnl_base, risk_base, policy)
+        dd = _drawdown_curve(pnl)
+        t_full = np.concatenate([[times[0]], times]) if len(times) else times
+        ax.plot(t_full, dd, linewidth=1.0, alpha=0.85, label=r['combo_id'])
+    ax.invert_yaxis()
+    ax.set_title(f'individual unfiltered - drawdown ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=8, loc='lower left', ncol=2)
+    fig.tight_layout(); show(fig)
+
+
+def plot_combined_equity(df, policy):
+    '''df: combined_raw with actual_pnl + dollar_risk + date columns.'''
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    if df.empty:
+        ax.set_title(f'combined unfiltered - {policy} (no trades)')
+        fig.tight_layout(); show(fig); return
+    pnl_base = df['actual_pnl'].to_numpy(dtype=float)
+    risk_base = df['dollar_risk'].to_numpy(dtype=float)
+    pnl = apply_sizing(pnl_base, risk_base, policy)
+    ax.plot(df['date'], _equity_curve(pnl), linewidth=1.3)
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8,
+               alpha=0.6)
+    ax.set_title(f'combined unfiltered - equity ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+    fig.tight_layout(); show(fig)
+
+
+def plot_combined_dd(df, policy, bars):
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    if df.empty:
+        ax.set_title(f'combined unfiltered - {policy} (no trades)')
+        fig.tight_layout(); show(fig); return
+    pnl_base = df['actual_pnl'].to_numpy(dtype=float)
+    risk_base = df['dollar_risk'].to_numpy(dtype=float)
+    pnl = apply_sizing(pnl_base, risk_base, policy)
+    dd = _drawdown_curve(pnl)
+    times = pd.concat([pd.Series([bars['time'].iloc[0]]),
+                       pd.Series(df['date'].values)]).reset_index(drop=True)
+    ax.plot(times, dd, linewidth=1.3, color='#d62728')
+    ax.invert_yaxis()
+    ax.set_title(f'combined unfiltered - drawdown ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+    fig.tight_layout(); show(fig)
+
+
+def plot_ml2_indiv_equity(s4_pnl_by_combo, bars, policy):
+    '''s4_pnl_by_combo[cid][policy] = (pnl_policy, exit_bars).'''
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    for cid, by_pol in s4_pnl_by_combo.items():
+        pnl, exit_bars = by_pol.get(policy, (np.array([]), np.array([])))
+        if len(pnl) == 0:
+            continue
+        times = pd.to_datetime(bars['time'].to_numpy()[exit_bars])
+        ax.plot(times, _equity_curve(pnl), linewidth=1.0, alpha=0.85, label=cid)
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8,
+               alpha=0.6)
+    ax.set_title(f'individual ML2-filtered - equity ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=8, loc='upper left', ncol=2)
+    fig.tight_layout(); show(fig)
+
+
+def plot_ml2_indiv_dd(s4_pnl_by_combo, bars, policy):
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    for cid, by_pol in s4_pnl_by_combo.items():
+        pnl, exit_bars = by_pol.get(policy, (np.array([]), np.array([])))
+        if len(pnl) == 0:
+            continue
+        times = pd.to_datetime(bars['time'].to_numpy()[exit_bars])
+        dd = _drawdown_curve(pnl)
+        t0 = times.min() if len(times) else pd.to_datetime(bars['time'].iloc[0])
+        t_full = pd.concat([pd.Series([t0]), pd.Series(times)]).reset_index(drop=True)
+        ax.plot(t_full, dd, linewidth=1.0, alpha=0.85, label=cid)
+    ax.invert_yaxis()
+    ax.set_title(f'individual ML2-filtered - drawdown ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=8, loc='lower left', ncol=2)
+    fig.tight_layout(); show(fig)
+
+
+def plot_ml2_combined_equity(df, policy):
+    '''df: ml2_portfolio[policy] with exit_time + equity_after columns.'''
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    if df.empty:
+        ax.set_title(f'ML2 combined portfolio - {policy} (no trades)')
+        fig.tight_layout(); show(fig); return
+    ax.plot(df['exit_time'], df['equity_after'], linewidth=1.3, color='#1f77b4')
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8,
+               alpha=0.6)
+    ax.set_title(f'ML2 combined portfolio - equity ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+    fig.tight_layout(); show(fig)
+
+
+def plot_ml2_combined_dd(df, bars, policy):
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    if df.empty:
+        ax.set_title(f'ML2 combined portfolio - {policy} (no trades)')
+        fig.tight_layout(); show(fig); return
+    eq_full = np.concatenate([[STARTING_EQUITY], df['equity_after'].to_numpy()])
+    peak = np.maximum.accumulate(eq_full)
+    dd = (peak - eq_full) / peak * 100
+    times = pd.concat([pd.Series([bars['time'].iloc[0]]),
+                       pd.Series(df['exit_time'].values)]).reset_index(drop=True)
+    ax.plot(times, dd, linewidth=1.3, color='#d62728')
+    ax.invert_yaxis()
+    ax.set_title(f'ML2 combined portfolio - drawdown ({policy})')
+    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
+    fig.tight_layout(); show(fig)
+
+
+# ── Monte-Carlo plot helpers ────────────────────────────────────────────────
+# All accept a DataFrame (`df`) with columns `actual_pnl` + `dollar_risk` as
+# the trade source, plus a `policy` and a `title_prefix` for the title text.
+
+def _mc_source(df):
+    if df.empty:
+        return np.array([]), np.array([])
+    return (df['actual_pnl'].to_numpy(dtype=float),
+            df['dollar_risk'].to_numpy(dtype=float))
+
+
+def plot_mc_sims(df, policy, title_prefix, years_span, n_paths=_MC_SIM_PATHS):
+    '''Overlay of ~n_paths bootstrapped equity trajectories under `policy`.'''
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    pnl_base, risk_base = _mc_source(df)
+    if len(pnl_base) == 0:
+        ax.set_title(f'{title_prefix} MC - equity paths ({policy}) no trades')
+        fig.tight_layout(); show(fig); return
+    _, equity_paths = _mc_policy_samples(
+        pnl_base, risk_base, policy, n_sims=n_paths, seed=42)
+    trade_axis = np.arange(equity_paths.shape[1])
+    for path in equity_paths:
+        ax.plot(trade_axis, path, linewidth=0.5, alpha=0.25, color='#1f77b4')
+    ax.plot(trade_axis, np.median(equity_paths, axis=0), linewidth=1.5,
+            color='#b2182b', label='median path')
+    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8,
+               alpha=0.6)
+    ax.set_title(f'{title_prefix} MC - {n_paths} equity paths ({policy})')
+    ax.set_xlabel('trade #'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
+    ax.legend(fontsize=9, loc='upper left')
+    fig.tight_layout(); show(fig)
+
+
+def _hist_with_markers(ax, values, fmt):
+    ax.hist(values, bins=60, color='#6a8cbb', alpha=0.85, edgecolor='white')
+    ax.axvline(0, color='k', linewidth=0.8, alpha=0.6)
+    for pct, colour, ls in [(2.5, '#b2182b', ':'), (50, '#1a9850', '--'),
+                            (97.5, '#b2182b', ':')]:
+        v = np.percentile(values, pct)
+        ax.axvline(v, color=colour, linestyle=ls, linewidth=1.2,
+                   label=f'p{pct:g}={fmt(v)}')
+
+
+def plot_mc_pnl(df, policy, title_prefix, years_span):
+    '''Histogram of final-equity-minus-start under `policy`.'''
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    pnl_base, risk_base = _mc_source(df)
+    if len(pnl_base) == 0:
+        ax.set_title(f'{title_prefix} MC - final PnL ({policy}) no trades')
+        fig.tight_layout(); show(fig); return
+    _, equity_paths = _mc_policy_samples(
+        pnl_base, risk_base, policy, n_sims=10_000, seed=42)
+    final_pnl = equity_paths[:, -1] - STARTING_EQUITY
+    _hist_with_markers(ax, final_pnl, lambda v: f'${v:,.0f}')
+    ax.set_title(f'{title_prefix} MC - final PnL ({policy})')
+    ax.set_xlabel('final PnL ($)'); ax.set_ylabel('freq')
+    ax.grid(alpha=0.3); ax.legend(fontsize=9, loc='upper right')
+    fig.tight_layout(); show(fig)
+
+
+def plot_mc_sharpe(df, policy, title_prefix, years_span):
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    pnl_base, risk_base = _mc_source(df)
+    if len(pnl_base) == 0:
+        ax.set_title(f'{title_prefix} MC - Sharpe ({policy}) no trades')
+        fig.tight_layout(); show(fig); return
+    samples_pnl, _ = _mc_policy_samples(
+        pnl_base, risk_base, policy, n_sims=10_000, seed=42)
+    n = samples_pnl.shape[1]
+    tpy = n / years_span if years_span > 0 else 0.0
+    mu = samples_pnl.mean(axis=1)
+    sig = samples_pnl.std(axis=1, ddof=1) if n > 1 else np.zeros(samples_pnl.shape[0])
+    sharpe = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)
+    ax.hist(sharpe, bins=60, color='#d48c6a', alpha=0.85, edgecolor='white')
+    ax.axvline(0, color='k', linewidth=0.8, alpha=0.6)
+    for pct, colour, ls in [(2.5, '#b2182b', ':'), (50, '#1a9850', '--'),
+                            (97.5, '#b2182b', ':')]:
+        v = np.percentile(sharpe, pct)
+        ax.axvline(v, color=colour, linestyle=ls, linewidth=1.2,
+                   label=f'p{pct:g}={v:.2f}')
+    ax.set_title(f'{title_prefix} MC - annualized Sharpe ({policy})')
+    ax.set_xlabel('Sharpe'); ax.set_ylabel('freq')
+    ax.grid(alpha=0.3); ax.legend(fontsize=9, loc='upper right')
+    fig.tight_layout(); show(fig)
+
+
+def plot_mc_dd(df, policy, title_prefix, years_span):
+    fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
+    pnl_base, risk_base = _mc_source(df)
+    if len(pnl_base) == 0:
+        ax.set_title(f'{title_prefix} MC - max drawdown ({policy}) no trades')
+        fig.tight_layout(); show(fig); return
+    _, equity_paths = _mc_policy_samples(
+        pnl_base, risk_base, policy, n_sims=10_000, seed=42)
+    peak = np.maximum.accumulate(equity_paths, axis=1)
+    dd_pct = np.nan_to_num((peak - equity_paths) / peak, nan=0.0).max(axis=1) * 100
+    ax.hist(dd_pct, bins=60, color='#c49a6c', alpha=0.85, edgecolor='white')
+    for pct, colour, ls in [(50, '#1a9850', '--'), (90, '#fc8d59', ':'),
+                            (95, '#b2182b', ':'), (99, '#67000d', ':')]:
+        v = np.percentile(dd_pct, pct)
+        ax.axvline(v, color=colour, linestyle=ls, linewidth=1.2,
+                   label=f'p{pct:g}={v:.2f}%')
+    ax.set_title(f'{title_prefix} MC - max drawdown ({policy})')
+    ax.set_xlabel('max drawdown (%)'); ax.set_ylabel('freq')
+    ax.grid(alpha=0.3); ax.legend(fontsize=9, loc='upper right')
+    fig.tight_layout(); show(fig)"""
 
 
 # ─── Section 1 / 2 / 3 (unfiltered) ──────────────────────────────────────────
 
 S1_PERF = """rows = []
 for r in results_raw:
-    pnl = r['trades']['actual_pnl'].to_numpy() if not r['trades'].empty else np.array([])
-    for label, scale in SIZINGS:
-        m = metrics_from_pnl(pnl * scale, YEARS_SPAN)
-        rows.append({'combo_id': r['combo_id'], 'sizing': label, **m})
+    if r['trades'].empty:
+        for policy in POLICIES:
+            rows.append({'combo_id': r['combo_id'], 'policy': policy,
+                         **metrics_from_pnl(np.array([]), YEARS_SPAN)})
+        continue
+    t = r['trades'].sort_values('date', kind='mergesort')
+    pnl_base = t['actual_pnl'].to_numpy(dtype=float)
+    risk_base = t['dollar_risk'].to_numpy(dtype=float)
+    for policy in POLICIES:
+        pnl = apply_sizing(pnl_base, risk_base, policy)
+        rows.append({'combo_id': r['combo_id'], 'policy': policy,
+                     **metrics_from_pnl(pnl, YEARS_SPAN)})
 perf1 = pd.DataFrame(rows)
 perf1"""
 
-S1_EQUITY = """# Per-combo equity curves (overlaid).
-fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-for ax, (label, scale) in zip(axes, SIZINGS):
-    for r in results_raw:
-        if r['trades'].empty:
-            continue
-        t = r['trades'].sort_values('date')
-        pnl = t['actual_pnl'].to_numpy() * scale
-        eq = STARTING_EQUITY + np.cumsum(pnl)
-        ax.plot(t['date'], eq, linewidth=1.0, alpha=0.85, label=r['combo_id'])
-    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
-    ax.set_title(f'individual unfiltered - equity ({label})')
-    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
-    ax.legend(fontsize=7, loc='upper left', ncol=2)
-plt.tight_layout(); plt.show()"""
-
-S1_DD = """# Per-combo drawdown curves (overlaid).
-fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-for ax, (label, scale) in zip(axes, SIZINGS):
-    for r in results_raw:
-        if r['trades'].empty:
-            continue
-        t = r['trades'].sort_values('date')
-        pnl = t['actual_pnl'].to_numpy() * scale
-        eq_full = np.concatenate([[STARTING_EQUITY], STARTING_EQUITY + np.cumsum(pnl)])
-        peak = np.maximum.accumulate(eq_full)
-        dd = (peak - eq_full) / peak * 100
-        times = pd.concat([pd.Series([t['date'].iloc[0]]),
-                           pd.Series(t['date'].values)]).reset_index(drop=True)
-        ax.plot(times, dd, linewidth=1.0, alpha=0.85, label=r['combo_id'])
-    ax.invert_yaxis()
-    ax.set_title(f'individual unfiltered - drawdown ({label})')
-    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
-    ax.legend(fontsize=7, loc='lower left', ncol=2)
-plt.tight_layout(); plt.show()"""
 
 S2_COMBINED_BUILD = """frames = []
 for r in results_raw:
     if r['trades'].empty:
         continue
-    t = r['trades'][['date', 'actual_pnl']].copy()
+    t = r['trades'][['date', 'actual_pnl', 'dollar_risk']].copy()
     t.insert(0, 'combo_id', r['combo_id'])
     frames.append(t)
 combined_raw = (pd.concat(frames, ignore_index=True)
                 .sort_values('date', kind='mergesort')
                 .reset_index(drop=True)
-                if frames else pd.DataFrame())
+                if frames else pd.DataFrame(
+                    columns=['combo_id', 'date', 'actual_pnl', 'dollar_risk']))
 print(f'Combined unfiltered trades: {len(combined_raw):,}')
 rows = []
-for label, scale in SIZINGS:
-    pnl = combined_raw['actual_pnl'].to_numpy() * scale if not combined_raw.empty else np.array([])
-    rows.append({'sizing': label, **metrics_from_pnl(pnl, YEARS_SPAN)})
+for policy in POLICIES:
+    if combined_raw.empty:
+        rows.append({'policy': policy, **metrics_from_pnl(np.array([]), YEARS_SPAN)})
+        continue
+    pnl_base = combined_raw['actual_pnl'].to_numpy(dtype=float)
+    risk_base = combined_raw['dollar_risk'].to_numpy(dtype=float)
+    pnl = apply_sizing(pnl_base, risk_base, policy)
+    rows.append({'policy': policy, **metrics_from_pnl(pnl, YEARS_SPAN)})
 combined_table_raw = pd.DataFrame(rows)
 combined_table_raw"""
 
-S2_EQUITY = """if not combined_raw.empty:
-    fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-    for ax, (label, scale) in zip(axes, SIZINGS):
-        pnl = combined_raw['actual_pnl'].to_numpy() * scale
-        eq = STARTING_EQUITY + np.cumsum(pnl)
-        ax.plot(combined_raw['date'], eq, linewidth=1.3)
-        ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
-        ax.set_title(f'combined unfiltered - equity ({label})')
-        ax.set_xlabel('time'); ax.set_ylabel('equity ($)')
-        ax.grid(alpha=0.3)
-    plt.tight_layout(); plt.show()
-else:
-    print('No trades.')"""
-
-S2_DD = """if not combined_raw.empty:
-    fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-    for ax, (label, scale) in zip(axes, SIZINGS):
-        pnl = combined_raw['actual_pnl'].to_numpy() * scale
-        eq_full = np.concatenate([[STARTING_EQUITY], STARTING_EQUITY + np.cumsum(pnl)])
-        peak = np.maximum.accumulate(eq_full)
-        dd = (peak - eq_full) / peak * 100
-        times = pd.concat([pd.Series([bars['time'].iloc[0]]),
-                           pd.Series(combined_raw['date'].values)]).reset_index(drop=True)
-        ax.plot(times, dd, linewidth=1.3, color='#d62728')
-        ax.invert_yaxis()
-        ax.set_title(f'combined unfiltered - drawdown ({label})')
-        ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
-    plt.tight_layout(); plt.show()
-else:
-    print('No trades.')"""
 
 S3_MC = """rows = []
-if not combined_raw.empty:
-    for label, scale in SIZINGS:
-        pnl = combined_raw['actual_pnl'].to_numpy() * scale
-        rows.append({'sizing': label, **monte_carlo(pnl, YEARS_SPAN)})
+for policy in POLICIES:
+    if combined_raw.empty:
+        rows.append({'policy': policy, 'n_trades': 0})
+        continue
+    pnl_base = combined_raw['actual_pnl'].to_numpy(dtype=float)
+    risk_base = combined_raw['dollar_risk'].to_numpy(dtype=float)
+    rows.append({'policy': policy,
+                 **monte_carlo(pnl_base, risk_base, policy, YEARS_SPAN)})
 mc_raw = pd.DataFrame(rows)
 mc_raw"""
-
-# Helper shared by both MC plot cells: bootstrap final-PnL + annualized-Sharpe
-# distributions, then draw 2x2 (row=metric, col=sizing) with percentile lines.
-MC_PLOT_HELPER = """def _mc_plot_grid(title, pnl_series_per_sizing, years_span, n_sims=10_000, seed=42):
-    '''pnl_series_per_sizing: list[(label, pnl_array)].'''
-    sizings = [(lab, p) for lab, p in pnl_series_per_sizing if len(p) > 0]
-    if not sizings:
-        print('No trades.'); return
-    rng = np.random.default_rng(seed)
-    fig, axes = plt.subplots(2, len(sizings), figsize=(7 * len(sizings), 8),
-                             squeeze=False)
-    for col, (label, pnl_src) in enumerate(sizings):
-        n = len(pnl_src)
-        idx = rng.integers(0, n, size=(n_sims, n))
-        samples = pnl_src[idx]
-        final_pnl = samples.sum(axis=1)
-        tpy = n / years_span if years_span > 0 else 0.0
-        mu = samples.mean(axis=1)
-        sig = samples.std(axis=1, ddof=1) if n > 1 else np.zeros(n_sims)
-        sharpe = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)
-        # Top row: final PnL ($)
-        ax = axes[0, col]
-        ax.hist(final_pnl, bins=60, color='#6a8cbb', alpha=0.85, edgecolor='white')
-        ax.axvline(0, color='k', linewidth=0.8, alpha=0.6)
-        for pct, colour, ls in [(2.5, '#b2182b', ':'), (50, '#1a9850', '--'),
-                                (97.5, '#b2182b', ':')]:
-            v = np.percentile(final_pnl, pct)
-            ax.axvline(v, color=colour, linestyle=ls, linewidth=1.2,
-                       label=f'p{pct:g}=${v:,.0f}')
-        ax.set_title(f'{title} MC - final PnL ({label})')
-        ax.set_xlabel('final PnL ($)'); ax.set_ylabel('freq')
-        ax.grid(alpha=0.3); ax.legend(fontsize=8, loc='upper right')
-        # Bottom row: annualized Sharpe
-        ax = axes[1, col]
-        ax.hist(sharpe, bins=60, color='#d48c6a', alpha=0.85, edgecolor='white')
-        ax.axvline(0, color='k', linewidth=0.8, alpha=0.6)
-        for pct, colour, ls in [(2.5, '#b2182b', ':'), (50, '#1a9850', '--'),
-                                (97.5, '#b2182b', ':')]:
-            v = np.percentile(sharpe, pct)
-            ax.axvline(v, color=colour, linestyle=ls, linewidth=1.2,
-                       label=f'p{pct:g}={v:.2f}')
-        ax.set_title(f'{title} MC - annualized Sharpe ({label})')
-        ax.set_xlabel('Sharpe'); ax.set_ylabel('freq')
-        ax.grid(alpha=0.3); ax.legend(fontsize=8, loc='upper right')
-    plt.tight_layout(); plt.show()"""
-
-S3_MC_PLOT = """# Bootstrap final-PnL + annualized-Sharpe distributions (unfiltered).
-if not combined_raw.empty:
-    pnl_by_sizing = [(label, combined_raw['actual_pnl'].to_numpy() * scale)
-                     for label, scale in SIZINGS]
-    _mc_plot_grid('unfiltered', pnl_by_sizing, YEARS_SPAN)
-else:
-    print('No trades.')"""
-
-S6_MC_PLOT = """# Bootstrap final-PnL + annualized-Sharpe distributions (ML2).
-pnl_by_sizing = [(label, df['pnl_dollars'].to_numpy())
-                 for label, df in ml2_portfolio.items()]
-_mc_plot_grid('ML2', pnl_by_sizing, YEARS_SPAN)"""
 
 
 # ─── Section 4 / 5 / 6 (ML2) ─────────────────────────────────────────────────
 
-S4_PERF = """# Per-combo ML2-filtered PnL under fixed-$ sizing, computed locally so the
-# Sharpe annualization matches Sections 1-2-5 (via metrics_from_pnl + YEARS_SPAN).
-def _combo_pnl(c, fixed_dollars):
+S4_PERF = """# Per-combo ML2-filtered PnL under fixed-$500 baseline; then pct5_compound
+# applies apply_sizing() on top of that baseline so both policies share the
+# same integer-contract rounding at entry.
+
+def _combo_pnl_base(c):
+    '''Return (pnl_base, risk_base, exit_bars) at $500 fixed sizing.
+
+    For the $500-fixed policy: contracts = int(500 // (sl_pts * $/pt)); if
+    contracts==0 the trade is skipped. pnl_base = pts * contracts * $/pt,
+    risk_base = sl_pts * contracts * $/pt.
+    '''
     if c.get('error') or c.get('n_trades', 0) == 0:
-        return np.array([]), None
+        return (np.array([]), np.array([]), np.array([], dtype=int))
     sl = np.asarray(c['sl_pts'], dtype=float)
     pts = np.asarray(c['pnl_pts'], dtype=float)
-    contracts = (fixed_dollars // (sl * v3eval.DOLLARS_PER_POINT)).astype(int)
+    contracts = (500.0 // (sl * v3eval.DOLLARS_PER_POINT)).astype(int)
     mask = contracts > 0
-    pnl = (pts[mask] * contracts[mask] * v3eval.DOLLARS_PER_POINT).astype(float)
-    exit_bars = np.asarray(c['exit_bar'])[mask]
-    return pnl, exit_bars
+    pnl_base = (pts[mask] * contracts[mask] * v3eval.DOLLARS_PER_POINT).astype(float)
+    risk_base = (sl[mask] * contracts[mask] * v3eval.DOLLARS_PER_POINT).astype(float)
+    exit_bars = np.asarray(c['exit_bar'], dtype=int)[mask]
+    return pnl_base, risk_base, exit_bars
 
-s4_pnl_by_combo = {}  # combo_id -> {label -> (pnl, exit_bars)}
+
+s4_pnl_by_combo = {}  # combo_id -> {policy -> (pnl, exit_bars)}
 rows = []
 for c in combos_ml2:
     cid = c.get('combo_id')
     s4_pnl_by_combo[cid] = {}
-    if c.get('error') or c.get('n_trades', 0) == 0:
-        for label, _ in SIZINGS:
-            rows.append({'combo_id': cid, 'sizing': label, 'n_trades': 0,
-                         'note': c.get('error', 'no trades')})
-            s4_pnl_by_combo[cid][label] = (np.array([]), np.array([]))
+    pnl_base, risk_base, exit_bars = _combo_pnl_base(c)
+    if len(pnl_base) == 0:
+        for policy in POLICIES:
+            rows.append({'combo_id': cid, 'policy': policy,
+                         **metrics_from_pnl(np.array([]), YEARS_SPAN)})
+            s4_pnl_by_combo[cid][policy] = (np.array([]), np.array([], dtype=int))
         continue
-    for label, fixed in [('fixed_dollars_500', 500.0), ('fixed5_2500', 2500.0)]:
-        pnl, exit_bars = _combo_pnl(c, fixed)
-        s4_pnl_by_combo[cid][label] = (pnl, exit_bars)
-        rows.append({'combo_id': cid, 'sizing': label,
+    for policy in POLICIES:
+        pnl = apply_sizing(pnl_base, risk_base, policy)
+        s4_pnl_by_combo[cid][policy] = (pnl, exit_bars)
+        rows.append({'combo_id': cid, 'policy': policy,
                      **metrics_from_pnl(pnl, YEARS_SPAN)})
 perf4 = pd.DataFrame(rows)
 perf4"""
 
-S4_EQUITY = """# Per-combo ML2 equity curves (overlaid), x-axis = exit bar time.
-fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-for ax, (label, _) in zip(axes, SIZINGS):
-    for cid, by_lab in s4_pnl_by_combo.items():
-        pnl, exit_bars = by_lab.get(label, (np.array([]), np.array([])))
-        if len(pnl) == 0:
-            continue
-        times = pd.to_datetime(bars['time'].to_numpy()[exit_bars])
-        eq = STARTING_EQUITY + np.cumsum(pnl)
-        ax.plot(times, eq, linewidth=1.0, alpha=0.85, label=cid)
-    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
-    ax.set_title(f'individual ML2-filtered - equity ({label})')
-    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
-    ax.legend(fontsize=7, loc='upper left', ncol=2)
-plt.tight_layout(); plt.show()"""
 
-S4_DD = """# Per-combo ML2 drawdown curves (overlaid).
-fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-for ax, (label, _) in zip(axes, SIZINGS):
-    for cid, by_lab in s4_pnl_by_combo.items():
-        pnl, exit_bars = by_lab.get(label, (np.array([]), np.array([])))
-        if len(pnl) == 0:
-            continue
-        times = pd.to_datetime(bars['time'].to_numpy()[exit_bars])
-        eq_full = np.concatenate([[STARTING_EQUITY], STARTING_EQUITY + np.cumsum(pnl)])
-        peak = np.maximum.accumulate(eq_full)
-        dd = (peak - eq_full) / peak * 100
-        t0 = times.min() if len(times) else pd.to_datetime(bars['time'].iloc[0])
-        t_full = pd.concat([pd.Series([t0]), pd.Series(times)]).reset_index(drop=True)
-        ax.plot(t_full, dd, linewidth=1.0, alpha=0.85, label=cid)
-    ax.invert_yaxis()
-    ax.set_title(f'individual ML2-filtered - drawdown ({label})')
-    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
-    ax.legend(fontsize=7, loc='lower left', ncol=2)
-plt.tight_layout(); plt.show()"""
+S5_PORTFOLIO_BUILD = """# Event-driven portfolio simulator per policy. For fixed_dollars_500 the
+# risked-$ per trade is always $500 (contracts = int(500 // (sl*$/pt))). For
+# pct5_compound, contracts at each entry uses the live equity at that bar:
+# contracts = int((equity * RISK_FRAC) // (sl*$/pt)). A trade is skipped if
+# contracts <= 0 under the active policy.
+#
+# Each resulting DataFrame carries both `actual_pnl` (realized $) and
+# `dollar_risk` (risk at entry under the active policy) so downstream MC
+# helpers work uniformly via apply_sizing / _mc_policy_samples.
 
-S5_PORTFOLIO_BUILD = """# Event-driven portfolio per sizing (uses v3eval.simulate_portfolio).
-# Also reconstruct equity curve per sizing by replaying events inline.
-
-def _sim_with_equity_curve(combos, fixed_dollars):
+def _sim_portfolio(combos, policy):
     events = []
     for ci, c in enumerate(combos):
         if c.get('error') or c.get('n_trades', 0) == 0:
@@ -456,77 +720,116 @@ def _sim_with_equity_curve(combos, fixed_dollars):
     events.sort(key=lambda e: (e[0], -e[1]))
     equity = STARTING_EQUITY
     realized = 0.0
-    open_pos = {}
+    open_pos = {}  # (ci, ti) -> (contracts, risk_dollars)
     trade_rows = []
     for bar, kind, ci, ti in events:
         c = combos[ci]
+        sl = float(c['sl_pts'][ti])
         if kind == 0:
-            contracts = int(fixed_dollars // (c['sl_pts'][ti] * v3eval.DOLLARS_PER_POINT))
+            if policy == 'fixed_dollars_500':
+                budget = 500.0
+            elif policy == 'pct5_compound':
+                budget = equity * RISK_FRAC
+            else:
+                raise ValueError(f'unknown policy: {policy}')
+            contracts = int(budget // (sl * v3eval.DOLLARS_PER_POINT))
             if contracts <= 0:
                 continue
-            open_pos[(ci, ti)] = contracts
+            risk_dollars = sl * contracts * v3eval.DOLLARS_PER_POINT
+            open_pos[(ci, ti)] = (contracts, risk_dollars)
         else:
             key = (ci, ti)
             if key not in open_pos:
                 continue
-            contracts = open_pos.pop(key)
+            contracts, risk_dollars = open_pos.pop(key)
             pnl = c['pnl_pts'][ti] * contracts * v3eval.DOLLARS_PER_POINT
             realized += pnl
             equity = STARTING_EQUITY + realized
-            exit_time = pd.to_datetime(bars['time'].iloc[bar]) \
-                if bar < len(bars) else pd.NaT
+            exit_time = (pd.to_datetime(bars['time'].iloc[bar])
+                         if bar < len(bars) else pd.NaT)
             trade_rows.append({
-                'combo_id': c['combo_id'], 'exit_time': exit_time,
-                'pnl_dollars': pnl, 'equity_after': equity,
+                'combo_id': c['combo_id'],
+                'exit_time': exit_time,
+                'actual_pnl': pnl,
+                'dollar_risk': risk_dollars,
+                'equity_after': equity,
             })
     return pd.DataFrame(trade_rows)
 
-ml2_portfolio = {label: _sim_with_equity_curve(combos_ml2, fixed)
-                 for label, fixed in [('fixed_dollars_500', 500.0),
-                                      ('fixed5_2500', 2500.0)]}
+
+ml2_portfolio = {policy: _sim_portfolio(combos_ml2, policy) for policy in POLICIES}
 
 rows = []
-for label, df in ml2_portfolio.items():
+for policy in POLICIES:
+    df = ml2_portfolio[policy]
     if df.empty:
-        rows.append({'sizing': label, 'n_trades': 0})
-        continue
-    pnl = df['pnl_dollars'].to_numpy()
-    rows.append({'sizing': label, **metrics_from_pnl(pnl, YEARS_SPAN)})
+        rows.append({'policy': policy, 'n_trades': 0}); continue
+    rows.append({'policy': policy,
+                 **metrics_from_pnl(df['actual_pnl'].to_numpy(dtype=float),
+                                    YEARS_SPAN)})
 combined_table_ml2 = pd.DataFrame(rows)
 combined_table_ml2"""
 
-S5_EQUITY = """fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-for ax, (label, df) in zip(axes, ml2_portfolio.items()):
-    if df.empty:
-        ax.set_title(f'ML2 portfolio {label} - no trades'); continue
-    ax.plot(df['exit_time'], df['equity_after'], linewidth=1.3, color='#1f77b4')
-    ax.axhline(STARTING_EQUITY, color='gray', linestyle='--', linewidth=0.8, alpha=0.6)
-    ax.set_title(f'ML2 combined portfolio - equity ({label})')
-    ax.set_xlabel('time'); ax.set_ylabel('equity ($)'); ax.grid(alpha=0.3)
-plt.tight_layout(); plt.show()"""
-
-S5_DD = """fig, axes = plt.subplots(1, 2, figsize=(14, 4.5))
-for ax, (label, df) in zip(axes, ml2_portfolio.items()):
-    if df.empty:
-        ax.set_title(f'ML2 portfolio {label} - no trades'); continue
-    eq_full = np.concatenate([[STARTING_EQUITY], df['equity_after'].to_numpy()])
-    peak = np.maximum.accumulate(eq_full)
-    dd = (peak - eq_full) / peak * 100
-    times = pd.concat([pd.Series([bars['time'].iloc[0]]),
-                       pd.Series(df['exit_time'].values)]).reset_index(drop=True)
-    ax.plot(times, dd, linewidth=1.3, color='#d62728'); ax.invert_yaxis()
-    ax.set_title(f'ML2 combined portfolio - drawdown ({label})')
-    ax.set_xlabel('time'); ax.set_ylabel('drawdown (%)'); ax.grid(alpha=0.3)
-plt.tight_layout(); plt.show()"""
 
 S6_MC = """rows = []
-for label, df in ml2_portfolio.items():
+for policy in POLICIES:
+    df = ml2_portfolio[policy]
     if df.empty:
-        rows.append({'sizing': label, 'n_trades': 0}); continue
-    rows.append({'sizing': label,
-                 **monte_carlo(df['pnl_dollars'].to_numpy(), YEARS_SPAN)})
+        rows.append({'policy': policy, 'n_trades': 0}); continue
+    pnl_base = df['actual_pnl'].to_numpy(dtype=float)
+    risk_base = df['dollar_risk'].to_numpy(dtype=float)
+    # The portfolio trades were already realized under `policy`, so re-applying
+    # apply_sizing would double-compound. For MC consistency we bootstrap the
+    # r-multiples observed under this policy and recompound from the starting
+    # equity — i.e., we treat each policy's portfolio as the truth and explore
+    # the order sensitivity via bootstrap. policy='fixed_dollars_500' here
+    # means "bootstrap these PnLs directly"; policy='pct5_compound' means
+    # "bootstrap r and recompound". Both mirror Section 3's semantics.
+    rows.append({'policy': policy,
+                 **monte_carlo(pnl_base, risk_base, policy, YEARS_SPAN)})
 mc_ml2 = pd.DataFrame(rows)
 mc_ml2"""
+
+
+# ─── Cell-source constants for individual plot cells ────────────────────────
+
+S1_EQ_500   = "plot_indiv_equity(results_raw, 'fixed_dollars_500')"
+S1_EQ_PCT5  = "plot_indiv_equity(results_raw, 'pct5_compound')"
+S1_DD_500   = "plot_indiv_dd(results_raw, 'fixed_dollars_500')"
+S1_DD_PCT5  = "plot_indiv_dd(results_raw, 'pct5_compound')"
+
+S2_EQ_500   = "plot_combined_equity(combined_raw, 'fixed_dollars_500')"
+S2_EQ_PCT5  = "plot_combined_equity(combined_raw, 'pct5_compound')"
+S2_DD_500   = "plot_combined_dd(combined_raw, 'fixed_dollars_500', bars)"
+S2_DD_PCT5  = "plot_combined_dd(combined_raw, 'pct5_compound', bars)"
+
+S3_SIMS_500   = "plot_mc_sims(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"
+S3_SIMS_PCT5  = "plot_mc_sims(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"
+S3_PNL_500    = "plot_mc_pnl(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"
+S3_PNL_PCT5   = "plot_mc_pnl(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"
+S3_SHARPE_500 = "plot_mc_sharpe(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"
+S3_SHARPE_PCT5= "plot_mc_sharpe(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"
+S3_DD_500     = "plot_mc_dd(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"
+S3_DD_PCT5    = "plot_mc_dd(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"
+
+S4_EQ_500   = "plot_ml2_indiv_equity(s4_pnl_by_combo, bars, 'fixed_dollars_500')"
+S4_EQ_PCT5  = "plot_ml2_indiv_equity(s4_pnl_by_combo, bars, 'pct5_compound')"
+S4_DD_500   = "plot_ml2_indiv_dd(s4_pnl_by_combo, bars, 'fixed_dollars_500')"
+S4_DD_PCT5  = "plot_ml2_indiv_dd(s4_pnl_by_combo, bars, 'pct5_compound')"
+
+S5_EQ_500   = "plot_ml2_combined_equity(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500')"
+S5_EQ_PCT5  = "plot_ml2_combined_equity(ml2_portfolio['pct5_compound'], 'pct5_compound')"
+S5_DD_500   = "plot_ml2_combined_dd(ml2_portfolio['fixed_dollars_500'], bars, 'fixed_dollars_500')"
+S5_DD_PCT5  = "plot_ml2_combined_dd(ml2_portfolio['pct5_compound'], bars, 'pct5_compound')"
+
+S6_SIMS_500   = "plot_mc_sims(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"
+S6_SIMS_PCT5  = "plot_mc_sims(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"
+S6_PNL_500    = "plot_mc_pnl(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"
+S6_PNL_PCT5   = "plot_mc_pnl(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"
+S6_SHARPE_500 = "plot_mc_sharpe(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"
+S6_SHARPE_PCT5= "plot_mc_sharpe(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"
+S6_DD_500     = "plot_mc_dd(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"
+S6_DD_PCT5    = "plot_mc_dd(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"
 
 
 # ─── Top-performance notebook ────────────────────────────────────────────────
@@ -536,41 +839,73 @@ def build_performance() -> nbf.NotebookNode:
     nb.cells = [
         _md("# Top-K composed strategies - 6-section evaluation\n\n"
             "Evaluates the C1-selected top-10 combos on the 20% OOS test partition,\n"
-            "under two sizing policies: `fixed_dollars_500` ($500/trade) and\n"
-            "`fixed5_2500` (5% of $50k starting equity = $2500/trade).\n\n"
+            "under two sizing policies:\n"
+            "- `fixed_dollars_500` — risk $500 on every trade, forever.\n"
+            "- `pct5_compound` — risk 5% of *current* equity on every trade;\n"
+            "  starts at $2,500 (=5% of $50k) and compounds trade-by-trade.\n\n"
             "Sections:\n"
             "1. Individual (unfiltered)\n"
             "2. Combined portfolio (unfiltered)\n"
             "3. Monte Carlo on combined (unfiltered)\n"
             "4. Individual with ML#2 (V3 booster + calibrator)\n"
             "5. Combined portfolio with ML#2\n"
-            "6. Monte Carlo on combined ML#2", "intro"),
+            "6. Monte Carlo on combined ML#2\n\n"
+            "Every plot is in its own cell, and every plot type is rendered once\n"
+            "per sizing policy (separate cells).", "intro"),
         _code(SETUP_IMPORTS, "setup"),
-        _code(MC_PLOT_HELPER, "mc-plot-helper"),
+        _code(PLOT_HELPERS, "plot-helpers"),
         _code(RUN_UNFILTERED, "run-unfiltered"),
         _code(RUN_ML2, "run-ml2"),
+
         _md("## 1) Individual (unfiltered)", "s1-md"),
         _code(S1_PERF, "s1-perf"),
-        _code(S1_EQUITY, "s1-equity"),
-        _code(S1_DD, "s1-dd"),
+        _code(S1_EQ_500, "s1-eq-500"),
+        _code(S1_EQ_PCT5, "s1-eq-pct5"),
+        _code(S1_DD_500, "s1-dd-500"),
+        _code(S1_DD_PCT5, "s1-dd-pct5"),
+
         _md("## 2) Combined portfolio (unfiltered)", "s2-md"),
         _code(S2_COMBINED_BUILD, "s2-table"),
-        _code(S2_EQUITY, "s2-equity"),
-        _code(S2_DD, "s2-dd"),
+        _code(S2_EQ_500, "s2-eq-500"),
+        _code(S2_EQ_PCT5, "s2-eq-pct5"),
+        _code(S2_DD_500, "s2-dd-500"),
+        _code(S2_DD_PCT5, "s2-dd-pct5"),
+
         _md("## 3) Monte Carlo on combined (unfiltered)", "s3-md"),
         _code(S3_MC, "s3-mc"),
-        _code(S3_MC_PLOT, "s3-mc-plot"),
+        _code(S3_SIMS_500, "s3-sims-500"),
+        _code(S3_SIMS_PCT5, "s3-sims-pct5"),
+        _code(S3_PNL_500, "s3-pnl-500"),
+        _code(S3_PNL_PCT5, "s3-pnl-pct5"),
+        _code(S3_SHARPE_500, "s3-sharpe-500"),
+        _code(S3_SHARPE_PCT5, "s3-sharpe-pct5"),
+        _code(S3_DD_500, "s3-dd-500"),
+        _code(S3_DD_PCT5, "s3-dd-pct5"),
+
         _md("## 4) Individual with ML#2 (V3 filter)", "s4-md"),
         _code(S4_PERF, "s4-perf"),
-        _code(S4_EQUITY, "s4-equity"),
-        _code(S4_DD, "s4-dd"),
+        _code(S4_EQ_500, "s4-eq-500"),
+        _code(S4_EQ_PCT5, "s4-eq-pct5"),
+        _code(S4_DD_500, "s4-dd-500"),
+        _code(S4_DD_PCT5, "s4-dd-pct5"),
+
         _md("## 5) Combined portfolio with ML#2", "s5-md"),
         _code(S5_PORTFOLIO_BUILD, "s5-table"),
-        _code(S5_EQUITY, "s5-equity"),
-        _code(S5_DD, "s5-dd"),
+        _code(S5_EQ_500, "s5-eq-500"),
+        _code(S5_EQ_PCT5, "s5-eq-pct5"),
+        _code(S5_DD_500, "s5-dd-500"),
+        _code(S5_DD_PCT5, "s5-dd-pct5"),
+
         _md("## 6) Monte Carlo on combined ML#2", "s6-md"),
         _code(S6_MC, "s6-mc"),
-        _code(S6_MC_PLOT, "s6-mc-plot"),
+        _code(S6_SIMS_500, "s6-sims-500"),
+        _code(S6_SIMS_PCT5, "s6-sims-pct5"),
+        _code(S6_PNL_500, "s6-pnl-500"),
+        _code(S6_PNL_PCT5, "s6-pnl-pct5"),
+        _code(S6_SHARPE_500, "s6-sharpe-500"),
+        _code(S6_SHARPE_PCT5, "s6-sharpe-pct5"),
+        _code(S6_DD_500, "s6-dd-500"),
+        _code(S6_DD_PCT5, "s6-dd-pct5"),
     ]
     return nb
 
