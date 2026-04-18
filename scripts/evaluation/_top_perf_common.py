@@ -39,6 +39,29 @@ _spec = importlib.util.spec_from_file_location(
 v3eval = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(v3eval)
 
+# V4 eval module is loaded lazily inside load_setup(version="v4") so notebooks
+# that only reference V3 don't pay the import cost. See _load_eval_module.
+
+
+def _load_eval_module(version: str):
+    """Return the OOS eval module for the requested ML#2 version.
+
+    v3: final_holdout_eval_v3_c1_fixed500 — V3 booster + per-R:R isotonic +
+        per-combo two-stage calibrator.
+    v4: final_holdout_eval_v4_fixed500 — V4 booster + per-R:R isotonic only
+        (two-stage retired in Phase 5D; V4 did not rebuild it).
+    """
+    if version == "v3":
+        return v3eval
+    if version == "v4":
+        spec = importlib.util.spec_from_file_location(
+            "_v4eval", REPO / "scripts/evaluation/final_holdout_eval_v4_fixed500.py"
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    raise ValueError(f"Unknown ML#2 version: {version!r} (expected 'v3' or 'v4')")
+
 # NOW configure matplotlib: inline wins over the Agg that v3eval's transitive
 # imports selected.
 import matplotlib  # noqa: E402
@@ -67,7 +90,15 @@ DEFAULT_COST_PER_CONTRACT_RT = 5.0
 
 _CACHE_DIR = REPO / "evaluation" / "_cache"
 _RESULTS_RAW_CACHE = _CACHE_DIR / "results_raw.pkl"
-_ML2_CACHE = REPO / "evaluation" / "_ml2_cache.pkl"
+_ML2_CACHE = REPO / "evaluation" / "_ml2_cache.pkl"  # legacy (V3 default)
+
+
+def _ml2_cache_path(version: str) -> Path:
+    """V3 cache path stays at the legacy location for backwards compatibility;
+    V4 gets its own file so the two versions can coexist."""
+    if version == "v3":
+        return _ML2_CACHE
+    return REPO / "evaluation" / f"_ml2_cache_{version}.pkl"
 
 # ML#2 is applied as a net-of-friction E[R] filter: keep a trade only if
 # p*rr - (1-p) - friction_in_R > 0, where friction_in_R = cost_rt /
@@ -166,25 +197,37 @@ def _load_or_build_results_raw(strategies, bars):
     return results_raw
 
 
-def _load_or_build_combos_ml2(combo_ids, bars):
+def _load_or_build_combos_ml2(combo_ids, bars, version: str = "v3"):
     import lightgbm as lgb
-    _v3inf = v3eval.v3inf
-    booster = lgb.Booster(model_file=str(_v3inf.V3_BOOSTER))
-    simple_cals = _v3inf._load_calibrators()
-    two_stage = _v3inf._load_per_combo_calibrators()
+    eval_mod = _load_eval_module(version)
+    inf = eval_mod.v3inf if version == "v3" else eval_mod.v4inf
+    booster_path = inf.V3_BOOSTER if version == "v3" else inf.V4_BOOSTER
+    cal_path = inf.V3_CALIBRATORS if version == "v3" else inf.V4_CALIBRATORS
 
-    key = (
+    booster = lgb.Booster(model_file=str(booster_path))
+    simple_cals = inf._load_calibrators()
+    # V4 has no two-stage calibrator; pass None (build_combo_trades_test ignores).
+    two_stage = (inf._load_per_combo_calibrators() if version == "v3" else None)
+
+    cache_components = [
         _ML2_CACHE_VERSION,
-        Path(_v3inf.V3_BOOSTER).stat().st_mtime_ns,
-        Path(_v3inf.V3_CALIBRATORS).stat().st_mtime_ns,
-        Path(_v3inf.V3_PER_COMBO_CALIBRATORS).stat().st_mtime_ns,
-        Path(v3eval.__file__).stat().st_mtime_ns,
+        version,
+        Path(booster_path).stat().st_mtime_ns,
+        Path(cal_path).stat().st_mtime_ns,
+        Path(eval_mod.__file__).stat().st_mtime_ns,
         str(bars["time"].iloc[-1]),
         tuple(sorted(combo_ids)),
-    )
-    if _ML2_CACHE.exists():
+    ]
+    if version == "v3":
+        cache_components.insert(
+            4, Path(inf.V3_PER_COMBO_CALIBRATORS).stat().st_mtime_ns
+        )
+    key = tuple(cache_components)
+
+    cache_path = _ml2_cache_path(version)
+    if cache_path.exists():
         try:
-            with open(_ML2_CACHE, "rb") as f:
+            with open(cache_path, "rb") as f:
                 blob = pickle.load(f)
             if blob.get("key") == key:
                 print(f"Loaded combos_ml2 from cache ({len(blob['combos_ml2'])} combos).")
@@ -193,21 +236,22 @@ def _load_or_build_combos_ml2(combo_ids, bars):
         except Exception as e:
             print(f"combos_ml2 cache read failed ({e!r}); rebuilding.")
 
-    print("Building V3-filtered trades per combo...", flush=True)
+    print(f"Building {version.upper()}-filtered trades per combo...", flush=True)
     combos_ml2 = []
     for gcid in combo_ids:
         print(f"  {gcid}...", flush=True)
         try:
-            c = v3eval.build_combo_trades_test(gcid, booster, simple_cals, two_stage)
+            c = eval_mod.build_combo_trades_test(
+                gcid, booster, simple_cals, two_stage)
             print(f"    n_trades={c.get('n_trades', 0)}  rr={c.get('rr', float('nan')):.2f}")
         except Exception as e:
             c = {"combo_id": gcid, "error": str(e)}
             print(f"    ERROR: {e}")
         combos_ml2.append(c)
-    _ML2_CACHE.parent.mkdir(parents=True, exist_ok=True)
-    with open(_ML2_CACHE, "wb") as f:
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache_path, "wb") as f:
         pickle.dump({"key": key, "combos_ml2": combos_ml2}, f)
-    print(f"Wrote cache -> {_ML2_CACHE.name}")
+    print(f"Wrote cache -> {cache_path.name}")
     return combos_ml2
 
 
@@ -355,7 +399,8 @@ def _apply_friction_unfiltered(results_raw, cost_per_contract_rt: float):
     return out
 
 
-def load_setup(cost_per_contract_rt: float = 0.0, top_strategies_path=None):
+def load_setup(cost_per_contract_rt: float = 0.0, top_strategies_path=None,
+               version: str = "v3"):
     """Returns dict with bars, years_span, strategies, results_raw,
     combined_raw, combos_ml2, s4_pnl_by_combo, ml2_portfolio. All expensive
     inputs (results_raw, combos_ml2) are loaded from disk cache when valid.
@@ -368,6 +413,10 @@ def load_setup(cost_per_contract_rt: float = 0.0, top_strategies_path=None):
     pass a different path (e.g. evaluation/top_strategies_v11.json) to
     evaluate a different top-K source. The JSON must have a `top` list of
     entries each with `global_combo_id` and `parameters`.
+
+    version selects the ML#2 stack: 'v3' (default, trained on v2-v10 MFE
+    sweep) or 'v4' (Phase 6.7 retrain on v11 friction-aware sweep — rebuilds
+    the filter for OOD v11 combos). V4 has no per-combo two-stage calibrator.
     """
     tsp = Path(top_strategies_path) if top_strategies_path else TOP_STRATEGIES_PATH
     print(f"Top-K source: {tsp.name}")
@@ -394,7 +443,7 @@ def load_setup(cost_per_contract_rt: float = 0.0, top_strategies_path=None):
     combined_raw = _build_combined_raw(results_raw)
     print(f"Combined unfiltered trades: {len(combined_raw):,}")
 
-    combos_ml2 = _load_or_build_combos_ml2(combo_ids, bars)
+    combos_ml2 = _load_or_build_combos_ml2(combo_ids, bars, version=version)
     s4_pnl_by_combo = _build_s4_pnl_by_combo(combos_ml2, cost_per_contract_rt)
     ml2_portfolio = {p: _sim_ml2_portfolio(combos_ml2, p, bars, cost_per_contract_rt)
                      for p in POLICIES}

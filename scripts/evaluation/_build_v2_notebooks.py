@@ -74,7 +74,7 @@ from scripts.evaluation._top_perf_common import (
     plot_mc_sims, plot_mc_pnl, plot_mc_sharpe, plot_mc_dd,
 )
 
-_ctx = load_setup(cost_per_contract_rt={cost_rt}, top_strategies_path={tsp})
+_ctx = load_setup(cost_per_contract_rt={cost_rt}, top_strategies_path={tsp}, version={version!r})
 bars            = _ctx['bars']
 YEARS_SPAN      = _ctx['years_span']
 strategies      = _ctx['strategies']
@@ -86,8 +86,8 @@ ml2_portfolio   = _ctx['ml2_portfolio']
 '''
 
 
-def _setup(cost_rt: str, tsp_expr: str) -> str:
-    return SETUP_TEMPLATE.format(cost_rt=cost_rt, tsp=tsp_expr)
+def _setup(cost_rt: str, tsp_expr: str, version: str = "v3") -> str:
+    return SETUP_TEMPLATE.format(cost_rt=cost_rt, tsp=tsp_expr, version=version)
 
 
 SETUP = _setup("0.0", "None")
@@ -247,8 +247,8 @@ SECTIONS = [
         filename="s4_individual_ml2.ipynb",
         title="# §4 Individual with ML#2 filter",
         body=(
-            "Per-combo metrics and equity/drawdown curves after applying the V3\n"
-            "booster + pooled-R:R isotonic calibrator filter."
+            "Per-combo metrics and equity/drawdown curves after applying the\n"
+            "ML#2 booster + pooled-R:R isotonic calibrator filter."
         ),
         cells=[
             ("s4-perf",    "code", S4_PERF),
@@ -340,7 +340,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--variant",
                     choices=["v10", "v11", "v12",
-                             "v12_k05", "v12_k10", "v12_top50", "all"],
+                             "v12_k05", "v12_k10", "v12_top50",
+                             "v12_top50_v4", "all"],
                     default="all",
                     help="Which top-K source to build for.")
     args = ap.parse_args()
@@ -394,6 +395,17 @@ def main() -> None:
             EVAL / "v12_topk_top50", EVAL / "v12_topk_top50_net",
             _setup("0.0", tsp), _setup("5.0", tsp),
             title_tag="(v12 top-50)",
+        )
+
+    # Phase 6.7 — v12 top-50 combos under the V4 ML#2 filter (retrained on
+    # v11 sweep). Same combo set as v12_top50, different filter booster.
+    if args.variant in ("v12_top50_v4", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_top50.json'"
+        _build_variant(
+            EVAL / "v12_topk_top50_v4", EVAL / "v12_topk_top50_net_v4",
+            _setup("0.0", tsp, version="v4"),
+            _setup("5.0", tsp, version="v4"),
+            title_tag="(v12 top-50, V4 filter)",
         )
 
     # Remove the old monolithic notebook if present — it's replaced by the
