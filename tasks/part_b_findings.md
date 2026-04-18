@@ -1095,3 +1095,129 @@ Four null-to-negative results on the per-combo calibrator (Phase 3, Phase 5A, Ph
 - **Calibrator:** `data/ml/adaptive_rr_v3/isotonic_calibrators_v3.json` (17 per-R:R pooled isotonic; retained)
 - **Sizing:** fixed 5% of starting equity per trade (MNQ economics, $2/point)
 - **Optional Kelly overlay:** `kelly:pwin_simple` with the pooled per-R:R calibrator, useful for low-frequency high-conviction filtering (39 OOS trades @ Sharpe 4.21 in top-5) — **do not** use the per-combo two-stage calibrator.
+
+---
+
+## Phase 6 — Friction-aware ML#1 retrain and net-of-cost eval (2026-04-17 → 2026-04-18)
+
+Phase 5D closed ML#2. Phase 6 pivots to **ML#1**: the v10 surrogate was
+picking tight-stop, high-frequency combos (v10_9264 canary) that look
+elite under zero-friction training and collapse under `$5/contract` RT
+cost. Three parallel workstreams were executed to align the full stack
+with MNQ friction economics.
+
+### Phase 6.1 — Net-of-friction E[R] filter (2026-04-17, commit 6662292)
+
+`scripts/evaluation/_top_perf_common.py` now computes `E[R]` against
+net-of-cost payoffs in the ML#2-filtered portfolio simulator:
+
+```
+E[R_net] = p_win * (rr * risk − contracts * cost)
+         − (1 − p_win) * (risk + contracts * cost)
+```
+
+The gross-EV filter silently passed trades with positive gross-EV but
+negative net-EV — the friction load scales linearly with
+`contracts = risk / (stop_pts * $2/pt)`, so tight-stop combos pay a
+large constant drag the gross filter was blind to. All `*_net` eval
+notebook suites (`evaluation/v{10,11,12}_topk_net/`) run against the
+net filter; the gross `evaluation/v{10,11,12}_topk/` suites are kept
+for back-compat diagnostics.
+
+No change to the V3 booster or pooled per-R:R calibrator — it was
+trained on gross labels and continues to predict `P(win)` cleanly. The
+economics are applied in the downstream filter, not the model.
+
+### Phase 6.2 — v11 friction-aware sweep (2026-04-17, commit 8b4bda8)
+
+Added `--range-mode v11` to `scripts/param_sweep.py` with:
+
+- `stop_fixed_pts ∈ [15, 100]` (no 2–14pt tight stops).
+- `atr_multiplier ∈ [1.5, 6.0]`, `swing_lookback ∈ [5, 30)` similarly
+  friction-aware.
+- `COST_PER_CONTRACT_RT = 5.0` applied inline to per-trade PnL inside
+  `_run_backtest_light` — `net_pnl = gross_pnl − contracts * 5.0`.
+- New output columns: `gross_pnl_dollars`, `friction_dollars`,
+  `mfe_points`, `mae_points`, `entry_bar_idx` — making the original
+  parquet a superset of the legacy `_mfe` variant. **No separate MFE
+  enrichment pass needed.**
+
+Sweep ran remotely on sweep-runner-1: 30,000 combos, 329.7 min wall,
+102M trade rows, `data/ml/originals/ml_dataset_v11.parquet` (6.6 GB).
+
+### Phase 6.3 — ML#1 v11 leakage-fix retrain (2026-04-17, commit 5c3a33c)
+
+v11 `build_combo_features_ml1_v11.py` initially carried `gross_sharpe`
+and `gross_net_sharpe_gap` as features. Target `net_sharpe` is literally
+`gross_sharpe − gross_net_sharpe_gap`, so OOF R² was 0.98 but the model
+was just recovering an arithmetic identity. Both features dropped from
+the feature set; OOF R² = 0.976 post-fix — essentially unchanged,
+confirming the signal was redundant. Kept as the current leak-free v11
+ranker for workflows that want trade-derived features.
+
+### Phase 6.4 — ML#1 v12 parameter-only surrogate (2026-04-18, commits bfbc5ef, 5e9927c)
+
+v11 still carried **all** trade-derived summary stats (n_trades,
+win_rate, MFE/MAE stats, etc.) as features. These can't be known at
+inference for a hypothetical unseen combo, so v11 cannot generalize to
+unsampled parameter regions — only rank the 30k combos we already ran.
+
+v12 redesigned for generalization:
+
+- **Feature set:** parameter-only + param-derived engineered features
+  (e.g. `friction_pct_of_risk = 2.5 / stop_pts`). All trade-derived
+  stats retained in the parquet under `audit_*` prefix for downstream
+  diagnostics but **excluded** from the model input.
+- **Target:** robust walk-forward Sharpe,
+  `target_robust_sharpe = median(window_sharpes) − 0.5 * std(window_sharpes)`
+  across K=5 ordinal trade-windows per combo. Penalizes
+  regime-dependent combos that look great on one window and collapse on
+  another.
+- **Param-space KNN auxiliary feature** — fold-wise
+  `nn10_mean_target`, `nn10_std_target` computed with pool = fold-train
+  (not full data) and self-exclusion, so no target leakage across CV
+  folds.
+- **Quantile heads:** pinball-loss boosters at α={0.1, 0.5, 0.9}
+  alongside MSE point. Extractor ranks by UCB
+  `score = p50 + κ·(p90 − p10)/2` with default κ=0 (pure exploit).
+- **Gates:** `n_trades >= 500`, ≥ 4 valid walk-forward windows per
+  combo, ≥ 30 trades per window.
+
+Trained on v11 MFE-inclusive parquet (13,814 combos post-gate). 5-fold
+CV OOF:
+
+| Booster | OOF R² | OOF Spearman |
+|---|---|---|
+| point (MSE) | 0.929 | 0.958 |
+| p10 (α=0.1) | 0.770 | 0.916 |
+| p50 (α=0.5) | 0.889 | 0.957 |
+| p90 (α=0.9) | 0.417 | 0.932 |
+
+Spearman ≫ R² on the p90 head is expected — the upper-quantile target
+is noisy at the combo level but the *ordering* is stable, which is what
+UCB ranking needs.
+
+**v10_9264 regression check passed** on the v10 dev run (percentile
+96.3% — correctly bottom decile under the new ranker). v11 does not
+contain v10_9264 by design, so the check doesn't fire on the v11 run.
+
+### Artifacts
+
+| Path | Role |
+|---|---|
+| `data/ml/originals/ml_dataset_v11.parquet` | v11 sweep raw output (6.6 GB, 102M rows, MFE-inline) |
+| `data/ml/ml1_results_v11/` | v11 leakage-fixed ranker (current for trade-derived feature workflows) |
+| `data/ml/ml1_results_v12/combo_features_v12.parquet` | v12 per-combo feature + target table (13,814 rows) |
+| `data/ml/ml1_results_v12/models/{robust_sharpe_point,p10,p50,p90}.txt` | v12 boosters |
+| `evaluation/top_strategies_v12.json` | Current top-K picks (schema-compatible with composed_strategy_runner) |
+| `evaluation/v12_topk/`, `evaluation/v12_topk_net/` | 6-section OOS eval notebook suites (running at commit time) |
+
+### What's still open
+
+- Phase 6.5 — v12 top-10 OOS evaluation on the 20% test partition. Eval
+  notebooks launched on sweep-runner-1 at 2026-04-18 09:16 UTC; verdict
+  pending. Success criterion: median net-of-friction Sharpe > 0 across
+  top-10, at least 5/10 individually profitable.
+- A future v13 could sharpen the target by using real `entry_bar_idx`
+  timestamps (now available in v11 parquet) for calendar-time walk-forward
+  windows instead of ordinal-trade windows. Nice-to-have, not a blocker.

@@ -407,6 +407,7 @@ file at `data/ml/originals/ml_dataset_v{N}.parquet` (or
 | `v8` | Diversity pivot — broader ranges for ML coverage |
 | `v9` | Ultra-wide diversity; hard-fixes z-score formulation to `close/rolling_mean/rolling_std/parametric` |
 | `v10` | V9 numeric ranges + sampled z-score formulation + sampled exit/confirmation flags (max qualitative diversity) |
+| `v11` | **Friction-aware ranges** (stop_fixed_pts ∈ [15, 100], no tight stops) + `$5/contract RT` cost baked into sweep engine PnL (`COST_PER_CONTRACT_RT`). Emits `gross_pnl_dollars`, `friction_dollars`, `mfe_points`, `mae_points`, `entry_bar_idx` inline — no separate MFE pass required. |
 
 **Key invariant**: every nullable numeric column (`stop_fixed_pts`, `atr_multiplier`,
 `swing_lookback`, …) must be `float(...)` when non-`None`. Mixing `int` and
@@ -415,8 +416,12 @@ is the dominant past failure mode; see the Pre-sweep gate below.
 
 ## Track B: ML pipeline — implemented
 
-- **ML#1 combo-grain surrogate** (`scripts/models/ml1_surrogate.py`): LightGBM regressor on combo-level outcomes (Sharpe, return). Filtered variant retrained on V2-ML#2-filtered trades; see `data/ml/ml1_results_v2filtered/`.
-- **ML#2 trade-grain adaptive R:R** (`scripts/models/adaptive_rr_model_v{1,2,3}.py`): LightGBM binary classifier predicting `P(win | features, candidate_rr)`. **Current production stack is V3**: booster + pooled per-R:R isotonic + fixed 5% sizing (`data/ml/adaptive_rr_v3/`). Phase 5D held-out eval retired the per-combo two-stage calibrator.
+- **ML#1 combo-grain surrogate**: LightGBM regressor(s) on combo-level outcomes.
+  - Legacy v1–v10: `scripts/models/ml1_surrogate.py` (target = gross Sharpe).
+  - v11 (`scripts/models/ml1_surrogate_v11.py`, `data/ml/ml1_results_v11/`): retargeted to net Sharpe after $5/contract RT; leakage-fixed (dropped `gross_sharpe` + `gross_net_sharpe_gap`).
+  - **v12 (current) (`scripts/models/ml1_surrogate_v12.py`, `data/ml/ml1_results_v12/`)**: parameter-only feature set + fold-wise parameter-space KNN + quantile heads (p10/p50/p90); target = robust walk-forward Sharpe (`median − 0.5·std` across K=5 ordinal windows). Aims at generalization to unseen combos. OOF R²=0.93, Spearman=0.96 on v11 sweep (13,814 combos post-gate). Top-K extraction via `scripts/analysis/extract_top_combos_v12.py` writes `evaluation/top_strategies_v12.json` with UCB ranking (`p50 + κ·(p90−p10)/2`, default κ=0).
+- **ML#2 trade-grain adaptive R:R** (`scripts/models/adaptive_rr_model_v{1,2,3}.py`): LightGBM binary classifier predicting `P(win | features, candidate_rr)`. **Current production stack is V3**: booster + pooled per-R:R isotonic + fixed 5% sizing (`data/ml/adaptive_rr_v3/`). Phase 5D held-out eval retired the per-combo two-stage calibrator (four null-to-negative results across Phases 3, 5A, 5C, 5D).
+- **Net-of-friction E[R] filter** (added April 2026, commit 6662292, wired into `scripts/evaluation/_top_perf_common.py`): when building the ML#2-filtered portfolio in eval notebooks, `E[R]` is computed against net-of-cost payoffs (not gross), so the filter bar rises in proportion to contract count. Consumed by the `*_net` notebook suites under `evaluation/v{10,11,12}_topk_net/`.
 - **Inference entry point**: `scripts/models/inference_v3.py::predict_pwin_v3()` consumed by filter/Kelly/portfolio backtests.
 - Full Phase 3–5 experimental record: `tasks/part_b_findings.md`.
 

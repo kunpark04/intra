@@ -168,8 +168,9 @@ Three-tier dispatch in priority order (see `src/backtest.py`):
 
 The repo ships with two trained surrogate/prediction models:
 
-- **ML#1** (`scripts/models/ml1_surrogate.py`): LightGBM combo-grain surrogate trained on sweep outcomes (one row per combo). Predicts per-combo Sharpe/return from static parameters.
-- **ML#2** (`scripts/models/adaptive_rr_model_v{1,2,3}.py`): trade-grain adaptive R:R model. **Current production stack is V3**: booster + pooled per-R:R isotonic calibrator + fixed 5% sizing (per-combo two-stage calibrator was deprecated in Phase 5D — see `tasks/part_b_findings.md`).
+- **ML#1** — combo-grain surrogate. Legacy v1–v10 used gross-Sharpe targets and trade-derived features. Current **v12** (`scripts/models/ml1_surrogate_v12.py`, `data/ml/ml1_results_v12/`) targets a robust walk-forward Sharpe (`median − 0.5·std` across K=5 windows), uses parameter-only features + fold-wise parameter-space KNN + quantile heads (p10/p50/p90), and ranks by UCB. Trained on the v11 friction-aware sweep (30k combos, `$5/contract` RT baked into PnL). OOF R²=0.93 / Spearman=0.96.
+- **ML#2** (`scripts/models/adaptive_rr_model_v{1,2,3}.py`): trade-grain adaptive R:R model. **Current production stack is V3**: booster + pooled per-R:R isotonic calibrator + fixed 5% sizing (per-combo two-stage calibrator deprecated in Phase 5D after four null-to-negative results — see `tasks/part_b_findings.md`).
+- **Net-of-friction E[R] filter** (April 2026): the ML#2-filtered portfolio simulator scores candidate trades against **net** payoffs (not gross), so combos that need large contract counts to hit their R:R face a higher filter bar. Used by all `*_net` eval notebook suites.
 
 Inference helpers: `scripts/models/inference_v3.py` exposes `predict_pwin_v3()` for downstream filter/portfolio backtests.
 

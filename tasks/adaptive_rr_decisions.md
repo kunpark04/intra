@@ -1,6 +1,9 @@
 # Adaptive R:R Model Decisions
 
-Key design choices for `scripts/models/adaptive_rr_model_v1.py`.
+Key design choices for the ML#2 trade-grain adaptive R:R model, originally
+`scripts/models/adaptive_rr_model_v1.py`, now in production as V3
+(`scripts/models/adaptive_rr_model_v3.py`, artifacts in
+`data/ml/adaptive_rr_v3/`). See D14 for the V3 production-stack summary.
 
 ---
 
@@ -186,3 +189,67 @@ Consequences:
 
 See `tasks/part_b_findings.md` §B6 and
 `data/ml/adaptive_rr_v2/heldout_time_eval_v2.json`.
+
+---
+
+## D14: V3 production stack + retirement of per-combo two-stage calibrator (2026-04-15, Phase 5D)
+
+**Decision**: The ML#2 production stack is
+
+- **Booster**: `data/ml/adaptive_rr_v3/booster_v3.txt` (OOF AUC 0.8077).
+- **Calibrator**: `data/ml/adaptive_rr_v3/isotonic_calibrators_v3.json`
+  — 17 pooled per-R:R isotonic regressors (static, not rolling, not
+  per-combo).
+- **Sizing**: Fixed 5% of current equity per trade. **Not Kelly.**
+
+**The per-combo two-stage calibrator is deprecated** for production use.
+Keep the artifact `per_combo_calibrators_v3.json` for research
+reproducibility but do not wire it into the live stack.
+
+**Reasoning**: Four independent null-to-negative results:
+
+- Phase 3: per-combo calibrator did not lift filter-threshold Sharpe (isotonic preserves ordering).
+- Phase 5A: same re-confirmation on a wider combo set.
+- Phase 5C (in-sample): Kelly + per-combo calibrator oversized on saturated-WR combos (mean P(win) → 0.97 on v10_9264, Kelly pinned to cap).
+- Phase 5D (OOS / B16): Kelly+two-stage hit 91% drawdown in the held-out portfolio sim vs 14.5% for fixed5. Kelly wins per-combo Sharpe on only 1/5 warm combos OOS.
+
+Fixed5 also beats Kelly at the portfolio level on both Sharpe and DD
+for the top-5 warm combos (Sharpe 3.43 vs kelly_cap5 1.23, DD 14.5% vs
+91%). Kelly's only remaining narrow use is `kelly:pwin_simple` with the
+**pooled** calibrator (not per-combo) — Sharpe 4.21 on 39 OOS trades for
+low-frequency high-conviction filtering. Do not use the per-combo
+two-stage calibrator in any sizing context.
+
+**Reasoning for the fixed-5% default**: scale-invariant to the noise in
+calibration drift, zero dependence on out-of-distribution P(win), and
+matches the risk-management rule in `CLAUDE.md`.
+
+See `tasks/part_b_findings.md` Phase 5D for the full post-mortem and the
+held-out artifact `final_holdout_eval_v3_c1_fixed500.json`.
+
+---
+
+## D15: Net-of-friction E[R] filter (2026-04-17)
+
+**Decision**: In the ML#2-filtered portfolio simulator
+(`scripts/evaluation/_top_perf_common.py`, commit 6662292), `E[R]` is
+computed against **net** payoffs:
+
+```
+E[R_net] = p_win * (rr * risk − contracts * cost)
+         − (1 − p_win) * (risk + contracts * cost)
+```
+
+rather than the gross form `p_win * rr - (1 - p_win)`.
+
+**Reasoning**: Before this change, the filter would pass trades whose
+gross E[R] was positive but net E[R] was negative — the friction load
+grows linearly with `contracts = risk / (stop_pts * $2/pt)`, so a
+tight-stop combo needs many contracts to risk $500 per trade, and the
+friction reduces actual expectancy sharply. The gross filter was
+blind to this; the net filter is not. Pairs with the v11 sweep's
+friction-aware PnL so training and eval use the same economics.
+
+Only applied in evaluation / downstream simulator — the V3 calibrator
+itself was trained on gross labels and need not be retrained for this.
+

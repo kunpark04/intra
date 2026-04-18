@@ -301,31 +301,41 @@ This is the causal chain: **Phase 4f calibration → reliable P(win)
 
 ---
 
-## 9. The Production Stack (as validated)
+## 9. The Production Stack (as validated — updated 2026-04-18)
+
+> **Phase 5D update (2026-04-15):** The per-combo two-stage calibrator and
+> Kelly sizing described in the pre-Phase-5D version of this diagram have
+> been **retired**. Four null-to-negative results across Phases 3, 5A, 5C
+> (in-sample) and 5D (OOS / B16) on the per-combo calibrator — plus a 91%
+> drawdown for Kelly+two-stage in the B16 portfolio sim — are sufficient
+> evidence to drop both. See `tasks/part_b_findings.md` Phase 5D for the
+> full post-mortem.
 
 ```
 Live trade arrives
     |
     v
-ML#1 combo ranker → is this combo in the ranked set?
-    |                 (no → skip)
+ML#1 combo ranker (v12 parameter-only surrogate) → is this combo in the top-K?
+    |                                              (no → skip)
     v
 V3 booster predicts P(win | features, R:R) for 17 R:R levels
     |
     v
-Two-stage calibration:
-    Stage 1: Per-combo expanding isotonic (R:R-agnostic, refit/100)
-             if combo has >= 300 past trades
-    Stage 2: Pooled per-R:R expanding isotonic (fallback)
+Pooled per-R:R isotonic calibration  (data/ml/adaptive_rr_v3/isotonic_calibrators_v3.json)
     |
     v
-E[R] = P(win_cal) * R:R - (1 - P(win_cal)) * 1.0
+E[R] = P(win_cal) * R:R - (1 - P(win_cal)) * 1.0           (legacy gross form)
+    |          -or-
+E[R_net] = P(win_cal) * (R:R * risk - contracts * cost)
+           - (1 - P(win_cal)) * (risk + contracts * cost)   (net-of-friction form,
+                                                            evaluation notebooks
+                                                            since April 2026)
     |
     v
-Per-combo threshold filter: take trade if E[R] > combo-specific gate
+Per-combo / percentile filter: take trade if E[R] > gate
     |
     v
-Kelly-cap5 sizing: f = min(kelly_fraction, 0.05)
+Fixed 5% of equity sizing                                   (not Kelly)
     |
     v
 Execute at next-bar open
@@ -336,10 +346,15 @@ Execute at next-bar open
 | Parameter | Value | Source |
 |---|---|---|
 | R:R levels | 17 (1.0 to 5.0, step 0.25) | V2 design |
-| Calibrator refit | Every 100 trades | Phase 4b/4c grid sweep |
-| Calibrator min | 200 past trades (MIN_FIT) | Phase 4e/4f |
-| Kelly cap | 5% of equity | B10 |
+| Calibrator | Pooled per-R:R isotonic (17 calibrators, static) | Phase 3 |
+| Sizing | Fixed 5% of current equity per trade | Phase 5D |
+| Friction | $5/contract round-trip (in-sim since v11 sweep) | commit 8b4bda8 |
 | Fill model | Next-bar open | CLAUDE.md |
+
+### Retired components (do not reintroduce without new mandate)
+
+- **Per-combo two-stage calibrator** (`per_combo_calibrators_v3.json`) — artifact retained for reproducibility only.
+- **Kelly sizing variants** (`kelly_cap5`, `kelly_twostage`) — failed B16 portfolio gate at 91% drawdown. A narrow overlay (`kelly_simple` with pooled calibrator) is acceptable *only* for low-frequency high-conviction filtering, not the main stack.
 
 ---
 

@@ -338,7 +338,7 @@ def _build_variant(gross_dir: Path, net_dir: Path,
 def main() -> None:
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--variant", choices=["v10", "v11", "all"], default="all",
+    ap.add_argument("--variant", choices=["v10", "v11", "v12", "all"], default="all",
                     help="Which top-K source to build for.")
     args = ap.parse_args()
 
@@ -354,6 +354,14 @@ def main() -> None:
             EVAL / "v11_topk", EVAL / "v11_topk_net",
             _setup("0.0", tsp), _setup("5.0", tsp),
             title_tag="(v11)",
+        )
+
+    if args.variant in ("v12", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12.json'"
+        _build_variant(
+            EVAL / "v12_topk", EVAL / "v12_topk_net",
+            _setup("0.0", tsp), _setup("5.0", tsp),
+            title_tag="(v12)",
         )
 
     # Remove the old monolithic notebook if present — it's replaced by the

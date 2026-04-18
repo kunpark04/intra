@@ -1,3 +1,10 @@
+> **CLOSED — Phases 1–5 complete.** The B16 held-out eval verdict
+> (Phase 5D, 2026-04-15) retired the per-combo two-stage calibrator and
+> adopted fixed 5% sizing on top of the pooled per-R:R isotonic
+> calibrator. See `tasks/part_b_findings.md` Phase 5D and
+> `tasks/adaptive_rr_decisions.md` D14 for the final decision. This file
+> is retained for historical context.
+
 # V3 Follow-up Plan — after the retrain finishes
 
 **Context**: `scripts/models/adaptive_rr_model_v3.py` is running on sweep-runner-1

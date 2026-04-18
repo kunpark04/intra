@@ -1,6 +1,6 @@
 {
-  "source_features": "data/ml/ml1_results_v12/combo_features_v12.parquet",
-  "source_models_dir": "data/ml/ml1_results_v12/models",
+  "source_features": "data\\ml\\ml1_results_v12\\combo_features_v12.parquet",
+  "source_models_dir": "data\\ml\\ml1_results_v12\\models",
   "ranking_metric": "UCB(p50, p90, p10, kappa=0.0)",
   "kappa": 0.0,
   "min_trades": 500,
@@ -43,7 +43,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "0",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 99.9476
       },
       "stop_fixed_pts_resolved": 99.9476,
       "predicted_p10": -0.1404711468835997,
@@ -89,7 +90,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "0",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 96.0261
       },
       "stop_fixed_pts_resolved": 96.0261,
       "predicted_p10": -0.16815247371181957,
@@ -135,7 +137,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "1",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 47.7805
       },
       "stop_fixed_pts_resolved": 47.7805,
       "predicted_p10": -5.402743042380425,
@@ -181,7 +184,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "0",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 73.959
       },
       "stop_fixed_pts_resolved": 73.959,
       "predicted_p10": -2.5576293643630272,
@@ -227,7 +231,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "0",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 57.3537
       },
       "stop_fixed_pts_resolved": 57.3537,
       "predicted_p10": -2.3621210511092134,
@@ -273,7 +278,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "1",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 85.5028
       },
       "stop_fixed_pts_resolved": 85.5028,
       "predicted_p10": -0.8310218623753457,
@@ -319,7 +325,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "0",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 87.2751
       },
       "stop_fixed_pts_resolved": 87.2751,
       "predicted_p10": -0.5033877080313565,
@@ -365,7 +372,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "2",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 76.0639
       },
       "stop_fixed_pts_resolved": 76.0639,
       "predicted_p10": -2.287808603259716,
@@ -411,7 +419,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "1",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 60.905
       },
       "stop_fixed_pts_resolved": 60.905,
       "predicted_p10": -1.2228721420839195,
@@ -457,7 +466,8 @@
         "vol_regime_min_pct": 0.0,
         "vol_regime_max_pct": 1.0,
         "session_filter_mode": "0",
-        "tod_exit_hour": 0.0
+        "tod_exit_hour": 0.0,
+        "stop_fixed_pts_resolved": 59.2364
       },
       "stop_fixed_pts_resolved": 59.2364,
       "predicted_p10": -2.265260126814598,

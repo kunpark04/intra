@@ -1,3 +1,9 @@
+> **HISTORICAL — superseded.** This document is the original V1 plan from
+> 2026-04-13. The actual production stack is V3; see
+> `tasks/adaptive_rr_decisions.md` D14 and `tasks/part_b_findings.md`
+> Phase 5D for the current state. Kept for provenance; do not follow this
+> plan verbatim.
+
 # Adaptive R:R Model — Phase 1 Validation + Phase 2 Training Plan
 
 **Purpose**: Continuation doc for the next Claude session (intended to run on the

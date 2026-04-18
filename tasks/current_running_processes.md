@@ -1,6 +1,6 @@
 # Currently Running Processes
 
-**Snapshot time**: 2026-04-14 ~05:50 UTC
+**Snapshot time**: 2026-04-18 ~09:16 UTC
 **Host**: sweep-runner-1 (`195.88.25.157`)
 **Purpose**: Live mapping of running processes to the Part B roadmap in
 [`ml1_ml2_synthesis_roadmap.md`](ml1_ml2_synthesis_roadmap.md). Update this
@@ -8,31 +8,34 @@ file when jobs start/finish.
 
 ---
 
-## Project Python jobs
+## Active screen sessions
 
-| PID   | Started  | Elapsed | CPU  | RSS    | Script                              | Part B item |
-|-------|----------|---------|------|--------|-------------------------------------|-------------|
-| 27951 | 04:42    | ~1h08m  | 187% | 282 MB | `scripts/analysis/permutation_test_ml1.py`   | **B3** — Permutation test on ML#1 (shuffle target labels → retrain → confirm AUC collapses) |
-| 28016 | 04:42    | ~1h08m  | 184% | 4.03 GB | `scripts/models/adaptive_rr_model_monotonic_v2.py`  | **B9** — Monotonic constraint on `candidate_rr` + `rr_x_atr` (wraps V2 with LightGBM `monotone_constraints=-1`) |
+| Screen | Started (UTC) | What | Status |
+|---|---|---|---|
+| `eval_nbs` | 2026-04-18 09:16 | v10+v11+v12 OOS eval notebook suite (36 notebooks, gross+net) under `systemd-run --scope -p MemoryMax=9G -p CPUQuota=280%` | **Active** (Phase 6.5) |
 
-Both processes are `Rl` (running, multi-threaded). `b9` has not yet written
-artifacts to `data/ml/adaptive_rr_monotonic_v2/` — expected; the V2-with-constraint
-training runs ~2000 rounds before saving model + plots.
+## Completed since last snapshot (2026-04-14)
 
-## Non-project processes (ignore)
-
-| PID | Process | Note |
-|-----|---------|------|
-| 809 | `/usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal` | Ubuntu system daemon. Sleeps for the machine's entire uptime, waiting for a shutdown signal so it can pause/resume package upgrades across reboot. 0% CPU, 12 MB RSS. **Not queued work — not related to this project.** |
-| 9850, 9858, 9859, 9871, 9872, 10343, 11051, 11095, 11096, 13837, 14635, 15615 | `screen -S sweep` / `SCREEN -S sweep` | Nine detached shell sessions from the v2–v10 sweep runs on 2026-04-13. All idle — no active work inside them. Safe to leave or `screen -wipe` later. |
+- **v11 friction-aware sweep** (screen `v11_sweep`) — finished
+  2026-04-18 03:09 UTC. 30,000 combos, 329.7 min wall.
+  `data/ml/originals/ml_dataset_v11.parquet` (6.6 GB, 102M trade rows).
+- **ML#1 v11 retrain + leakage fix** (screen `ml1_v11`) — finished
+  2026-04-17 ~19:46 UTC. See `tasks/part_b_findings.md` Phase 6.3.
+- **ML#1 v12 pipeline** (screen `v12_pipe`) — finished
+  2026-04-18 ~09:07 UTC. OOF R² 0.93 / Spearman 0.96 on 13,814 combos.
+- **v10_9264 post-mortem + eval artifacts publish** (screens `v10_9264`,
+  `eval_publish`) — finished 2026-04-17.
+- **Phase 2 V3+C1+Fixed500 held-out eval** (screen `phase2`) — finished
+  2026-04-17.
 
 ## Queue status
 
-- **No third project job is queued.** Verified via `ps`, all screen sessions
-  (idle shells), `crontab -l` (empty), `atq` (empty).
-- Next Part B items per the roadmap's Week-1 sequence (not yet started):
-  **B4** (filter on `surrogate_top_combos.csv`, ~10 min) and **B2** (adaptive
-  E[R] percentile threshold, ~1 hr). These should launch once B3 + B9 finish.
+- **Next blocker:** Phase 6.5 v12 OOS eval notebook run (currently
+  active). Pull + commit when screen `eval_nbs` goes idle.
+- **After Phase 6.5:** decide whether v12 top-10 OOS passes the
+  published success criterion (median net Sharpe > 0, ≥ 5/10
+  individually profitable). If yes, mark Phase 6 closed and consider
+  paper-trade (B17) or v13 calendar-time walk-forward.
 
 ---
 
@@ -41,9 +44,10 @@ training runs ~2000 rounds before saving model + plots.
 When a job starts or finishes:
 
 ```
+screen -ls
 ps -eo pid,etime,pcpu,pmem,rss,stat,cmd --sort=-pcpu | grep python
 ```
 
 Then edit the table. Keep this file as the single authoritative "what's
-running right now" reference — the roadmap file is the long-lived plan, this
-one is the live dashboard.
+running right now" reference — the roadmap file is the long-lived plan,
+this one is the live dashboard.

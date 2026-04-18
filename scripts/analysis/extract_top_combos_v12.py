@@ -66,6 +66,7 @@ PARAM_COLS = [
     "volume_entry_threshold",
     "vol_regime_lookback", "vol_regime_min_pct", "vol_regime_max_pct",
     "session_filter_mode", "tod_exit_hour",
+    "stop_fixed_pts_resolved",
 ]
 
 
