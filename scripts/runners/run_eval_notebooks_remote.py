@@ -10,7 +10,7 @@ nbclient, then runs build_trade_log_xlsx.py to produce
 `_pull_eval_nbs.py`.
 """
 from __future__ import annotations
-import time
+import argparse, re, time
 from pathlib import Path
 import paramiko
 
@@ -232,7 +232,36 @@ echo "[eval_nbs] ALL DONE $(date)"
 """
 
 
+def _filter(only: str | None) -> tuple[list[str], str]:
+    """Apply --only regex to UPLOAD_FILES (notebooks only) and the EXEC_PY
+    NOTEBOOKS list. Non-notebook uploads (JSONs, src/, scripts/) always go.
+    Returns (filtered_upload_files, patched_exec_py)."""
+    if not only:
+        return UPLOAD_FILES, EXEC_PY
+    pat = re.compile(only)
+    kept = [f for f in UPLOAD_FILES
+            if not f.endswith(".ipynb") or pat.search(f)]
+    nb_lines = re.findall(r"'evaluation/[^']+\.ipynb'", EXEC_PY)
+    dropped = [s for s in nb_lines if not pat.search(s.strip("'"))]
+    patched = EXEC_PY
+    for s in dropped:
+        patched = re.sub(rf"^\s*{re.escape(s)},?\s*$\n?",
+                         "", patched, flags=re.MULTILINE)
+    print(f"  --only {only!r}: keeping "
+          f"{sum(1 for f in kept if f.endswith('.ipynb'))} notebooks "
+          f"(dropped {len(dropped)})")
+    return kept, patched
+
+
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--only", default=None,
+                    help="Regex filter on notebook paths (e.g. "
+                         "'v12_topk_(k05|k10|top50)_net/'). "
+                         "Non-notebook files always upload.")
+    args = ap.parse_args()
+    upload_files, exec_py = _filter(args.only)
+
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(HOST, username=USER, password=PASS, timeout=15)
@@ -250,7 +279,7 @@ def main() -> None:
         f"{REMOTE_DIR}/src {REMOTE_DIR}/src/indicators"
     )[1].channel.recv_exit_status()
 
-    for rel in UPLOAD_FILES:
+    for rel in upload_files:
         local = REPO / rel
         remote = f"{REMOTE_DIR}/{rel}"
         print(f"  Uploading {rel} ({local.stat().st_size:,} B)...", end=" ", flush=True)
@@ -258,7 +287,7 @@ def main() -> None:
         print("OK")
 
     with sftp.open(f"{REMOTE_DIR}/run_eval_nbs_exec.py", "w") as f:
-        f.write(EXEC_PY)
+        f.write(exec_py)
     with sftp.open(f"{REMOTE_DIR}/run_eval_nbs.sh", "w") as f:
         f.write(WRAPPER_SH)
     sftp.chmod(f"{REMOTE_DIR}/run_eval_nbs.sh", 0o755)

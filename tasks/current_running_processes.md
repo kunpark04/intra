@@ -1,6 +1,6 @@
 # Currently Running Processes
 
-**Snapshot time**: 2026-04-18 ~09:57 UTC
+**Snapshot time**: 2026-04-18 ~13:58 UTC
 **Host**: sweep-runner-1 (`195.88.25.157`)
 **Purpose**: Live mapping of running processes to the Part B roadmap in
 [`ml1_ml2_synthesis_roadmap.md`](ml1_ml2_synthesis_roadmap.md). Update this
@@ -12,9 +12,15 @@ file when jobs start/finish.
 
 | Screen | Started (UTC) | What | Status |
 |---|---|---|---|
-| _(none)_ | — | — | — |
+| _(none — Tier 1 complete at 14:46 UTC)_ | — | — | — |
 
-## Completed since last snapshot (2026-04-18 09:16)
+## Completed since last snapshot (2026-04-18 09:57)
+
+- **Tier 1 v12 variants OOS eval** (2026-04-18 14:46 UTC) — 16 net-of-cost
+  notebooks across v12_topk_{k05,k10,top50}_net. Top-50 is best result
+  yet: +0.54 combined Sharpe, +141% return, 81% DD. κ>0 variants failed.
+  MC pair (s3/s6) skipped for top-50 after 10k×50 sim OOM on 9 GB cap.
+  Full results in Phase 6.6 of `tasks/part_b_findings.md`.
 
 - **v10+v11+v12 OOS eval notebook suite** (screen `eval_nbs`) — finished
   2026-04-18 09:35:41 UTC. 20 wall-minutes for 36 notebooks under

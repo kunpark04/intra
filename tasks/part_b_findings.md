@@ -1287,3 +1287,71 @@ Two paths forward on the filter:
 | `evaluation/v11_topk{,_net}/` | v11 leakage-fix ranker eval |
 | `evaluation/v12_topk{,_net}/` | v12 param-only ranker eval |
 | `evaluation/top_trade_log.xlsx` | Unified trade log across the three rankers |
+
+## Phase 6.6 — Tier 1 v12 variant OOS eval (2026-04-18)
+
+Two hypotheses tested without retraining, re-using the existing v12
+quantile booster:
+
+- **Tier 1A** — does tighter UCB exploration (κ > 0) pick more robust
+  combos? Re-ranked top-10 at κ=0.5 and κ=1.0.
+- **Tier 1B** — is top-10 too thin a slice? Expanded to top-50 at κ=0.
+
+Remote run on sweep-runner-1 executed 18 net-of-cost notebooks in ~20 min
+(gross suite skipped — net is the decision gate). One OOM on
+`v12_topk_top50_net/s3_mc_combined_net.ipynb` (10k MC sims × 50 combos
+exceeded the 9 GB memory cap, validating the pre-launch reviewing agent's
+WARN #1); s4/s5 rerun standalone, MC pair (s3/s6) skipped for top-50.
+
+### Results (fixed$500 sizing, $5/contract RT, test partition 2024-10-22 → 2026-04-08)
+
+| Variant            | Combos | Trades | WR    | Sharpe | Return  | MaxDD  |
+|---                 |-------:|-------:|------:|-------:|--------:|-------:|
+| v12 κ=0 top-10 (baseline) |    10 |  4,537 | 28.1% | **+0.24** | +27.4% |  61.6% |
+| v12 κ=0.5 top-10   |     10 |  3,860 | 27.9% | −0.88  | −109.2% | 164.0% |
+| v12 κ=1.0 top-10   |     10 |  6,464 | 26.8% | −6.04  | −885.7% | 869.4% |
+| **v12 κ=0 top-50** |    **50** | **24,690** | 27.4% | **+0.54** | **+141.5%** | **81.1%** |
+
+### Findings
+
+1. **κ > 0 fails.** Penalizing combos with wide p10-p90 spread picks
+   *worse* OOS combos, not more robust ones. The quantile heads' spread
+   is not a reliable OOS uncertainty proxy — it correlates with training-
+   set noise, not actual generalization risk.
+2. **Top-50 wins.** Expanding from 10 → 50 roughly doubles combined
+   Sharpe (+0.24 → +0.54) and 5x's return (+27% → +141%). Per-combo
+   variance smooths out with diversification; the top-10 cutoff was too
+   thin a slice to detect the ranker's real signal.
+3. **ML#2 V3 filter still 0 trades** across all four variants (κ=0,
+   κ=0.5, κ=1.0, top-50). The OOD problem with v11 combos is structural
+   to V3, not specific to the top-10 selection.
+4. **Compounding policies blow up** in every variant (pct5_compound →
+   −100% ruin). Tail risk inherent to high-frequency v11 combos.
+
+### Verdict
+
+**v12 ranker is validated.** Tier 1B result (+0.54 combined Sharpe,
++141% return on 50 combos) is our best OOS figure ever; confirms the
+param-only + walk-forward-robust-Sharpe target captures real signal
+that degrades only under over-concentration (top-10) or bad uncertainty
+gating (κ > 0). Not shippable: 81% DD remains brutal, ML#2 filter is
+broken on v11 space.
+
+### Decision gate update
+
+| Previous option | Updated view |
+|---|---|
+| Accept v12 at +0.24 on top-10 | Superseded — top-50 is strictly better |
+| V13 calendar-time walk-forward | Still live; addresses temporal regime shift orthogonally |
+| Rebuild V3/V4 on v11 | Now the critical path — without a working filter, drawdowns stay at 80%+ |
+
+### Artifacts (Phase 6.6 outputs)
+
+| Path | Role |
+|---|---|
+| `evaluation/top_strategies_v12_k05.json` | κ=0.5 top-10 ranking |
+| `evaluation/top_strategies_v12_k10.json` | κ=1.0 top-10 ranking |
+| `evaluation/top_strategies_v12_top50.json` | κ=0 top-50 ranking |
+| `evaluation/v12_topk_k05_net/` (6 nbs) | κ=0.5 net-of-cost eval |
+| `evaluation/v12_topk_k10_net/` (6 nbs) | κ=1.0 net-of-cost eval |
+| `evaluation/v12_topk_top50_net/` (4 nbs: s1/s2/s4/s5) | top-50 eval; MC pair skipped (OOM) |
