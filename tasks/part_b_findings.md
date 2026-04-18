@@ -1212,12 +1212,78 @@ contain v10_9264 by design, so the check doesn't fire on the v11 run.
 | `evaluation/top_strategies_v12.json` | Current top-K picks (schema-compatible with composed_strategy_runner) |
 | `evaluation/v12_topk/`, `evaluation/v12_topk_net/` | 6-section OOS eval notebook suites (running at commit time) |
 
-### What's still open
+## Phase 6.5 — v12 top-10 OOS eval verdict (2026-04-18)
 
-- Phase 6.5 — v12 top-10 OOS evaluation on the 20% test partition. Eval
-  notebooks launched on sweep-runner-1 at 2026-04-18 09:16 UTC; verdict
-  pending. Success criterion: median net-of-friction Sharpe > 0 across
-  top-10, at least 5/10 individually profitable.
-- A future v13 could sharpen the target by using real `entry_bar_idx`
-  timestamps (now available in v11 parquet) for calendar-time walk-forward
-  windows instead of ordinal-trade windows. Nice-to-have, not a blocker.
+Eval notebooks finished on sweep-runner-1 at 09:35:41 UTC (20 wall-min
+for 36 notebooks). Verdict vs the published criterion (*median net
+Sharpe > 0 across top-10, ≥5/10 individually profitable*):
+
+**Per-combo net Sharpe (fixed$500 sizing, $5/contract RT)**
+
+| Rank | combo     | trades | net Sharpe | return% | DD%  |
+|-----:|-----------|-------:|-----------:|--------:|-----:|
+| 1    | v11_2646  | 294    | −1.545     | −33.3   | 40.6 |
+| 2    | v11_391   | 178    |  0.015     |   0.3   | 20.6 |
+| 3    | v11_28651 | 1155   |  0.644     |  45.6   | 37.4 |
+| 4    | v11_17782 | 401    |  0.434     |  14.7   | 21.4 |
+| 5    | v11_263   | 482    | −1.613     | −50.4   | 57.0 |
+| 6    | v11_18020 | 434    |  0.877     |  29.3   | 15.0 |
+| 7    | v11_12101 | 323    | −0.489     | −14.3   | 27.1 |
+| 8    | v11_27291 | 451    | −0.239     |  −6.5   | 26.9 |
+| 9    | v11_3547  | 327    |  1.392     |  51.8   | 12.7 |
+| 10   | v11_25420 | 492    | −0.282     |  −9.7   | 31.4 |
+
+- Count profitable: **5/10** — passes the count leg.
+- Median Sharpe: **−0.11** — fails the median leg.
+- Combined portfolio (fixed$500): **+0.24 Sharpe, +27.4% return, 61.6% DD**
+  — modestly profitable in aggregate, no tail blow-up.
+
+**Verdict: FAIL** on the strict criterion (median <= 0). Marginal pass
+at count.
+
+### Cross-ranker comparison (top-10 fixed$500 net Sharpe)
+
+| Ranker | profitable | median | combined |
+|---|---:|---:|---:|
+| v10 (gross-trained)      | 1/10 | −1.59 | catastrophic (v10_9264 Sharpe −75) |
+| v11 (net, trade-derived) | 5/10 | −0.11 | near-zero (v10_608 −17 drag) |
+| v12 (net, param-only)    | 5/10 | −0.11 | **+0.24** (no single-combo blow-up) |
+
+v12 is the first ranker with no tail blow-up combo and the first with a
+positive combined portfolio Sharpe on the held-out bars. The friction-
+aware target closed the gross/net training gap but did not clear the
+success bar as stated.
+
+### ML#2 V3 filter: 0 trades on v12 top-10
+
+The V3 booster + pooled per-R:R isotonic calibrator rejects **every**
+trade from the v12 top-10 on the test partition. V3 was calibrated on
+v2–v10 sweep economics; v11's tight friction-aware parameter ranges
+produce entry feature distributions out-of-distribution vs V3's
+training prior. All `*_ml2_net` v12 notebooks show zero filtered trades.
+
+Two paths forward on the filter:
+
+1. **Recalibrate V3 on v11 data** (or train V4 from the v11 parquet).
+   Preserves fixed-5% sizing per D14.
+2. **Drop the ML#2 filter for v12 eval** — the per-combo table above
+   already reports raw results.
+
+### Decision options (for user input)
+
+- **Accept v12 with a softened gate** keyed to combined portfolio Sharpe
+  after friction (> 0), which v12 passes at +0.24. Moves the goalposts.
+- **V13 calendar-time walk-forward** — now enabled by the `entry_bar_idx`
+  column in the v11 parquet (train on calendar windows, not ordinal-trade
+  windows).
+- **Rebuild V3 on v11** to resolve the zero-trade filter problem
+  without changing the ranker.
+
+### Artifacts (Phase 6.5 outputs)
+
+| Path | Role |
+|---|---|
+| `evaluation/v10_topk{,_net}/` | v10 top-10 baseline |
+| `evaluation/v11_topk{,_net}/` | v11 leakage-fix ranker eval |
+| `evaluation/v12_topk{,_net}/` | v12 param-only ranker eval |
+| `evaluation/top_trade_log.xlsx` | Unified trade log across the three rankers |
