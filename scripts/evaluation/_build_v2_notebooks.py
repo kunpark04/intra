@@ -338,7 +338,10 @@ def _build_variant(gross_dir: Path, net_dir: Path,
 def main() -> None:
     import argparse
     ap = argparse.ArgumentParser()
-    ap.add_argument("--variant", choices=["v10", "v11", "v12", "all"], default="all",
+    ap.add_argument("--variant",
+                    choices=["v10", "v11", "v12",
+                             "v12_k05", "v12_k10", "v12_top50", "all"],
+                    default="all",
                     help="Which top-K source to build for.")
     args = ap.parse_args()
 
@@ -362,6 +365,35 @@ def main() -> None:
             EVAL / "v12_topk", EVAL / "v12_topk_net",
             _setup("0.0", tsp), _setup("5.0", tsp),
             title_tag="(v12)",
+        )
+
+    # Tier 1A — UCB kappa variants on the v12 booster (same model, different
+    # selection pressure). Tests whether penalizing high-p90-p10-spread combos
+    # lifts OOS Sharpe.
+    if args.variant in ("v12_k05", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_k05.json'"
+        _build_variant(
+            EVAL / "v12_topk_k05", EVAL / "v12_topk_k05_net",
+            _setup("0.0", tsp), _setup("5.0", tsp),
+            title_tag="(v12 kappa=0.5)",
+        )
+
+    if args.variant in ("v12_k10", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_k10.json'"
+        _build_variant(
+            EVAL / "v12_topk_k10", EVAL / "v12_topk_k10_net",
+            _setup("0.0", tsp), _setup("5.0", tsp),
+            title_tag="(v12 kappa=1.0)",
+        )
+
+    # Tier 1B — top-50 expansion (same kappa=0, bigger slice). Tests whether
+    # the ranker is fine and only the top-10 cutoff is too noisy.
+    if args.variant in ("v12_top50", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_top50.json'"
+        _build_variant(
+            EVAL / "v12_topk_top50", EVAL / "v12_topk_top50_net",
+            _setup("0.0", tsp), _setup("5.0", tsp),
+            title_tag="(v12 top-50)",
         )
 
     # Remove the old monolithic notebook if present — it's replaced by the
