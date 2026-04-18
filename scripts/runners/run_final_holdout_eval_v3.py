@@ -55,7 +55,7 @@ echo "[phase5d] ALL DONE $(date)"
 
     cmd = (
         f"screen -dmS v3_phase5d bash -c '"
-        f"systemd-run --scope -p MemoryMax=7G -p CPUQuota=400% "
+        f"systemd-run --scope -p MemoryMax=7G -p CPUQuota=280% "
         f"bash {REMOTE_DIR}/run_phase5d.sh; exec bash'"
     )
     print(f"  Launching: {cmd}")

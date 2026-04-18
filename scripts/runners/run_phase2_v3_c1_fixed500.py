@@ -61,7 +61,7 @@ echo "[phase2] ALL DONE $(date)"
 
     cmd = (
         f"screen -dmS phase2 bash -c '"
-        f"systemd-run --scope -p MemoryMax=7G -p CPUQuota=400% "
+        f"systemd-run --scope -p MemoryMax=7G -p CPUQuota=280% "
         f"bash {REMOTE_DIR}/run_phase2.sh; exec bash'"
     )
     print(f"  Launching: {cmd}")

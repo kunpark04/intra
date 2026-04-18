@@ -2,7 +2,7 @@
 
 Uploads inference_v3.py + the three filter_backtest_*_v3.py scripts,
 then writes a serial wrapper that runs per_combo -> percentile ->
-surrogate under systemd-run, each under MemoryMax=5G CPUQuota=400%.
+surrogate under systemd-run, each under MemoryMax=5G CPUQuota=280%.
 """
 from __future__ import annotations
 import io, sys, time
@@ -29,7 +29,7 @@ cd /root/intra
 set -u
 for job in per_combo percentile surrogate; do
   echo "=== $(date -Is) starting $job ==="
-  systemd-run --scope -p MemoryMax=5G -p CPUQuota=400% \\
+  systemd-run --scope -p MemoryMax=5G -p CPUQuota=280% \\
       python3 scripts/backtests/filter_backtest_${job}_v3.py \\
       > logs/v3_${job}.log 2>&1
   rc=$?

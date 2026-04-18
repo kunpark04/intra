@@ -117,7 +117,7 @@ def main() -> None:
     combos_shap = groups[pick]
 
     t_shap = time.time()
-    contrib = model.predict(X_shap, pred_contrib=True, num_threads=4)
+    contrib = model.predict(X_shap, pred_contrib=True, num_threads=3)
     contrib = np.asarray(contrib, dtype=np.float32)  # (n_rows, n_features+1)
     shap_vals = contrib[:, :-1]
     print(f"[shap] SHAP computed in {time.time()-t_shap:.0f}s "

@@ -95,7 +95,7 @@ LGB_PARAMS = {
     "verbose": -1,
     "seed": 42,
     "n_estimators": 800,
-    "num_threads": 4,
+    "num_threads": 3,
 }
 
 
@@ -234,7 +234,7 @@ def train_and_eval(train_df: pd.DataFrame, test_df: pd.DataFrame,
                             free_raw_data=True)
     model = lgb.train(LGB_PARAMS, lgb_train,
                       num_boost_round=LGB_PARAMS["n_estimators"])
-    preds = model.predict(X_te, num_threads=4).astype(np.float32)
+    preds = model.predict(X_te, num_threads=3).astype(np.float32)
 
     return {
         "n_train_base": int(len(train_df)),

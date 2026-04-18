@@ -166,7 +166,7 @@ def main() -> None:
 
     cmd = (
         "screen -dmS eval_nbs bash -c '"
-        "systemd-run --scope -p MemoryMax=9G -p CPUQuota=400% "
+        "systemd-run --scope -p MemoryMax=9G -p CPUQuota=280% "
         "bash /root/intra/run_eval_nbs.sh 2>&1 | tee /tmp/eval_nbs.log; exec bash'"
     )
     print(f"  Launching: {cmd}")

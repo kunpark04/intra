@@ -18,7 +18,7 @@ WRAPPER = """#!/bin/bash
 cd /root/intra
 set -u
 echo "=== $(date -Is) starting phase4c ==="
-systemd-run --scope -p MemoryMax=7G -p CPUQuota=400% \\
+systemd-run --scope -p MemoryMax=7G -p CPUQuota=280% \\
     python3 scripts/calibration/recal_window_compare_v3.py \\
     > logs/v3_phase4c_run.log 2>&1
 rc=$?

@@ -20,7 +20,7 @@ WRAPPER = """#!/bin/bash
 cd /root/intra
 set -u
 echo "=== $(date -Is) starting phase4b ==="
-systemd-run --scope -p MemoryMax=7G -p CPUQuota=400% \\
+systemd-run --scope -p MemoryMax=7G -p CPUQuota=280% \\
     python3 scripts/calibration/recal_robustness_v3.py \\
     > logs/v3_recal_robustness_run.log 2>&1
 rc=$?

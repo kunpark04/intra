@@ -132,7 +132,7 @@ LGB_PARAMS = {
     "verbose": -1,
     "seed": 42,
     "n_estimators": 500,
-    "num_threads": 4,
+    "num_threads": 3,
 }
 
 # Targets to model (see D7 in ml_decisions.md)

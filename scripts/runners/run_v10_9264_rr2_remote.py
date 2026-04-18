@@ -89,7 +89,7 @@ def main() -> None:
 
     cmd = (
         "screen -dmS v10_9264 bash -c '"
-        "systemd-run --scope -p MemoryMax=9G -p CPUQuota=400% "
+        "systemd-run --scope -p MemoryMax=9G -p CPUQuota=280% "
         "bash /root/intra/run_v10_9264_rr2.sh 2>&1 | tee /tmp/v10_9264.log; exec bash'"
     )
     print(f"  Launching: {cmd}")

@@ -197,7 +197,7 @@ def main() -> None:
     y = exp["would_win"].to_numpy(dtype=np.int8)
 
     print(f"[b6] Predicting {len(X):,} rows...")
-    preds = booster.predict(X, num_threads=4).astype(np.float32)
+    preds = booster.predict(X, num_threads=3).astype(np.float32)
 
     overall = {
         "n_rows": int(len(X)),

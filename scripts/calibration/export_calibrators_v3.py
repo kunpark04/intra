@@ -94,7 +94,7 @@ def main() -> None:
     print("[export] Loading V3 booster and predicting...")
     booster = lgb.Booster(model_file=str(V3_BOOSTER))
     t1 = time.time()
-    p_raw = booster.predict(expanded[ALL_FEATURES], num_threads=4).astype(np.float64)
+    p_raw = booster.predict(expanded[ALL_FEATURES], num_threads=3).astype(np.float64)
     print(f"[export] Predicted {len(p_raw):,} rows in {time.time()-t1:.1f}s")
 
     del expanded  # free memory

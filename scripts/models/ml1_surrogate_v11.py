@@ -82,7 +82,7 @@ LGB_BASE = {
     "reg_lambda": 1.0,
     "verbose": -1,
     "seed": 42,
-    "num_threads": 4,
+    "num_threads": 3,
 }
 N_ESTIMATORS = 500
 EARLY_STOP = 50

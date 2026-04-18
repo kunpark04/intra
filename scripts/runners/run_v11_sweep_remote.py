@@ -79,7 +79,7 @@ echo "[v11_sweep] ALL DONE $(date)"
 
     cmd = (
         f"screen -dmS v11_sweep bash -c '"
-        f"systemd-run --scope -p MemoryMax=8G -p CPUQuota=400% "
+        f"systemd-run --scope -p MemoryMax=8G -p CPUQuota=280% "
         f"bash {REMOTE_DIR}/run_v11_sweep.sh 2>&1 | tee /tmp/v11_sweep.log; exec bash'"
     )
     print(f"  Launching: {cmd}")

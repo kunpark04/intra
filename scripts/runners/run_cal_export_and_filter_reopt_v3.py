@@ -67,7 +67,7 @@ echo "[phase5] ALL DONE $(date)"
     # Launch in screen with resource limits.
     cmd = (
         f"screen -dmS v3_phase5ab bash -c '"
-        f"systemd-run --scope -p MemoryMax=7G -p CPUQuota=400% "
+        f"systemd-run --scope -p MemoryMax=7G -p CPUQuota=280% "
         f"bash {REMOTE_DIR}/run_phase5ab.sh; exec bash'"
     )
     print(f"  Launching: {cmd}")

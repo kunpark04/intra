@@ -76,7 +76,7 @@ echo "[ml1v11] ALL DONE $(date)"
 
     cmd = (
         f"screen -dmS ml1_v11 bash -c '"
-        f"systemd-run --scope -p MemoryMax=8G -p CPUQuota=400% "
+        f"systemd-run --scope -p MemoryMax=8G -p CPUQuota=280% "
         f"bash {REMOTE_DIR}/run_ml1_v11.sh 2>&1 | tee /tmp/ml1_v11.log; exec bash'"
     )
     print(f"  Launching: {cmd}")

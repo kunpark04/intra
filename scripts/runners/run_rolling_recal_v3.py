@@ -20,7 +20,7 @@ WRAPPER = """#!/bin/bash
 cd /root/intra
 set -u
 echo "=== $(date -Is) starting phase4 rolling recal ==="
-systemd-run --scope -p MemoryMax=5G -p CPUQuota=400% \\
+systemd-run --scope -p MemoryMax=5G -p CPUQuota=280% \\
     python3 scripts/calibration/rolling_recal_v3.py \\
     > logs/v3_phase4_rolling.log 2>&1
 rc=$?

@@ -94,7 +94,7 @@ LGB_PARAMS = {
     "verbose": -1,
     "seed": 42,
     "n_estimators": 2000,
-    "num_threads": 4,
+    "num_threads": 3,
     "max_cat_to_onehot": 4,  # high-cardinality combo_id → split-based, not one-hot
 }
 

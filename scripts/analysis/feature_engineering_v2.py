@@ -105,7 +105,7 @@ LGB_PARAMS = {
     "verbose": -1,
     "seed": 42,
     "n_estimators": 800,
-    "num_threads": 4,
+    "num_threads": 3,
 }
 
 
@@ -363,7 +363,7 @@ def run_config(df_base: pd.DataFrame, config: str, n_folds: int, seed: int = 42)
                                 free_raw_data=True)
         model = lgb.train(LGB_PARAMS, lgb_train,
                           num_boost_round=LGB_PARAMS["n_estimators"])
-        p = model.predict(X.iloc[va], num_threads=4).astype(np.float32)
+        p = model.predict(X.iloc[va], num_threads=3).astype(np.float32)
         oof_pred[va] = p
         fm = {
             "fold": fi,

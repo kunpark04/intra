@@ -207,7 +207,7 @@ def main() -> None:
 
     booster = lgb.Booster(model_file=str(V3_BOOSTER))
     t1 = time.time()
-    p_raw = booster.predict(exp[ALL_FEATURES], num_threads=4).astype(np.float64)
+    p_raw = booster.predict(exp[ALL_FEATURES], num_threads=3).astype(np.float64)
     print(f"[4d] raw predictions in {time.time()-t1:.1f}s")
 
     y = exp["would_win"].to_numpy(np.int8)
