@@ -1,0 +1,116 @@
+{
+  "ablation": "ml1_value_vs_random_vs_raw_sharpe",
+  "ml2_version": "v4",
+  "cost_per_contract_rt": 5.0,
+  "min_trades_gate": 500,
+  "pool_size": 50,
+  "random_seed": 42,
+  "post_gate_universe": 13814,
+  "years_span": 1.461,
+  "bars_first": "2024-10-22 05:08:00",
+  "bars_last": "2026-04-08 20:20:00",
+  "pools": {
+    "A_random": {
+      "pool_name": "A_random",
+      "n_combos_requested": 50,
+      "n_combos_present": 50,
+      "portfolio_trades": 3687,
+      "total_pnl_dollars": 43405.5,
+      "observed_max_dd_pct": 90.33,
+      "sharpe_p50": 0.7762,
+      "sharpe_ci_95": [
+        -0.8809,
+        2.3853
+      ],
+      "sharpe_pos_prob": 0.8248,
+      "trades_per_year": 2523.6,
+      "dd_p50_pct": 47.42,
+      "dd_p95_pct": 113.47,
+      "dd_p99_pct": 158.15,
+      "dd_worst_pct": 282.71,
+      "win_rate": 0.3352,
+      "wr_ci_95": [
+        0.3198,
+        0.3507
+      ],
+      "risk_of_ruin_prob": 0.4603,
+      "trades_per_combo": {
+        "n": 50,
+        "median": 7,
+        "p25": 2,
+        "p75": 45,
+        "min": 0,
+        "max": 1795,
+        "zero_combos": 8
+      }
+    },
+    "B_raw_sharpe": {
+      "pool_name": "B_raw_sharpe",
+      "n_combos_requested": 50,
+      "n_combos_present": 50,
+      "portfolio_trades": 641,
+      "total_pnl_dollars": 43439.31,
+      "observed_max_dd_pct": 33.55,
+      "sharpe_p50": 2.1331,
+      "sharpe_ci_95": [
+        0.5562,
+        3.6428
+      ],
+      "sharpe_pos_prob": 0.996,
+      "trades_per_year": 438.7,
+      "dd_p50_pct": 12.83,
+      "dd_p95_pct": 24.67,
+      "dd_p99_pct": 33.67,
+      "dd_worst_pct": 55.1,
+      "win_rate": 0.3339,
+      "wr_ci_95": [
+        0.298,
+        0.3697
+      ],
+      "risk_of_ruin_prob": 0.0002,
+      "trades_per_combo": {
+        "n": 50,
+        "median": 5,
+        "p25": 2,
+        "p75": 9,
+        "min": 0,
+        "max": 118,
+        "zero_combos": 8
+      }
+    },
+    "C_v12_ucb": {
+      "pool_name": "C_v12_ucb",
+      "n_combos_requested": 50,
+      "n_combos_present": 50,
+      "portfolio_trades": 564,
+      "total_pnl_dollars": 17033.44,
+      "observed_max_dd_pct": 40.13,
+      "sharpe_p50": 0.8843,
+      "sharpe_ci_95": [
+        -0.7195,
+        2.4539
+      ],
+      "sharpe_pos_prob": 0.859,
+      "trades_per_year": 386.0,
+      "dd_p50_pct": 18.95,
+      "dd_p95_pct": 39.59,
+      "dd_p99_pct": 51.65,
+      "dd_worst_pct": 90.7,
+      "win_rate": 0.3368,
+      "wr_ci_95": [
+        0.2979,
+        0.3759
+      ],
+      "risk_of_ruin_prob": 0.0137,
+      "trades_per_combo": {
+        "n": 50,
+        "median": 6,
+        "p25": 2,
+        "p75": 13,
+        "min": 0,
+        "max": 120,
+        "zero_combos": 6
+      }
+    }
+  }
+}

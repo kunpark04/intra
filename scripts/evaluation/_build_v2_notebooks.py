@@ -390,6 +390,19 @@ def main() -> None:
             title_tag="(v12 top-50, V4 filter)",
         )
 
+    # Post-ablation (2026-04-19) — raw-Sharpe top-50 replaces v12 UCB ranker.
+    # Consumes top_strategies_v12_raw_sharpe_top50.json emitted by
+    # scripts/analysis/extract_top_combos_by_raw_sharpe_v12.py (Pool B winner).
+    if args.variant in ("v12_top50_raw_sharpe_v4", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_raw_sharpe_top50.json'"
+        _build_variant(
+            EVAL / "v12_topk_top50_raw_sharpe_v4",
+            EVAL / "v12_topk_top50_raw_sharpe_net_v4",
+            _setup("0.0", tsp, version="v4"),
+            _setup("5.0", tsp, version="v4"),
+            title_tag="(v12 top-50 raw-Sharpe, V4 filter)",
+        )
+
     # Remove the old monolithic notebook if present — it's replaced by the
     # 6 section notebooks above.
     old = EVAL / "top_performance.ipynb"
