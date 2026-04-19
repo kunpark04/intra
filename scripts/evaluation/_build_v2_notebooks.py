@@ -325,7 +325,8 @@ def main() -> None:
                              "v12_k05", "v12_k10", "v12_top50",
                              "v12_top50_v4",
                              "v12_top50_raw_sharpe_v4",
-                             "v12_top50_raw_sharpe_v3", "all"],
+                             "v12_top50_raw_sharpe_v3",
+                             "v12_full_pool_v4", "all"],
                     default="all",
                     help="Which top-K source to build for.")
     args = ap.parse_args()
@@ -416,6 +417,19 @@ def main() -> None:
             _setup("0.0", tsp, version="v3"),
             _setup("5.0", tsp, version="v3"),
             title_tag="(v12 top-50 raw-Sharpe, V3 filter)",
+        )
+
+    # Pool B validation gauntlet Step 4 — ML#2 V4 on the full post-gate pool
+    # (all 13,814 combos with audit_n_trades >= 500). Tests whether ML#1
+    # pre-selection adds value vs running V4 on the entire eligible universe.
+    if args.variant in ("v12_full_pool_v4", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_full_pool.json'"
+        _build_variant(
+            EVAL / "v12_full_pool_v4",
+            EVAL / "v12_full_pool_net_v4",
+            _setup("0.0", tsp, version="v4"),
+            _setup("5.0", tsp, version="v4"),
+            title_tag="(v12 full post-gate pool, V4 filter)",
         )
 
     # Remove the old monolithic notebook if present — it's replaced by the
