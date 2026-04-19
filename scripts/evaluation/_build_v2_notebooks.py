@@ -13,9 +13,8 @@ Layout:
   evaluation/s5_combined_ml2.ipynb        # combined portfolio with ML#2
   evaluation/s6_mc_combined_ml2.ipynb     # Monte Carlo on combined ML#2
 
-Sizing policies compared in every section:
+Sizing policy:
   - fixed_dollars_500: risk $500 on every trade, forever.
-  - pct5_compound:     risk 5% of *current* equity; equity starts at $50k.
 
 Execute with nbclient afterwards (one kernel process per notebook; disk
 caches keep the total runtime close to a single-notebook run on re-execute).
@@ -64,7 +63,7 @@ while not (REPO / 'src').exists() and REPO.parent != REPO:
 sys.path.insert(0, str(REPO))
 
 from scripts.evaluation._top_perf_common import (
-    STARTING_EQUITY, RISK_FRAC, POLICIES,
+    STARTING_EQUITY, POLICIES,
     apply_sizing, metrics_from_pnl, monte_carlo,
     load_setup,
     plot_indiv_equity, plot_indiv_dd,
@@ -96,7 +95,7 @@ SETUP_NET = _setup("5.0", "None")
 NET_COST_BANNER = (
     "\n\n**Cost model:** every trade is charged "
     "`contracts × $5.00` round-trip (≈ $3 retail commission + 2 ticks/side "
-    "slippage on MNQ at $0.50/tick). Applied to both sizing policies."
+    "slippage on MNQ at $0.50/tick)."
 )
 
 
@@ -196,15 +195,13 @@ SECTIONS = [
         title="# §1 Individual (unfiltered)",
         body=(
             "Per-combo metrics and per-combo equity/drawdown curves on the\n"
-            "20% OOS test partition with no ML#2 filter. Two sizing policies\n"
-            "compared: `fixed_dollars_500` and `pct5_compound`."
+            "20% OOS test partition with no ML#2 filter. Sizing: "
+            "`fixed_dollars_500` (risk $500 per trade, flat)."
         ),
         cells=[
             ("s1-perf",     "code", S1_PERF),
             ("s1-eq-500",   "code", "plot_indiv_equity(results_raw, 'fixed_dollars_500')"),
-            ("s1-eq-pct5",  "code", "plot_indiv_equity(results_raw, 'pct5_compound')"),
             ("s1-dd-500",   "code", "plot_indiv_dd(results_raw, 'fixed_dollars_500')"),
-            ("s1-dd-pct5",  "code", "plot_indiv_dd(results_raw, 'pct5_compound')"),
         ],
     ),
     dict(
@@ -218,29 +215,23 @@ SECTIONS = [
         cells=[
             ("s2-table",    "code", S2_TABLE),
             ("s2-eq-500",   "code", "plot_combined_equity(combined_raw, 'fixed_dollars_500')"),
-            ("s2-eq-pct5",  "code", "plot_combined_equity(combined_raw, 'pct5_compound')"),
             ("s2-dd-500",   "code", "plot_combined_dd(combined_raw, 'fixed_dollars_500', bars)"),
-            ("s2-dd-pct5",  "code", "plot_combined_dd(combined_raw, 'pct5_compound', bars)"),
         ],
     ),
     dict(
         filename="s3_mc_combined.ipynb",
         title="# §3 Monte Carlo on combined (unfiltered)",
         body=(
-            "IID bootstrap (10,000 sims) on the combined unfiltered trade stream.\n"
-            "Plots: bootstrap equity paths, final PnL histogram, annualized Sharpe\n"
-            "histogram, max-drawdown histogram — one of each per sizing policy."
+            "IID bootstrap on the combined unfiltered trade stream. Plots:\n"
+            "bootstrap equity paths, final PnL histogram, annualized Sharpe\n"
+            "histogram, max-drawdown histogram under `fixed_dollars_500`."
         ),
         cells=[
             ("s3-mc",         "code", S3_TABLE),
             ("s3-sims-500",   "code", "plot_mc_sims(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"),
-            ("s3-sims-pct5",  "code", "plot_mc_sims(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"),
             ("s3-pnl-500",    "code", "plot_mc_pnl(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"),
-            ("s3-pnl-pct5",   "code", "plot_mc_pnl(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"),
             ("s3-sharpe-500", "code", "plot_mc_sharpe(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"),
-            ("s3-sharpe-pct5","code", "plot_mc_sharpe(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"),
             ("s3-dd-500",     "code", "plot_mc_dd(combined_raw, 'fixed_dollars_500', 'unfiltered', YEARS_SPAN)"),
-            ("s3-dd-pct5",    "code", "plot_mc_dd(combined_raw, 'pct5_compound', 'unfiltered', YEARS_SPAN)"),
         ],
     ),
     dict(
@@ -253,9 +244,7 @@ SECTIONS = [
         cells=[
             ("s4-perf",    "code", S4_PERF),
             ("s4-eq-500",  "code", "plot_ml2_indiv_equity(s4_pnl_by_combo, bars, 'fixed_dollars_500')"),
-            ("s4-eq-pct5", "code", "plot_ml2_indiv_equity(s4_pnl_by_combo, bars, 'pct5_compound')"),
             ("s4-dd-500",  "code", "plot_ml2_indiv_dd(s4_pnl_by_combo, bars, 'fixed_dollars_500')"),
-            ("s4-dd-pct5", "code", "plot_ml2_indiv_dd(s4_pnl_by_combo, bars, 'pct5_compound')"),
         ],
     ),
     dict(
@@ -263,34 +252,27 @@ SECTIONS = [
         title="# §5 Combined portfolio with ML#2",
         body=(
             "Event-driven portfolio simulator over the ML#2-filtered trade stream.\n"
-            "For `pct5_compound`, each entry uses the *live* equity at that bar\n"
-            "(natural compounding); for `fixed_dollars_500` every entry risks $500."
+            "Every entry risks $500 (fixed-dollar sizing)."
         ),
         cells=[
             ("s5-table",   "code", S5_TABLE),
             ("s5-eq-500",  "code", "plot_ml2_combined_equity(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500')"),
-            ("s5-eq-pct5", "code", "plot_ml2_combined_equity(ml2_portfolio['pct5_compound'], 'pct5_compound')"),
             ("s5-dd-500",  "code", "plot_ml2_combined_dd(ml2_portfolio['fixed_dollars_500'], bars, 'fixed_dollars_500')"),
-            ("s5-dd-pct5", "code", "plot_ml2_combined_dd(ml2_portfolio['pct5_compound'], bars, 'pct5_compound')"),
         ],
     ),
     dict(
         filename="s6_mc_combined_ml2.ipynb",
         title="# §6 Monte Carlo on combined ML#2",
         body=(
-            "IID bootstrap (10,000 sims) on the ML#2-filtered portfolio trade stream.\n"
-            "Same plot set as §3."
+            "IID bootstrap on the ML#2-filtered portfolio trade stream under\n"
+            "`fixed_dollars_500`. Same plot set as §3."
         ),
         cells=[
             ("s6-mc",         "code", S6_TABLE),
             ("s6-sims-500",   "code", "plot_mc_sims(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"),
-            ("s6-sims-pct5",  "code", "plot_mc_sims(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"),
             ("s6-pnl-500",    "code", "plot_mc_pnl(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"),
-            ("s6-pnl-pct5",   "code", "plot_mc_pnl(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"),
             ("s6-sharpe-500", "code", "plot_mc_sharpe(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"),
-            ("s6-sharpe-pct5","code", "plot_mc_sharpe(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"),
             ("s6-dd-500",     "code", "plot_mc_dd(ml2_portfolio['fixed_dollars_500'], 'fixed_dollars_500', 'ML2', YEARS_SPAN)"),
-            ("s6-dd-pct5",    "code", "plot_mc_dd(ml2_portfolio['pct5_compound'], 'pct5_compound', 'ML2', YEARS_SPAN)"),
         ],
     ),
 ]

@@ -344,19 +344,20 @@ on the above four points. Any CRITICAL finding blocks the sweep.
   - winning trades: green row background
   - losing trades: red row background
   - zero PnL: neutral
-- **Sharpe basis by sizing policy**: reporting code that quotes a Sharpe ratio
-  must match the basis to the sizing policy:
-  - **Flat-dollar sizing** (e.g. `fixed_dollars_500`): Sharpe = `mean(pnl_$) / std(pnl_$) × sqrt(trades_per_year)`.
-  - **Compounding / %-of-equity sizing** (e.g. `pct5_compound`): Sharpe must use
-    **per-trade log returns**, `log1p(RISK_FRAC * r)` where `r = pnl_base / risk_base`.
-    Dollar-PnL Sharpe is scale-dependent under compounding and not comparable
-    across sizing policies. Same rule applies to MC-bootstrap Sharpe CIs.
-  - When a notebook column / table mixes both policies side-by-side, annotate
-    the Sharpe column with the basis (e.g. "Sharpe (log-ret)" vs "Sharpe ($)").
+- **Sharpe basis**: Sizing is flat `fixed_dollars_500` ($500 risk per trade)
+  project-wide. Sharpe = `mean(pnl_$) / std(pnl_$) × sqrt(trades_per_year)`,
+  annualized. Compounding / %-of-equity sizing (`pct5_compound`) was removed
+  April 2026 — historical notebooks under `evaluation/v{10,11,12}_topk*/` still
+  reference it as frozen phase records, but the generators
+  (`scripts/evaluation/_build_v2_notebooks.py`, `_top_perf_common.py`) emit
+  only fixed-$500 outputs. `src/reporting.py`'s `log1p`/`RISK_FRAC` helpers
+  remain as library primitives but are no longer exercised by eval notebooks.
 - **Remote eval-notebook memory cap**: `run_eval_notebooks_remote.py` launches
   under `systemd-run --scope -p MemoryMax=9G` on sweep-runner-1 (9.7G RAM).
-  MC-heavy notebooks (§3 + §6 bootstrap ×2 sizings) exceed the 7G headroom used
-  for simpler backtest notebooks. Do not downsize without re-profiling peak RSS.
+  MC-heavy notebooks (§3 unfiltered bootstrap over ~24k trades) peak around
+  2 GB per 10k-sim matrix; single-policy MC after the sizing-policy drop
+  fits comfortably. Historical 2-policy MC notebooks needed reduced n_sims
+  (s3 at 2,000) to avoid OOM.
 
 ## Dependencies (Python)
 

@@ -5,10 +5,8 @@ to obtain cached/rebuilt test-partition bars, per-combo backtest results, and ML
 portfolio sims. All plot helpers take DataFrames/dicts and a sizing policy; they
 render a single matplotlib Figure via plt.show().
 
-Sizing policies:
+Sizing policy:
   - fixed_dollars_500: risk $500 on every trade, forever.
-  - pct5_compound:     risk 5% of *current* equity on every trade; equity starts
-                       at $50k and compounds trade-by-trade.
 
 matplotlib backend note: adaptive_rr_model_v3 calls `matplotlib.use('Agg')` at
 import time and gets pulled in transitively via inference_v3 (used by the v3
@@ -74,8 +72,7 @@ set_matplotlib_formats("png")
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 STARTING_EQUITY = 50_000.0
-RISK_FRAC = 0.05
-POLICIES = ["fixed_dollars_500", "pct5_compound"]
+POLICIES = ["fixed_dollars_500"]
 TOP_STRATEGIES_PATH = REPO / "evaluation" / "top_strategies.json"
 _FIG_W, _FIG_H = 9, 4.5
 _MC_SIM_PATHS = 200
@@ -122,12 +119,10 @@ def metrics_from_pnl(pnl, years_span, policy="fixed_dollars_500", r=None,
                      start_equity=STARTING_EQUITY):
     """Headline metrics for a per-trade dollar-PnL series.
 
-    For fixed_dollars_500, Sharpe is annualized on per-trade $-PnL:
+    Sharpe is annualized on per-trade $-PnL:
       sharpe = (mean/std) * sqrt(trades_per_year).
-    For pct5_compound, Sharpe is computed on log-returns of the compounded
-    equity curve: log_ret = log1p(RISK_FRAC * r). Scale-invariant under
-    compounding. If `r` is not provided under pct5_compound, falls back to
-    $-PnL Sharpe (same formula as fixed).
+    `r` is accepted for signature stability with archived notebooks but is
+    ignored — compounding sizing was removed project-wide.
     """
     p = np.asarray(pnl, dtype=float)
     n = len(p)
@@ -142,15 +137,9 @@ def metrics_from_pnl(pnl, years_span, policy="fixed_dollars_500", r=None,
     dd_pct = float(np.nan_to_num((peak - eq_full) / peak, nan=0.0).max() * 100)
     total = float(p.sum())
     tpy = n / years_span if years_span > 0 else 0.0
-    if policy == "pct5_compound" and r is not None and len(r) == n:
-        log_ret = np.log1p(RISK_FRAC * np.asarray(r, dtype=float))
-        std_s = log_ret.std(ddof=1) if n > 1 else 0.0
-        sharpe = (float(log_ret.mean() / std_s * np.sqrt(tpy))
-                  if std_s > 0 and tpy > 0 else 0.0)
-    else:
-        std_s = p.std(ddof=1) if n > 1 else 0.0
-        sharpe = (float(p.mean() / std_s * np.sqrt(tpy))
-                  if std_s > 0 and tpy > 0 else 0.0)
+    std_s = p.std(ddof=1) if n > 1 else 0.0
+    sharpe = (float(p.mean() / std_s * np.sqrt(tpy))
+              if std_s > 0 and tpy > 0 else 0.0)
     return dict(n_trades=int(n),
                 trades_per_year=round(tpy, 1),
                 win_rate=round(float((p > 0).mean()), 4),
@@ -320,9 +309,7 @@ def _combo_ml2_base(c, cost_per_contract_rt: float = 0.0):
 
 def _build_s4_pnl_by_combo(combos_ml2, cost_per_contract_rt: float = 0.0):
     """Returns {cid: {'pnl_base': ..., 'risk_base': ..., 'exit_bars': ...,
-    'by_policy': {policy: pnl_policy}}}. Storing pnl_base+risk_base lets the
-    §4 table pass r-multiples to metrics_from_pnl for the log-return Sharpe
-    branch under pct5_compound."""
+    'by_policy': {policy: pnl_policy}}}."""
     out = {}
     for c in combos_ml2:
         cid = c.get("combo_id")
@@ -358,8 +345,6 @@ def _sim_ml2_portfolio(combos_ml2, policy, bars, cost_per_contract_rt: float = 0
         if kind == 0:
             if policy == "fixed_dollars_500":
                 budget = 500.0
-            elif policy == "pct5_compound":
-                budget = equity * RISK_FRAC
             else:
                 raise ValueError(f"unknown policy: {policy}")
             contracts = int(budget // (sl * v3eval.DOLLARS_PER_POINT))
@@ -664,10 +649,7 @@ def plot_mc_pnl(df, policy, title_prefix, years_span, n_sims=10_000):
 
 
 def plot_mc_sharpe(df, policy, title_prefix, years_span, n_sims=10_000):
-    """Sharpe basis matches monte_carlo() table: $-PnL for fixed_dollars_500,
-    log-returns log1p(RISK_FRAC*r) for pct5_compound. Annualized by
-    sqrt(trades_per_year).
-    """
+    """Sharpe basis: $-PnL, annualized by sqrt(trades_per_year)."""
     fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
     pnl_base, risk_base = _mc_source(df)
     if len(pnl_base) == 0:
@@ -677,14 +659,7 @@ def plot_mc_sharpe(df, policy, title_prefix, years_span, n_sims=10_000):
         pnl_base, risk_base, policy, n_sims=n_sims, seed=42)
     n = samples_pnl.shape[1]
     tpy = n / years_span if years_span > 0 else 0.0
-    if policy == "pct5_compound":
-        # Must match mc_policy_samples seed+shape so table and plot agree.
-        r_full = np.where(risk_base > 0, pnl_base / risk_base, 0.0)
-        rng = np.random.default_rng(42)
-        idx = rng.integers(0, n, size=(n_sims, n))
-        sim_vals = np.log1p(RISK_FRAC * r_full[idx])
-    else:
-        sim_vals = samples_pnl
+    sim_vals = samples_pnl
     mu = sim_vals.mean(axis=1)
     sig = sim_vals.std(axis=1, ddof=1) if n > 1 else np.zeros(sim_vals.shape[0])
     sharpe = np.where(sig > 0, (mu / sig) * np.sqrt(tpy), 0.0)

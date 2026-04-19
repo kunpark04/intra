@@ -204,8 +204,15 @@ def mc_policy_samples(
     seed: int = 42,
     equity0: float = STARTING_EQUITY_DEFAULT,
     risk_frac: float = RISK_FRAC_DEFAULT,
+    dtype=np.float32,
 ):
     """Vectorized IID bootstrap of trade order under `policy`.
+
+    Bootstrap matrices default to float32 (samples_pnl, equity_paths) and
+    int32 (idx). This halves memory vs float64/int64 defaults: a 10k × 24k
+    matrix drops from ~2 GB to ~1 GB. Precision is still ~7 significant
+    digits — ample for Sharpe/DD/VaR quantile statistics at 4-decimal output.
+    Pass dtype=np.float64 to restore the old behaviour.
 
     Returns:
         samples_pnl (n_sims, n): per-trade $PnL under the policy.
@@ -216,22 +223,23 @@ def mc_policy_samples(
     risk = np.asarray(risk_base, dtype=float)
     n = len(pnl)
     if n == 0:
-        return np.empty((0, 0)), np.empty((0, 0))
-    idx = rng.integers(0, n, size=(n_sims, n))
+        return np.empty((0, 0), dtype=dtype), np.empty((0, 0), dtype=dtype)
+    idx = rng.integers(0, n, size=(n_sims, n), dtype=np.int32)
     if policy == "fixed_dollars_500":
-        samples_pnl = pnl[idx]
+        samples_pnl = pnl[idx].astype(dtype, copy=False)
     elif policy == "pct5_compound":
         r = np.where(risk > 0, pnl / risk, 0.0)
         growth = 1.0 + risk_frac * r[idx]
         equity = equity0 * np.cumprod(growth, axis=1)
         samples_pnl = np.diff(
             np.concatenate([np.full((n_sims, 1), equity0), equity], axis=1)
-        )
+        ).astype(dtype, copy=False)
     else:
         raise ValueError(f"unknown policy: {policy}")
     equity_paths = np.concatenate(
-        [np.full((n_sims, 1), equity0),
-         equity0 + np.cumsum(samples_pnl, axis=1)], axis=1,
+        [np.full((n_sims, 1), equity0, dtype=dtype),
+         (equity0 + np.cumsum(samples_pnl, axis=1)).astype(dtype, copy=False)],
+        axis=1,
     )
     return samples_pnl, equity_paths
 
@@ -329,8 +337,8 @@ def monte_carlo(
         if policy == "pct5_compound":
             r_full = np.where(risk > 0, pnl / risk, 0.0)
             rng = np.random.default_rng(seed)
-            idx = rng.integers(0, n, size=(n_sims, n))
-            sim_vals = np.log1p(risk_frac * r_full[idx])
+            idx = rng.integers(0, n, size=(n_sims, n), dtype=np.int32)
+            sim_vals = np.log1p(risk_frac * r_full[idx]).astype(np.float32, copy=False)
         else:
             sim_vals = samples_pnl
         mu = sim_vals.mean(axis=1)
