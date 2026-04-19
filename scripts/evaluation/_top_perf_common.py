@@ -647,14 +647,14 @@ def _hist_with_markers(ax, values, fmt):
                    label=f"p{pct:g}={fmt(v)}")
 
 
-def plot_mc_pnl(df, policy, title_prefix, years_span):
+def plot_mc_pnl(df, policy, title_prefix, years_span, n_sims=10_000):
     fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
     pnl_base, risk_base = _mc_source(df)
     if len(pnl_base) == 0:
         ax.set_title(f"{title_prefix} MC - final PnL ({policy}) no trades")
         fig.tight_layout(); plt.show(); return
     _, equity_paths = mc_policy_samples(
-        pnl_base, risk_base, policy, n_sims=10_000, seed=42)
+        pnl_base, risk_base, policy, n_sims=n_sims, seed=42)
     final_pnl = equity_paths[:, -1] - STARTING_EQUITY
     _hist_with_markers(ax, final_pnl, lambda v: f"${v:,.0f}")
     ax.set_title(f"{title_prefix} MC - final PnL ({policy})")
@@ -663,7 +663,7 @@ def plot_mc_pnl(df, policy, title_prefix, years_span):
     fig.tight_layout(); plt.show()
 
 
-def plot_mc_sharpe(df, policy, title_prefix, years_span):
+def plot_mc_sharpe(df, policy, title_prefix, years_span, n_sims=10_000):
     """Sharpe basis matches monte_carlo() table: $-PnL for fixed_dollars_500,
     log-returns log1p(RISK_FRAC*r) for pct5_compound. Annualized by
     sqrt(trades_per_year).
@@ -674,14 +674,14 @@ def plot_mc_sharpe(df, policy, title_prefix, years_span):
         ax.set_title(f"{title_prefix} MC - Sharpe ({policy}) no trades")
         fig.tight_layout(); plt.show(); return
     samples_pnl, _ = mc_policy_samples(
-        pnl_base, risk_base, policy, n_sims=10_000, seed=42)
+        pnl_base, risk_base, policy, n_sims=n_sims, seed=42)
     n = samples_pnl.shape[1]
     tpy = n / years_span if years_span > 0 else 0.0
     if policy == "pct5_compound":
         # Must match mc_policy_samples seed+shape so table and plot agree.
         r_full = np.where(risk_base > 0, pnl_base / risk_base, 0.0)
         rng = np.random.default_rng(42)
-        idx = rng.integers(0, n, size=(10_000, n))
+        idx = rng.integers(0, n, size=(n_sims, n))
         sim_vals = np.log1p(RISK_FRAC * r_full[idx])
     else:
         sim_vals = samples_pnl
@@ -701,14 +701,14 @@ def plot_mc_sharpe(df, policy, title_prefix, years_span):
     fig.tight_layout(); plt.show()
 
 
-def plot_mc_dd(df, policy, title_prefix, years_span):
+def plot_mc_dd(df, policy, title_prefix, years_span, n_sims=10_000):
     fig, ax = plt.subplots(figsize=(_FIG_W, _FIG_H))
     pnl_base, risk_base = _mc_source(df)
     if len(pnl_base) == 0:
         ax.set_title(f"{title_prefix} MC - max drawdown ({policy}) no trades")
         fig.tight_layout(); plt.show(); return
     _, equity_paths = mc_policy_samples(
-        pnl_base, risk_base, policy, n_sims=10_000, seed=42)
+        pnl_base, risk_base, policy, n_sims=n_sims, seed=42)
     peak = np.maximum.accumulate(equity_paths, axis=1)
     dd_pct = np.nan_to_num((peak - equity_paths) / peak, nan=0.0).max(axis=1) * 100
     ax.hist(dd_pct, bins=60, color="#c49a6c", alpha=0.85, edgecolor="white")
