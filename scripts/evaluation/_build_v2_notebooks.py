@@ -323,7 +323,8 @@ def main() -> None:
     ap.add_argument("--variant",
                     choices=["v10", "v11", "v12",
                              "v12_k05", "v12_k10", "v12_top50",
-                             "v12_top50_v4", "all"],
+                             "v12_top50_v4",
+                             "v12_top50_raw_sharpe_v4", "all"],
                     default="all",
                     help="Which top-K source to build for.")
     args = ap.parse_args()
