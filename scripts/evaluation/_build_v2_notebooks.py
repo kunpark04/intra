@@ -324,7 +324,8 @@ def main() -> None:
                     choices=["v10", "v11", "v12",
                              "v12_k05", "v12_k10", "v12_top50",
                              "v12_top50_v4",
-                             "v12_top50_raw_sharpe_v4", "all"],
+                             "v12_top50_raw_sharpe_v4",
+                             "v12_top50_raw_sharpe_v3", "all"],
                     default="all",
                     help="Which top-K source to build for.")
     args = ap.parse_args()
@@ -402,6 +403,19 @@ def main() -> None:
             _setup("0.0", tsp, version="v4"),
             _setup("5.0", tsp, version="v4"),
             title_tag="(v12 top-50 raw-Sharpe, V4 filter)",
+        )
+
+    # Pool B validation gauntlet Step 3 — pair the raw-Sharpe top-50 combo set
+    # (Pool B winner) with the previous-generation V3 ML#2 filter, to unbundle
+    # the V3->V4 vs UCB->Pool B contributions in the gauntlet.
+    if args.variant in ("v12_top50_raw_sharpe_v3", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_raw_sharpe_top50.json'"
+        _build_variant(
+            EVAL / "v12_topk_top50_raw_sharpe_v3",
+            EVAL / "v12_topk_top50_raw_sharpe_net_v3",
+            _setup("0.0", tsp, version="v3"),
+            _setup("5.0", tsp, version="v3"),
+            title_tag="(v12 top-50 raw-Sharpe, V3 filter)",
         )
 
     # Remove the old monolithic notebook if present — it's replaced by the
