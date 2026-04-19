@@ -32,7 +32,11 @@ def load_combo_by_id(gcid: str) -> dict:
     combo_id = int(gcid.split("_")[1])
     combo = {"global_combo_id": gcid, "source_version": source_version,
              "combo_id": combo_id}
+    # v2–v10 live in data/ml/mfe/ (MFE re-runs); v11+ bake MFE inline and
+    # live in data/ml/originals/. Fall back when the MFE path is absent.
     parq = REPO / f"data/ml/mfe/ml_dataset_v{source_version}_mfe.parquet"
+    if not parq.exists():
+        parq = REPO / f"data/ml/originals/ml_dataset_v{source_version}.parquet"
     df_c = pd.read_parquet(parq, filters=[("combo_id", "==", combo_id)])
     meta_cols = [
         "z_band_k", "z_window", "volume_zscore_window", "ema_fast", "ema_slow",
