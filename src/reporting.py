@@ -219,14 +219,18 @@ def mc_policy_samples(
         equity_paths (n_sims, n+1): equity paths with column 0 = equity0.
     """
     rng = np.random.default_rng(seed)
-    pnl = np.asarray(pnl_base, dtype=float)
-    risk = np.asarray(risk_base, dtype=float)
+    # Cast source arrays to the bootstrap dtype (float32 by default) so that
+    # fancy-indexed intermediates like `pnl[idx]` — shape (n_sims, n) — don't
+    # get materialised in float64 before the .astype downcast. At 10k × 44k
+    # trades that hidden intermediate is 3.5 GB vs 1.75 GB at float32.
+    pnl = np.asarray(pnl_base, dtype=dtype)
+    risk = np.asarray(risk_base, dtype=dtype)
     n = len(pnl)
     if n == 0:
         return np.empty((0, 0), dtype=dtype), np.empty((0, 0), dtype=dtype)
     idx = rng.integers(0, n, size=(n_sims, n), dtype=np.int32)
     if policy == "fixed_dollars_500":
-        samples_pnl = pnl[idx].astype(dtype, copy=False)
+        samples_pnl = pnl[idx]  # already dtype (float32 default)
     elif policy == "pct5_compound":
         r = np.where(risk > 0, pnl / risk, 0.0)
         growth = 1.0 + risk_frac * r[idx]
