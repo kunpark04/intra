@@ -326,7 +326,8 @@ def main() -> None:
                              "v12_top50_v4",
                              "v12_top50_raw_sharpe_v4",
                              "v12_top50_raw_sharpe_v3",
-                             "v12_full_pool_v4", "all"],
+                             "v12_full_pool_v4",
+                             "v12_full_pool_v4_2k", "all"],
                     default="all",
                     help="Which top-K source to build for.")
     args = ap.parse_args()
@@ -430,6 +431,19 @@ def main() -> None:
             _setup("0.0", tsp, version="v4"),
             _setup("5.0", tsp, version="v4"),
             title_tag="(v12 full post-gate pool, V4 filter)",
+        )
+
+    # Plan §Risk & rollback fallback — 2,000-combo uniform subsample of the
+    # post-gate pool. Use when the full 13,814 pool is too memory-heavy for
+    # the 9G MemoryMax cap (historical OOM on s1/s3 with 12M+ trades).
+    if args.variant in ("v12_full_pool_v4_2k", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_full_pool_2k.json'"
+        _build_variant(
+            EVAL / "v12_full_pool_v4_2k",
+            EVAL / "v12_full_pool_net_v4_2k",
+            _setup("0.0", tsp, version="v4"),
+            _setup("5.0", tsp, version="v4"),
+            title_tag="(v12 full pool subsample 2k, V4 filter)",
         )
 
     # Remove the old monolithic notebook if present — it's replaced by the
