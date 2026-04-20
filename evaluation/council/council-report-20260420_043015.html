@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LLM Council Report — Pool B + V4 Ship-Decision Robustness — 2026-04-20</title>
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #666;
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e5e5e5;
+    --accent: #2b4c7e;
+    --agree: #2e7d4f;
+    --clash: #b84949;
+    --blind: #8a5e00;
+    --rec: #2b4c7e;
+    --contrarian: #b84949;
+    --first: #2b4c7e;
+    --expans: #2e7d4f;
+    --outsider: #7a3e9e;
+    --executor: #8a5e00;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+    color: var(--fg);
+    background: var(--bg);
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  header { margin-bottom: 2rem; }
+  header .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  header h1 {
+    margin: 0 0 0.4rem;
+    font-size: 1.6rem;
+    font-weight: 600;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .question-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 2rem;
+  }
+  .question-card h2 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 0.5rem;
+  }
+  .question-card p { margin: 0 0 0.5rem; }
+  .verdict {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem 1.6rem;
+    margin-bottom: 2rem;
+  }
+  .verdict h2 {
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+  .verdict h3 {
+    margin: 1.2rem 0 0.4rem;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .v-agree h3 { color: var(--agree); }
+  .v-clash h3 { color: var(--clash); }
+  .v-blind h3 { color: var(--blind); }
+  .v-rec h3 { color: var(--rec); }
+  .v-first { border: 1px solid var(--rec); border-radius: 4px; padding: 1rem 1.2rem; margin-top: 1rem; background: #f3f6fb; }
+  .v-first h3 { margin-top: 0; color: var(--rec); }
+  .v-first code {
+    background: #ffffff;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 0.88em;
+  }
+  .outcomes { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+  .outcomes li { margin: 0.2rem 0; }
+  .alignment {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.2rem 1.3rem;
+    margin-bottom: 2rem;
+  }
+  .alignment h2 {
+    margin: 0 0 0.8rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .spectrum {
+    position: relative;
+    height: 110px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: linear-gradient(to right, #fce8e8 0%, #fff 50%, #e5f3ec 100%);
+    margin: 0.4rem 0 0.6rem;
+  }
+  .spectrum .axis {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 16px;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 0.6rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .spectrum .pin {
+    position: absolute;
+    top: 14px;
+    transform: translateX(-50%);
+    text-align: center;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+  .spectrum .pin .dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.15);
+    margin: 0 auto 4px;
+  }
+  .pin.p-B  { left:  8%; } .pin.p-B  .dot { background: var(--contrarian); }
+  .pin.p-E  { left: 18%; } .pin.p-E  .dot { background: var(--outsider);   }
+  .pin.p-D  { left: 34%; } .pin.p-D  .dot { background: var(--first);      }
+  .pin.p-C  { left: 58%; } .pin.p-C  .dot { background: var(--executor);   }
+  .pin.p-A  { left: 90%; } .pin.p-A  .dot { background: var(--expans);     }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.4rem;
+  }
+  .legend span .sw {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 0.3rem;
+    vertical-align: baseline;
+  }
+  details.advisor, details.reviews {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.7rem 1rem;
+    margin-bottom: 0.6rem;
+  }
+  details[open] { padding-bottom: 1rem; }
+  details > summary {
+    cursor: pointer;
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::after {
+    content: "+";
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 1.2rem;
+  }
+  details[open] > summary::after { content: "−"; }
+  .advisor-body {
+    margin-top: 0.7rem;
+    padding-left: 1rem;
+    border-left: 3px solid var(--border);
+    font-size: 0.92rem;
+  }
+  .advisor.c-contrarian { border-left: 4px solid var(--contrarian); }
+  .advisor.c-first      { border-left: 4px solid var(--first);      }
+  .advisor.c-expans     { border-left: 4px solid var(--expans);     }
+  .advisor.c-outsider   { border-left: 4px solid var(--outsider);   }
+  .advisor.c-executor   { border-left: 4px solid var(--executor);   }
+  .stance {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-left: 0.6rem;
+    font-weight: 400;
+  }
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  code, pre {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  pre {
+    background: #f3f3f3;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.85rem;
+    overflow-x: auto;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">LLM Council · intra project</div>
+    <h1>Pool B + V4 ship-decision robustness &amp; next-experiment prioritization</h1>
+    <div class="sub">2026-04-20 · 04:30 CDT · 5 advisors · 5 peer reviews · 1 chairman</div>
+  </header>
+
+  <section class="question-card">
+    <h2>The Question</h2>
+    <p>Debate the interpretation of Pool B + V4 ship-decision results and the robustness of the current ML pipeline. Three sub-questions: (1) Is the shipped 2.13 Sharpe a real signal or pipeline-specific overfitting? (2) Is "ranker is noise but truncation is load-bearing" a coherent ship posture? (3) What's the highest-value next experiment?</p>
+    <p style="font-size: 0.85rem; color: var(--muted); margin-top: 0.6rem;">Shipped pipeline: v12 raw-Sharpe top-50 ranker → ML#2 V4 filter → fixed $500. Commit d25fbe3. MC s6_net: Sharpe p50 2.13, CI [+0.56, +3.64], ruin 0.02%, max DD 55%, 641 trades.</p>
+  </section>
+
+  <section class="alignment">
+    <h2>Advisor alignment on shipping</h2>
+    <div class="spectrum" aria-label="Advisor positions on ship-vs-audit spectrum">
+      <div class="pin p-B"><div class="dot"></div>Contrarian</div>
+      <div class="pin p-E"><div class="dot"></div>Outsider</div>
+      <div class="pin p-D"><div class="dot"></div>First Principles</div>
+      <div class="pin p-C"><div class="dot"></div>Executor</div>
+      <div class="pin p-A"><div class="dot"></div>Expansionist</div>
+      <div class="axis"><span>Halt &amp; re-audit</span><span>Verify current basket</span><span>Scale the franchise</span></div>
+    </div>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--contrarian)"></span>Contrarian — selection-bias red flag</span>
+      <span><span class="sw" style="background:var(--outsider)"></span>Outsider — "grading own homework"</span>
+      <span><span class="sw" style="background:var(--first)"></span>First Principles — reframe + null test</span>
+      <span><span class="sw" style="background:var(--executor)"></span>Executor — verify via rolling Jaccard</span>
+      <span><span class="sw" style="background:var(--expans)"></span>Expansionist — concentration is alpha, scale it</span>
+    </div>
+    <p style="font-size: 0.82rem; color: var(--muted); margin-top: 0.8rem;">4 of 5 advisors converged on a <strong>random-K null test</strong> as the decisive next experiment. The Expansionist dissents toward scaling the mechanism immediately. The Executor proposes rolling-retrain Jaccard; two peer reviewers objected that this measures noise-stability of a ranker already known to be noise.</p>
+  </section>
+
+  <section class="verdict">
+    <h2>Chairman's Verdict</h2>
+
+    <div class="v-agree">
+      <h3>Where the Council Agrees</h3>
+      <p>Four of five advisors converge on a single diagnosis: <strong>the shipped pipeline has not been shown to produce alpha distinguishable from "50-combo concentration of a pre-filtered pool."</strong> The claim "ranker is noise but truncation is load-bearing" is logically unstable because the full-pool blow-up test compares top-50 to the full 500-combo pool — not to random-50 from the same pool. The decisive missing experiment is a <strong>random-K null distribution</strong>, not a rolling retrain and not a new ranker. Three of five also called out that V4 was trained on the same partition that generated the combos — a second selection effect stacked on the first.</p>
+    </div>
+
+    <div class="v-clash">
+      <h3>Where the Council Clashes</h3>
+      <p>The split is <strong>audit vs. exploit</strong>. The Expansionist argues the concentration insight is itself the franchise: scaling (new instruments, diversity selectors, more sizing channels) is the right move; auditing a single basket optimizes the wrong variable. Everyone else argues the mechanism is <strong>not yet established</strong>; scaling an unverified edge is the textbook way to turn a selection artifact into a large loss. The Executor occupies a third position — rolling-retrain Jaccard — which two reviewers correctly objected measures the stability of something already known to be noise. The Expansionist's position is coherent <em>conditional on</em> the mechanism being real; the majority position is that this condition has not been met.</p>
+    </div>
+
+    <div class="v-blind">
+      <h3>Blind Spots the Council Caught (peer review only)</h3>
+      <ol>
+        <li><strong>V4 is the mechanism, not a side-leak.</strong> If V4 memorized which combos survive in-partition, any random-50 drawn <em>after</em> V4 inherits that leak. A naive null test would falsely confirm concentration as the edge. The null must run pre-V4 or use a V4 refit on a clean partition.</li>
+        <li><strong>The post-gate pool is itself a selection artifact.</strong> <code>MIN_TRADES_GATE=500</code> and v11 sweep ranges were human-tuned. "Positive expectancy of the post-gate pool" is not a free prior — it's a curated one.</li>
+        <li><strong>641 trades ≈ one macro regime.</strong> The 2020–2025 post-gate pool is a survivor of a specific rate/vol environment. Even a diversity-optimal selector over a regime-conditioned pool ships regime risk mislabeled as alpha.</li>
+        <li><strong>Capacity-correlation frontier is untested.</strong> No one measured whether the 13,814 pool supports 2, 4, or 8 decorrelated 50-baskets, or whether aggregate Sharpe compounds linearly. This is where the Expansionist's thesis is confirmable or killable.</li>
+      </ol>
+    </div>
+
+    <div class="v-rec">
+      <h3>The Recommendation</h3>
+      <p>Run the <strong>random-50 null test</strong> before anything else, but structure it so it can't be fooled by V4 leakage or post-gate tuning. <strong>Two arms, both required:</strong> (a) random-50 vs. top-50 vs. bottom-50 drawn from the post-gate pool, routed through a V4 <em>refit on a held-out partition</em>; (b) the same three-way comparison on the pre-gate pool. The Executor's rolling-retrain Jaccard is deferred — it measures noise stability of a ranker whose value-add is unestablished. The Expansionist's scaling program is deferred — the mechanism has to be real before building a factory on it. If shipped-50 sits below the 75th percentile of the random-50 distribution with a leakage-corrected V4, the 2.13 Sharpe is a reconstruction, not a forecast.</p>
+    </div>
+
+    <div class="v-first">
+      <h3>The One Thing to Do First</h3>
+      <p>Write <code>scripts/evaluation/random_k_null_v12.py</code>: draw 1,000 independent random 50-combo baskets from the 13,814 post-gate pool, route each through a V4 refit trained on pre-2024 data only, compute s6_net Sharpe per basket, plot the distribution with shipped top-50 marked.</p>
+      <p><strong>Falsifiable outcome:</strong></p>
+      <ul class="outcomes">
+        <li><strong>Shipped-50 percentile ≥ 90</strong> → ranker/truncation adds real value; proceed to Expansionist's capacity work.</li>
+        <li><strong>Percentile 50–90</strong> → concentration is the edge, ranker is cosmetic; pivot to a diversity objective.</li>
+        <li><strong>Percentile &lt; 50</strong> → Sharpe 2.13 is a selection artifact; halt paper-trading and re-architect.</li>
+      </ul>
+    </div>
+  </section>
+
+  <h2 style="margin: 2.2rem 0 0.8rem; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);">Full advisor responses</h2>
+
+  <details class="advisor c-contrarian">
+    <summary>The Contrarian <span class="stance">· Fatal-flaw audit · selection bias</span></summary>
+    <div class="advisor-body">
+      <p><strong>Fatal flaw in plain sight:</strong> you cannot simultaneously claim "the ranker is noise" and "top-50 is load-bearing for regime diversity." If the ranker is indistinguishable from random, then "top-50 by raw Sharpe" is just "top-50 by in-sample Sharpe on the training partition" — the most classic overfitting selector in quant finance. The 2.13 Sharpe is a reconstruction error, not a forecast.</p>
+      <p>Jaccard 0.653 doesn't save you. Ordinal-shift perturbs <em>input ordering</em>, not retraining on held-out data. Combos stable across ±180d shifts are stable because the underlying trades don't move much — not because the selection procedure generalizes.</p>
+      <p>The full-pool ablation is being misread. "Dropping top-K blows up to 43% ruin" does not prove top-K is principled — it proves the 500-combo uniform sample contains trash. A random 50-combo subsample would likely also outperform the full pool; <em>any</em> concentration reduces variance. You haven't compared top-50 vs. random-50 vs. bottom-50. Until you do, "concentration is architectural" is just "small portfolios have lower variance than large ones."</p>
+      <p>V4 trained on the same partition = a second leak stacked on the first.</p>
+      <p><strong>Next:</strong> random-50 vs. top-50 vs. bottom-50 through V4, evaluated on a true walk-forward 2024+ partition. Don't trade real money until you run that.</p>
+    </div>
+  </details>
+
+  <details class="advisor c-first">
+    <summary>The First Principles Thinker <span class="stance">· Reframe · null hypothesis</span></summary>
+    <div class="advisor-body">
+      <p>You're asking the wrong questions. Rebuild from zero: 13,814 combos, keep 50, ranker is provably random. So: you're running a 50-combo portfolio sampled by a process statistically equivalent to uniform random selection from a pre-filtered pool. Everything else is narrative.</p>
+      <p><strong>Q1 reframed:</strong> The right counterfactual isn't full-pool-no-topK. It's: draw 1,000 independent random 50-combo baskets from the 13,814 post-gate pool, run s6_net on each, plot the Sharpe distribution. If your shipped 50 sits at the 50th percentile, your ranker contributed zero and your Sharpe is just what a 50-basket of V4-filtered combos looks like.</p>
+      <p><strong>Q2 reframed:</strong> The posture is coherent but described wrong. It's not "ranker noise + truncation signal." It's <em>"post-gate pool has positive expectancy; concentration to ~50 controls correlation; which 50 doesn't matter."</em> Ship that story. It's defensible. The current story isn't.</p>
+      <p><strong>Q3 reframed:</strong> Random-50-baskets null test. Costs almost nothing, resolves the entire epistemic position. Do it before anything else.</p>
+    </div>
+  </details>
+
+  <details class="advisor c-expans">
+    <summary>The Expansionist <span class="stance">· Concentration = alpha · scale the operator</span></summary>
+    <div class="advisor-body">
+      <p>The concentration insight is the alpha, and the council is about to underprice it. Ranker signal is noise, yet the pipeline ships a 2.13 Sharpe with 0.02% ruin. The value isn't in <em>picking</em> combos — it's in the <strong>portfolio-construction operator</strong> that compresses any reasonable pool into 50 regime-diverse bets whose losing streaks decorrelate. You've stumbled onto a near-model-free edge. The "ranker" is a random-basis sampler; the architecture is the product.</p>
+      <p>If it generalizes:</p>
+      <ol>
+        <li><strong>Instrument multiplication.</strong> Same operator on MES, MGC, MCL, MBT = a portfolio factory. 5 instruments × uncorrelated 2.13 Sharpe ≈ aggregate 4+.</li>
+        <li><strong>Ranker arbitrage.</strong> Replace v12 with a diversity-maximizing selector (DPP, k-medoids, max-entropy). Cheap to try.</li>
+        <li><strong>Capacity.</strong> 50 combos = 50 independent sizing channels. Shipped 5% risk is probably 3–5× under-levered.</li>
+      </ol>
+      <p><strong>Next:</strong> swap the ranker for a diversity objective on the same pool and compare s6_net. Validate the mechanism, because the mechanism is the franchise.</p>
+    </div>
+  </details>
+
+  <details class="advisor c-outsider">
+    <summary>The Outsider <span class="stance">· Read-out-loud test · headline-risk triage</span></summary>
+    <div class="advisor-body">
+      <p>"The ranker is statistically indistinguishable from random, but truncation is load-bearing." Read that out loud: <em>we can't tell our stock-picker from a dart-throwing monkey, but picking 50 darts instead of 500 is the whole game.</em> You haven't shipped a model — you've shipped a portfolio size constraint wearing ML clothes. Why is this called "v12 raw-Sharpe top-50 ranker" instead of "random-50 sampler"?</p>
+      <p><strong>V4 trained on same partition that generated combos.</strong> A layperson would call this <em>grading your own homework</em>. You buried it in "caveats." It should be headline risk.</p>
+      <p><strong>500-combo subsample</strong> for the blow-up test — one subsample, not a distribution. How do you know 43% ruin isn't a bad draw?</p>
+      <p><strong>Sharpe CI [+0.56, +3.64]</strong> — that lower bound is a <em>normal</em> strategy, not a 2.13 monster. The point estimate is being quoted; the interval is what you'd actually live through.</p>
+      <p><strong>641 trades</strong> over full history sounds thin for claims this confident.</p>
+      <p><strong>Next:</strong> random-K at K=50, 100, 200, repeated 1000×. Stop paying the complexity tax of a pipeline that may not be doing work.</p>
+    </div>
+  </details>
+
+  <details class="advisor c-executor">
+    <summary>The Executor <span class="stance">· Monday 9am · rolling-retrain Jaccard</span></summary>
+    <div class="advisor-body">
+      <p><strong>Single highest-value experiment: true rolling-retrain Jaccard</strong>, not the ordinal-shift proxy. If the real Jaccard is 0.25 instead of 0.653, the load-bearing claim weakens — the basket is one lucky draw, not regime-diverse.</p>
+      <pre>Mon — scripts/analysis/rolling_retrain_jaccard_v12.py
+      retrain v12 on 3 expanding windows (60/75/90% of combo time)
+Tue — launch on sweep-runner-1 (paramiko → screen → systemd-run), poll 10min
+Wed — pairwise Jaccard across 3 baskets + intersection
+Thu — if intersection ≥ 20 and Jaccard ≥ 0.40, run s6_net MC on intersection
+Fri — writeup + commit</pre>
+      <p><strong>Kill signal:</strong> pairwise Jaccard &lt; 0.30 or intersection &lt; 10 combos. Skip "better ranker" work until current basket is verified real.</p>
+    </div>
+  </details>
+
+  <details class="reviews">
+    <summary>Peer review highlights (5 reviewers)</summary>
+    <div class="advisor-body">
+      <p><strong>Strongest response (votes):</strong> B (Contrarian) ×2, D (First Principles) ×2, A (Expansionist) ×1 self-vote.</p>
+      <p><strong>Biggest blind spot:</strong> A (Expansionist) called out by 4 of 5 — "skyscraper on untested foundation." C (Executor) called out by 1 — "terminally narrow."</p>
+      <p><strong>New blind spots surfaced only in peer review:</strong></p>
+      <ul>
+        <li>V4 in-partition training <em>is</em> the mechanism that makes random-50 look good — null must run pre-V4 or with clean-partition V4 refit.</li>
+        <li><code>MIN_TRADES_GATE=500</code> and v11 ranges are themselves human-tuned on prior results — post-gate pool is not a free prior.</li>
+        <li>641 trades ≈ one macro regime — regime risk is mislabeled as alpha.</li>
+        <li>Nobody tested basket-stacking; capacity-correlation frontier is the Expansionist's thesis's real falsifier.</li>
+      </ul>
+    </div>
+  </details>
+
+  <footer>
+    Generated 2026-04-20 04:30:15 CDT · intra · LLM Council v1 · anonymization mapping and full transcript in <code>council-transcript-20260420_043015.md</code>
+  </footer>
+</div>
+</body>
+</html>

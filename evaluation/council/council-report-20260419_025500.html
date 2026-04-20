@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council — Pool B Interpretation — 2026-04-19</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --hold: #b45309;
+    --ship: #047857;
+    --clash: #7c3aed;
+    --card: #fafafa;
+    --contrarian: #dc2626;
+    --fp: #0891b2;
+    --expansionist: #16a34a;
+    --outsider: #ca8a04;
+    --executor: #475569;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    max-width: 860px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
+    line-height: 1.55;
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
+  h2 { font-size: 1.2rem; margin-top: 2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+  h3 { font-size: 1rem; margin-top: 1.2rem; }
+  .subtitle { color: var(--muted); margin-top: 0; }
+  .question {
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0 1.5rem;
+    font-style: italic;
+  }
+  .verdict {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+  }
+  .verdict .headline {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+    color: var(--hold);
+  }
+  .verdict .one-thing {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px dashed #bbf7d0;
+    font-weight: 500;
+  }
+  code {
+    background: #f3f4f6;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  .position-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr 80px;
+    gap: 8px;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+  .position-grid > div {
+    padding: 8px 10px;
+    background: var(--card);
+    border-left: 3px solid var(--border);
+    border-radius: 3px;
+  }
+  .pos-header {
+    font-weight: 600;
+    background: #f3f4f6 !important;
+    border-left-color: var(--muted) !important;
+  }
+  .pos-hold { border-left-color: var(--hold) !important; }
+  .pos-ship { border-left-color: var(--ship) !important; }
+  .pos-clash { border-left-color: var(--clash) !important; }
+  .advisor-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  details {
+    margin: 0.6rem 0;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 0.6rem 0.8rem;
+    background: var(--card);
+  }
+  details[open] { background: #fff; }
+  summary {
+    cursor: pointer;
+    font-weight: 500;
+    user-select: none;
+  }
+  summary:hover { color: var(--accent); }
+  .advisor-body { margin-top: 0.7rem; font-size: 0.94rem; }
+  .reviewer-strongest { color: var(--ship); font-weight: 500; }
+  .reviewer-blindspot { color: var(--contrarian); font-weight: 500; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0.6rem 0;
+    font-size: 0.88rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    text-align: left;
+  }
+  th { background: #f3f4f6; }
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .agree-clash {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+  }
+  .agree, .clash {
+    padding: 0.8rem 1rem;
+    border-radius: 5px;
+    font-size: 0.92rem;
+  }
+  .agree { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .clash { background: #faf5ff; border: 1px solid #e9d5ff; }
+  @media (max-width: 600px) {
+    .agree-clash { grid-template-columns: 1fr; }
+    .position-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<h1>LLM Council — Pool B Interpretation</h1>
+<p class="subtitle">2026-04-19 02:55 CDT · Post-ablation + reproduction of v12 UCB vs raw-Sharpe top-50</p>
+
+<div class="question">
+  <strong>Question:</strong> What is the interpretation of the Pool B eval results, and should raw-Sharpe top-50 ship as the new production top-K?
+</div>
+
+<div class="verdict">
+  <div class="headline">Verdict: HOLD. Run the leakage check first.</div>
+  <p>Four of five advisors converge that the ablation <em>retired ML#1 UCB</em> but did <em>not</em> validate raw-Sharpe. Peer review was unanimous that The Outsider's response — "is <code>audit_full_net_sharpe</code> leakage-free?" — is the load-bearing question. Every other argument (ship vs. expand vs. walk-forward) is downstream of that single check.</p>
+  <div class="one-thing">
+    <strong>Do first:</strong> Print <code>min(date), max(date)</code> of the bars used to compute <code>audit_full_net_sharpe</code> in <code>combo_features_v12.parquet</code>. If max date ≥ 2024-10-22 (OOS start), the 2.13 Sharpe is wholly or partly leakage and the ablation invalidates.
+  </div>
+</div>
+
+<h2>Advisor Positions</h2>
+
+<div class="position-grid">
+  <div class="pos-header">Advisor</div>
+  <div class="pos-header">Core read</div>
+  <div class="pos-header">Verdict</div>
+
+  <div class="pos-hold"><span class="advisor-dot" style="background:var(--contrarian)"></span>Contrarian</div>
+  <div class="pos-hold">Reproducibility ≠ robustness. CI lower bound 0.56 is coin-flip. DD 55% vs 50% ruin threshold is knife-edge. Two changes bundled.</div>
+  <div class="pos-hold"><strong>Hold</strong></div>
+
+  <div class="pos-hold"><span class="advisor-dot" style="background:var(--fp)"></span>First Principles</div>
+  <div class="pos-hold">You're asking the wrong question. ML#1 ties random ⇒ your sweep may lack learnable structure. Selector is near-irrelevant; ML#2 carries the water.</div>
+  <div class="pos-hold"><strong>Hold</strong></div>
+
+  <div class="pos-hold"><span class="advisor-dot" style="background:var(--outsider)"></span>Outsider</div>
+  <div class="pos-hold"><code>audit_full_net_sharpe</code> — if "full" includes OOS bars, Pool B's win is leakage and 2.13 is a mirage. One line of code settles it.</div>
+  <div class="pos-hold"><strong>Hold</strong></div>
+
+  <div class="pos-ship"><span class="advisor-dot" style="background:var(--expansionist)"></span>Expansionist</div>
+  <div class="pos-ship">ML#2 is the real engine; Raw-Sharpe feeds it cleaner inputs by accident. Ship now, then expand pool, retarget v13, go multi-instrument.</div>
+  <div class="pos-ship"><strong>Ship + expand</strong></div>
+
+  <div class="pos-ship"><span class="advisor-dot" style="background:var(--executor)"></span>Executor</div>
+  <div class="pos-ship">Day 1 unbundle (V3+Pool B as 4th arm). Day 2 write ship_decision.md. Day 3 ship. Don't retrain, don't collect more OOS, don't drop ML#1.</div>
+  <div class="pos-ship"><strong>Ship in 3 days</strong></div>
+</div>
+
+<h2>Where the Council Agrees vs. Clashes</h2>
+
+<div class="agree-clash">
+  <div class="agree">
+    <strong>Agree</strong>
+    <ul>
+      <li>ML#1 UCB is <strong>retired</strong> — months of work, but the ablation is unambiguous.</li>
+      <li>The two bundled changes (V3→V4 ML#2, UCB→Pool B) must be unbundled before attribution.</li>
+      <li>CI width [0.56, 3.64] is uncomfortable for a $50k account.</li>
+      <li>Reproduction ≠ robustness. Matching to 2 decimals on the same seed + same window is determinism, not validation.</li>
+    </ul>
+  </div>
+  <div class="clash">
+    <strong>Clash</strong>
+    <ul>
+      <li><strong>Ship now vs. hold.</strong> Executor + Expansionist want forward motion; Contrarian, First Principles, Outsider demand falsification first.</li>
+      <li><strong>What the ablation means.</strong> Expansionist: "ML#2 is the engine, scale it." First Principles: "sweep lacks learnable structure." Outsider: "maybe leakage; not comparing like with like."</li>
+      <li><strong>What to kill.</strong> First Principles wants to test ML#1 deletion. Executor says keep it. Expansionist wants to retrain it (v13).</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Blind Spots the Council Caught (peer review)</h2>
+
+<p>Peer review was <strong>unanimous</strong>: The Outsider (B) was strongest; The Executor (D) had the biggest blind spot. Reviewers also surfaced <strong>five things no advisor raised</strong>:</p>
+
+<ol>
+  <li><strong>Selection-column parity</strong> — did Pools A and C use a leakage-free column while Pool B used <code>audit_full_net_sharpe</code>? If so, the ablation is apples-to-oranges by construction.</li>
+  <li><strong>Sample-size power</strong> — at 641 trades / 1.46 years, the ablation may be statistically underpowered to distinguish selectors regardless of leakage. The "decisive" win may be inside noise.</li>
+  <li><strong>Rank stability</strong> — even if the column is clean, the <em>membership</em> of Pool B may shuffle dramatically under a training-window perturbation. Separate check from walk-forward Sharpe.</li>
+  <li><strong>Psychological ruin</strong> — MC flags ruin at 50% equity; 55% DD on $50k is $27.5k, and margin-call/psychological ruin hits earlier than the bootstrap threshold.</li>
+  <li><strong>Sweep-as-ceiling</strong> — 33% WR convergence across all three pools may say more about v11 parameter ranges than about any ranker.</li>
+</ol>
+
+<h2>Full Advisor Responses</h2>
+
+<details>
+  <summary><span class="advisor-dot" style="background:var(--contrarian)"></span>The Contrarian — HOLD</summary>
+  <div class="advisor-body">
+    Don't ship. You're about to enshrine a sorting operation as a "production ranker" based on one OOS window. Pool B is literally <code>df.sort_values("audit_full_net_sharpe").head(50)</code> — in-sample training Sharpe. A lower-bound Sharpe of 0.56 after $5/contract friction on 641 trades is not a moat; it's a coin flip wearing a suit.
+    <br><br>
+    The reproduction "gate" is theater: you reran the same selection rule on the same OOS window with the same seed family. Reproducibility ≠ robustness. DD worst 55% with ruin threshold 50% means you're already past ruin in the worst MC path. MC bootstrap assumes IID trades — your 5-trades-per-combo structure violates that; real drawdowns will be worse than bootstrap implies. You're also bundling two changes into one ship.
+    <br><br>
+    <strong>Next step:</strong> walk-forward the Pool B rule itself. Pick top-50 by raw Sharpe on rolling training windows, evaluate on the <em>next</em> window. If that degrades to Pool C territory, raw-Sharpe is overfit to the full-history audit.
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-dot" style="background:var(--fp)"></span>The First Principles Thinker — HOLD</summary>
+  <div class="advisor-body">
+    You're asking the wrong question. The right one: what did you actually learn? ML#1 was supposed to select combos that survive OOS. The ablation proved it performs indistinguishably from random. That's a statement that your 13,814-combo sweep does not contain learnable structure over your chosen features for your chosen target.
+    <br><br>
+    Why did raw-Sharpe win? Not because it's clever — it's the dumbest possible baseline. It won because in-sample Sharpe on 5 trades/combo is mostly a lottery, and the winners correlate with "combos that trade rarely and cleanly," which ML#2 filters successfully. You didn't discover a selection method — you discovered that restrictive combos × a decent per-trade filter beats permissive combos × the same filter. The selector is almost irrelevant.
+    <br><br>
+    641 trades / 1.46 years is your actual signal budget. CI [0.56, 3.64] is physics. <strong>Test: ML#2 applied to the full 13,814 pool, no pre-filter.</strong> If that matches Pool B, kill ML#1 entirely. Ship nothing yet.
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-dot" style="background:var(--expansionist)"></span>The Expansionist — SHIP + EXPAND</summary>
+  <div class="advisor-body">
+    The ablation exposed a more valuable truth than "better top-K picker": <strong>ML#2 is a variance-compression engine</strong>, and its power scales with how little the upstream layer interferes. All three pools converge at ~33% WR, so ML#2 is doing the real alpha extraction. Raw-Sharpe feeds it cleaner inputs by accident.
+    <br><br>
+    Upside moves:
+    <ol>
+      <li>Expand the pool, don't shrink it. Feed ML#2 top-200, top-500, or the entire 13,814-combo sweep at inference. Sharpe 2.77 on ML#2-only unfiltered gross suggests massive unused capacity.</li>
+      <li>Retarget ML#1 as an ML#2-collaborator. Train v13 on post-ML#2-filter net Sharpe. UCB failed because it solved the wrong problem.</li>
+      <li>Multi-instrument (MES, MYM, MGC) with same ML#2 could 4-5× trade count without retraining. Cross-asset ensemble tightens the CI dramatically.</li>
+      <li>Ship Pool B now with explicit confidence band. The frontier is much bigger than picking 50 combos better.</li>
+    </ol>
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-dot" style="background:var(--outsider)"></span>The Outsider — HOLD (unanimous strongest)</summary>
+  <div class="advisor-body">
+    The elephant: you have a column literally named <code>audit_full_net_sharpe</code>, you acknowledge "full partition is referenced," and you're about to ship a ranker built on it. If "full" means full dataset (train + OOS), then ranking by it and evaluating on OOS is not an out-of-sample test — it's "I picked the 50 combos that did well during the period I'm about to grade them on." That this beats a months-of-work ML model that presumably doesn't cheat is exactly what you'd expect if there's leakage. <strong>One line of code confirming the column's date range vs. the OOS window settles it.</strong>
+    <br><br>
+    Second: 1.46 years is not a lot. Bootstrap that resamples the same trades measures sampling noise within your one historical path, not regime robustness. Third: the gross-with-friction line (Sharpe −0.19, DD 977%) means your entire edge lives inside the filter + selection stack. Small changes to friction, fill, or slippage could flip sign. Fourth: "stat-indistinguishable from random" on ML#1 is a finding, not a failure to hide.
+    <br><br>
+    Prove <code>audit_full_net_sharpe</code> uses only pre-OOS bars. If it doesn't, the 2.13 is a mirage and nothing ships.
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-dot" style="background:var(--executor)"></span>The Executor — SHIP IN 3 DAYS (unanimous biggest blind spot)</summary>
+  <div class="advisor-body">
+    Monday morning. You have one clean result, two bundled changes, and a 1.46-year sample.
+    <br><br>
+    <strong>Day 1 (~4h):</strong> Unbundle. Run V3-ML#2 + Pool B as a fourth arm. Extractor + generator already support it. Tells you whether Sharpe 2.13 came from Pool B, V4, or both.
+    <br><br>
+    <strong>Day 2 (~2h):</strong> <code>tasks/ship_decision.md</code> with a 4-row table (V3+UCB, V4+UCB, V4+Pool B, V3+Pool B). Pick highest p50 AND smallest single-change delta from prod.
+    <br><br>
+    <strong>Day 3 (~1h):</strong> Ship. Update CLAUDE.md. Tag commit <code>prod-2026-04-20</code>. Freeze <code>evaluation/top_strategies_v12_prod.json</code>.
+    <br><br>
+    <strong>Do not:</strong> retrain ML#1 (motion ≠ progress), collect more OOS (stall tactic), drop ML#1 entirely (too permanent). CI: one sentence in metadata. Ship Pool B. Move on.
+  </div>
+</details>
+
+<h2>Peer Review Highlights</h2>
+
+<details>
+  <summary>All 5 reviewers converged: B strongest, D biggest blind spot</summary>
+  <div class="advisor-body">
+    <table>
+      <tr><th>Reviewer</th><th class="reviewer-strongest">Strongest</th><th class="reviewer-blindspot">Biggest blind spot</th><th>What all missed</th></tr>
+      <tr><td>R1</td><td>B</td><td>E — roadmap on unaudited foundation</td><td>Selection-column parity across pools</td></tr>
+      <tr><td>R2</td><td>B</td><td>D — execution theater on leaky metric</td><td>Sweep's parameter diversity may be ceiling</td></tr>
+      <tr><td>R3</td><td>B</td><td>D — scheduling over falsification</td><td>641-trade denominator underpowered</td></tr>
+      <tr><td>R4</td><td>B</td><td>D — ships mirage on schedule</td><td>$27.5k DD ≠ 50% bootstrap ruin; psych ruin earlier</td></tr>
+      <tr><td>R5</td><td>B</td><td>D — decisiveness mis-applied</td><td>Rank-stability under window perturbation</td></tr>
+    </table>
+  </div>
+</details>
+
+<div class="footer">
+  Counciled: What is the interpretation of the Pool B (raw-Sharpe top-50) eval results? Should raw-Sharpe top-50 ship as the new production top-K?
+  <br>Generated 2026-04-19 02:55 CDT by the LLM Council skill. Transcript: <code>council-transcript-20260419_025500.md</code>.
+</div>
+
+</body>
+</html>

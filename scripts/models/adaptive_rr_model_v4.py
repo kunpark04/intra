@@ -129,6 +129,10 @@ def parse_args() -> argparse.Namespace:
                    help="Base trades to load pre-expansion (default 1.2M)")
     p.add_argument("--rebuild-cache", action="store_true",
                    help="Ignore cached train_matrix.parquet and rebuild from v11.")
+    p.add_argument("--input-parquet", type=str, default=None,
+                   help="Override v11 source parquet (e.g. pre-2024 partition).")
+    p.add_argument("--output-dir", type=str, default=None,
+                   help="Override output directory (e.g. data/ml/adaptive_rr_v4_pre2024).")
     return p.parse_args()
 
 
@@ -422,6 +426,16 @@ def main() -> None:
     """Train V4: LightGBM booster + per-R:R pooled isotonic on v11 sweep."""
     args = parse_args()
     t0 = time.time()
+
+    global V11_PARQUET, OUTPUT_DIR, TRAIN_MATRIX_CACHE
+    if args.input_parquet:
+        V11_PARQUET = Path(args.input_parquet)
+    if args.output_dir:
+        OUTPUT_DIR = Path(args.output_dir)
+        TRAIN_MATRIX_CACHE = OUTPUT_DIR / "train_matrix.parquet"
+
+    print(f"[v4] source_parquet = {V11_PARQUET}")
+    print(f"[v4] output_dir     = {OUTPUT_DIR}")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     print("=" * 70)
     print("Adaptive R:R V4 — V3 retrained on v11 friction-aware sweep")

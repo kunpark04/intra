@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council Verdict — ML#1 Ranker Diagnosis</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #57606a; --border: #d0d7de;
+    --accent: #0969da; --warn: #9a6700; --ok: #1a7f37; --bad: #cf222e;
+    --panel: #f6f8fa;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+         background: var(--bg); color: var(--fg); margin: 0; padding: 32px 24px; line-height: 1.55; }
+  .container { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .question-card { background: var(--panel); border-left: 4px solid var(--accent); padding: 16px 20px;
+                   border-radius: 4px; margin-bottom: 28px; font-size: 14px; }
+  .question-card strong { display: block; margin-bottom: 6px; color: var(--muted);
+                          text-transform: uppercase; letter-spacing: .4px; font-size: 11px; }
+  h2 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 6px;
+       margin-top: 32px; margin-bottom: 14px; }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  .verdict { background: #fdfcf4; border: 1px solid #e7d98c; border-radius: 6px;
+             padding: 20px 24px; margin-bottom: 24px; }
+  .verdict h2 { border: 0; margin-top: 0; color: #7a5d00; }
+  .verdict p, .verdict li { font-size: 14.5px; }
+  .recommend { background: #eefbf0; border-left: 4px solid var(--ok); padding: 14px 18px;
+               border-radius: 4px; margin: 14px 0; font-size: 14.5px; }
+  .first-step { background: #fff4ec; border-left: 4px solid #d1660f; padding: 14px 18px;
+                border-radius: 4px; margin: 14px 0; font-size: 14.5px; }
+  .alignment-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+                    margin: 14px 0 20px; }
+  .advisor-cell { background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+                  padding: 12px 10px; text-align: center; font-size: 13px; }
+  .advisor-cell .name { font-weight: 600; margin-bottom: 4px; }
+  .advisor-cell .pos { font-size: 11px; color: var(--muted); text-transform: uppercase;
+                       letter-spacing: .3px; }
+  .advisor-cell.rank-strongest { border-color: var(--ok); background: #eefbf0; }
+  .advisor-cell.rank-blind { border-color: var(--bad); background: #ffeef0; }
+  .legend { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+  .legend span { display: inline-block; margin-right: 14px; }
+  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+                 vertical-align: middle; margin-right: 4px; border: 1px solid var(--border); }
+  .dot-strong { background: #eefbf0; border-color: var(--ok); }
+  .dot-blind { background: #ffeef0; border-color: var(--bad); }
+  details { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;
+            background: var(--panel); }
+  details summary { padding: 12px 16px; cursor: pointer; font-weight: 600; font-size: 14px;
+                    list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  details summary::after { content: "▸"; color: var(--muted); transition: transform .15s; }
+  details[open] summary::after { transform: rotate(90deg); }
+  details .body { padding: 4px 18px 16px; font-size: 14px; background: #fff; border-top: 1px solid var(--border);
+                  white-space: pre-wrap; }
+  .position-key { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 18px; font-size: 12px; }
+  .position-key .pk { padding: 4px 10px; background: var(--panel); border: 1px solid var(--border);
+                      border-radius: 12px; }
+  .consensus-banner { background: #0969da10; border: 1px solid #0969da40; border-radius: 6px;
+                      padding: 14px 18px; margin-bottom: 20px; font-size: 14px; }
+  .consensus-banner strong { color: var(--accent); }
+  footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--border);
+           font-size: 12px; color: var(--muted); }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  code { background: #eff2f5; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>LLM Council Verdict</h1>
+<div class="subtitle">ML#1 v12 ranker: broken, or wide-net sampler working as intended?</div>
+
+<div class="question-card">
+<strong>The Question</strong>
+ML#1 v12 surrogate + UCB κ=0 produced a top-50 where 45/50 have <b>negative predicted Sharpe</b> (median <code>predicted_p50 = −0.302</code>). OOS individual Sharpes mostly negative (worst −1.5449). But ML#2 per-trade filter prunes 24,690 → 564 and delivers OOS Sharpe <b>0.9072</b>, +34.07%, 40% DD. Positions debated: <b>A</b> leave alone · <b>B</b> soften target · <b>C</b> rebrand as sampler + retrain on ML#2 yield · <b>D</b> regime audit first.
+</div>
+
+<div class="consensus-banner">
+<strong>Unanimous peer review:</strong> all 5 reviewers independently picked <b>The Contrarian</b> as strongest (the only advisor proposing a falsifiable ablation), and all 5 flagged <b>The Expansionist</b> as the biggest blind spot (10× scaling &amp; "short the rejects" on unaudited foundations).
+</div>
+
+<div class="verdict">
+<h2>Chairman's Verdict</h2>
+
+<h3>Where the Council Agrees</h3>
+<p>Four of five advisors (Contrarian, First Principles, Outsider, Executor) converge independently on the same diagnosis: <b>ML#1 is not functioning as a ranker and should not be defended as one.</b> 45/50 negative predicted Sharpe on a "top-50" is semantically incoherent — the layer is producing a candidate pool, and ML#2 is doing the selection work. Position A is rejected as denial (Executor endorses it only as a pragmatic ship-and-rename, not intellectual defense). Position B (soften target) is rejected unanimously as target-hacking. Position C is directionally endorsed by all five.</p>
+
+<h3>Where the Council Clashes</h3>
+<p><b>Urgency and sequencing.</b> Executor says do the regime audit today (4 hours), ship A, rename to C next sprint — skip the ablation entirely. Contrarian and First Principles say the ablation is the <i>only</i> question that matters. Outsider splits the difference.</p>
+<p><b>What ML#1 actually is.</b> Expansionist claims ML#1 is a sophisticated adversarial trade generator finding exploitable pockets in negative-edge regimes. Contrarian, First Principles, and Outsider claim ML#1 is indistinguishable from random sampling until proven otherwise. These cannot both be true, and only the ablation resolves it.</p>
+<p><b>Whether 0.907 Sharpe is a result worth defending.</b> Executor treats it as shippable. Reviewers 3 and 5 point out that 386 trades/year with 40% DD over 1.46y yields a bootstrap CI likely wide enough to include zero — the headline number may not survive its own confidence interval.</p>
+
+<h3>Blind Spots the Council Caught (via peer review)</h3>
+<ul>
+  <li><b>Trade-count confounding.</b> v12's target (median − 0.5·σ across 5 WF windows) likely correlates with trade count — more trades stabilize the walk-forward median. v12 may be selecting high-trade-count combos, and trade count is the actual signal. 564 survivors across 50 combos ≈ 11 trades/combo — small-sample inflation territory, per <code>project_trade_count_bias.md</code>.</li>
+  <li><b>No bootstrap CI on the 0.907 filtered Sharpe.</b> 564 trades, 40% DD, 1.46y — the CI is wide enough that the result may not be statistically distinguishable from zero. Monte Carlo is run on every iteration per <code>CLAUDE.md</code>, yet skipped on the artifact we're debating whether to ship.</li>
+  <li><b>"Short the rejects" is infrastructurally wrong.</b> MNQ is long/short symmetric via signal direction, not portfolio overlay. The Expansionist's flashiest suggestion is mechanically incoherent with the codebase.</li>
+</ul>
+
+<div class="recommend">
+<b>The Recommendation</b><br>
+<b>Position C, gated on the Contrarian's ablation and a bootstrap CI.</b> Not A — shipping a 0.907 Sharpe whose provenance you can't explain and whose CI you haven't computed is exactly the "temporary fix / no root cause" failure mode <code>CLAUDE.md</code> forbids. Not B — unanimously rejected. Not D alone — necessary but not sufficient. ML#1 is a <b>candidate sampler</b>, not a ranker; ML#2 is the selector; the objective is post-filter Sharpe, not combo-level predicted Sharpe. Rename, update <code>tasks/part_b_findings.md</code>, and in the next v12 retrain, target ML#2 yield directly. But none of this refactor is justified until (a) ML#1 is shown to beat random sampling, and (b) the 0.907 Sharpe has a CI that excludes zero. If the ablation shows random-50 matches v12-top-50 under ML#2, you haven't built a pipeline — you've built ML#2 with a fancy preprocessor.
+</div>
+
+<div class="first-step">
+<b>The One Thing to Do First</b><br>
+<b>Run the Contrarian's ablation with bootstrap CIs.</b> Apply ML#2 to three candidate pools on the OOS window:
+<ol>
+  <li>Random 50 combos from the v11 post-gate 13,814</li>
+  <li>Top-50 by raw training Sharpe</li>
+  <li>Top-50 by v12 UCB (current <code>top_strategies_v12.json</code>)</li>
+</ol>
+Report for each: filtered trade count, OOS Sharpe with 10,000-sim bootstrap CI, max DD, trades/combo distribution. Budget: one afternoon. This single experiment answers three questions simultaneously — <i>is ML#1 adding value, is the 0.907 Sharpe statistically real, and is trade-count the hidden variable</i>. Everything else is premature.
+</div>
+
+</div>
+
+<h2>Advisor Alignment</h2>
+<div class="legend">
+  <span><span class="dot dot-strong"></span>Strongest (unanimous 5/5)</span>
+  <span><span class="dot dot-blind"></span>Biggest blind spot (unanimous 5/5)</span>
+</div>
+
+<div class="alignment-grid">
+  <div class="advisor-cell rank-strongest">
+    <div class="name">Contrarian</div>
+    <div class="pos">Ablation first</div>
+  </div>
+  <div class="advisor-cell">
+    <div class="name">First Principles</div>
+    <div class="pos">Reject A/B; C underspecified</div>
+  </div>
+  <div class="advisor-cell rank-blind">
+    <div class="name">Expansionist</div>
+    <div class="pos">Scale 10× · short rejects</div>
+  </div>
+  <div class="advisor-cell">
+    <div class="name">Outsider</div>
+    <div class="pos">It's a sampler, not a ranker</div>
+  </div>
+  <div class="advisor-cell">
+    <div class="name">Executor</div>
+    <div class="pos">D → A → C · skip B</div>
+  </div>
+</div>
+
+<div class="position-key">
+  <span class="pk"><b>A</b> Leave alone</span>
+  <span class="pk"><b>B</b> Soften target</span>
+  <span class="pk"><b>C</b> Rebrand as sampler + retrain</span>
+  <span class="pk"><b>D</b> Regime audit first</span>
+</div>
+
+<h2>Advisor Responses</h2>
+
+<details><summary>The Contrarian — &quot;You're laundering a negative result through a downstream filter&quot;</summary>
+<div class="body">The ML#1 ranker isn't a "wide-net sampler working as intended" — that's a post-hoc rationalization for a broken primary metric. You're laundering a negative result through a downstream filter and calling it a win. ML#2 pruned 24,690 → 564 trades (97.7% rejection). At that survival rate, ML#1's contribution to the 0.907 Sharpe is approximately noise — ML#2 would likely produce a comparable Sharpe filtering trades from any moderately diverse combo pool. Have you tested that?
+
+The target is pathological. median − 0.5·σ on K=5 walk-forward windows is a pessimism penalty so aggressive it systematically ranks negative-mean combos with low variance above positive-mean combos with moderate variance. A volatility-minimizer disguised as a Sharpe-maximizer.
+
+A is denial. B is rearranging deck chairs. C is honest but only if you first prove ML#1 beats random sampling. D is procrastination unless paired with the ablation.
+
+The question you're not asking: what's the Sharpe of ML#2 applied to (i) random-50, (ii) top-50-by-raw-train-Sharpe, (iii) top-50-by-v12? If (iii) doesn't dominate, ML#1 is dead weight.</div></details>
+
+<details><summary>The First Principles Thinker — &quot;You're asking the wrong question&quot;</summary>
+<div class="body">"Is ML#1 broken or working as intended?" presumes ML#1 has a coherent job. It doesn't. Strip it back: what are you actually trying to produce? A tradeable portfolio that survives OOS. Nothing else matters.
+
+ML#1 is not ranking "best combos." It's producing a trade firehose whose per-combo Sharpe is noise, and ML#2 is doing 100% of the alpha extraction. The 0.907 isn't vindication of ML#1 — it's evidence ML#1 is a combo-agnostic trade generator. You could probably replace it with random sampling from the v11 sweep gated on minimum trade count and get similar ML#2 yield. Test that.
+
+The real object you're optimizing is ML#2 yield × trade diversity, not combo Sharpe. Reject A outright. Reject B — lipstick. D is a prerequisite sanity check, not a strategy. C is directionally right but underspecified — the objective function should be explicit: maximize post-ML#2-filter Sharpe subject to trade-count floor and parameter-space diversity.
+
+Stop ranking combos. Start ranking combo sets under ML#2.</div></details>
+
+<details><summary>The Expansionist — &quot;ML#1 is an adversarial trade generator. Scale it 10×&quot;</summary>
+<div class="body">The ML#1 ranker isn't broken — it's miscast. You built a pessimistic-Sharpe predictor and then asked it "what are the best combos?" That's a category error. But inside that error is massive upside you're sleeping on.
+
+ML#1 handed ML#2 a basket where 45/50 combos are garbage, and ML#2 still extracted 0.907 Sharpe, +34%, from 2.3% of trades. That's evidence ML#1 is an extraordinary adversarial trade generator. Pristine high-Sharpe combos would leave ML#2 nothing to do.
+
+Lean into C, but bigger:
+1. Scale pool 10×. If 50 ugly combos yield 564 golden trades, what does 500 yield? 5000?
+2. Retarget ML#1 to predict ML#2 yield directly.
+3. Bucket by predicted Sharpe and measure ML#2 yield per bucket. Yield may peak in a non-obvious band around predicted_p50 ≈ −0.3.
+4. Adjacent play: short the combos ML#2 rejects.
+
+Stop optimizing ML#1 semantics. Optimize the pipeline's terminal output.</div></details>
+
+<details><summary>The Outsider — &quot;It's a bottom-50 you're calling a top-50&quot;</summary>
+<div class="body">You built a ranker that ranks things, and 45 of its top 50 picks are predicted to lose money. 46 of 50 actually do lose money on the training target itself. You're calling this a "top-50." It is not a top-50. It is a bottom-50 of a universe where almost everything is bad, and you are dressing it up with the word "top."
+
+"ML#1 alone looks like 'least-bad-by-a-pessimistic-metric'" is the whole answer. You wrote it yourself. If your selection layer's best guesses are negative-expectancy, that layer is not selecting winners — it is handing a sieve a pile of rocks and the sieve (ML#2) is doing all the work.
+
+Why does ML#1 exist at all in its current form? If ML#2 produces the 0.907 Sharpe by throwing away 97.7% of trades, then ML#1's real job is "generate enough candidate trades for ML#2 to cherry-pick from." That's option C, and it's not a rebrand, it's just naming what's already happening.
+
+Option A is denial dressed as pragmatism. Option B is tuning the wrong knob. Option D is worth one afternoon before any refactor — free to check and embarrassing to skip. Stop calling it a ranker. It's a sampler.</div></details>
+
+<details><summary>The Executor — &quot;D today → A ship → C rename · skip B&quot;</summary>
+<div class="body">Monday morning: Do D first. Today. Before anything else. It's the only option where you learn something concrete in &lt;4 hours. Compute 8 numbers on train vs test: bars/day, mean |z-score| at entry, realized 1-min vol, reversal-candle frequency, avg bar range, session-hour WR distribution, trades/day, MFE/MAE ratio. One script, one hour.
+
+Then ship A as the working answer. Sharpe 0.9072 on 1.46y OOS with ML#2 doing the real selection work — that's the artifact. Stop apologizing for ML#1's ugly semantics.
+
+B is a trap. Softening the target is target-hacking — prettier top-50, same or worse ML#2-filtered OOS result.
+
+C is the right refactor but not this week. "ML#1 = candidate sampler, ML#2 = selector, yield-after-filter = objective" is the honest description of what the system already does. Rename variables, update tasks/part_b_findings.md, move on. Don't rebuild UCB — κ=0 already won, and project_ucb_kappa_failure.md says κ&gt;0 is noise-chasing.
+
+Order: D (today) → A (ship) → C (rename next sprint). Skip B.</div></details>
+
+<h2>Peer Review Highlights</h2>
+
+<details><summary>Reviewer 1 — Trade-count confound from memory</summary>
+<div class="body">Strongest: Contrarian. Only response naming a falsifiable experiment blocking the entire debate; mechanically diagnoses median − 0.5·σ as a volatility-minimizer on noisy K=5 folds.
+
+Biggest blind spot: Expansionist. Romanticizes ML#1 as an "adversarial trade generator" and proposes 10× scaling + shorting rejects without running the ablation first. Building a skyscraper on unverified foundations.
+
+All missed: project_trade_count_bias.md already flags that high-WR sweep combos cluster at ~180 trades. 564/24,690 survival on only 50 combos ≈ 11 trades/combo — small-sample-inflation territory. 0.9072 OOS Sharpe needs a bootstrap CI per combo before anyone debates ML#1's role.</div></details>
+
+<details><summary>Reviewer 2 — Tail risk on 40% DD</summary>
+<div class="body">Strongest: Contrarian. Only response making the ablation the blocking question vs hand-waving past it. Correctly diagnoses target pathology; refuses to let the 0.907 headline launder an unvalidated component.
+
+Biggest blind spot: Expansionist. Scaling 10× and shorting rejects is a cathedral on an unaudited foundation. The "sweet spot at predicted_p50 ≈ −0.3" is speculation dressed as insight.
+
+All missed: survivorship + trade-count confounding in 564 survivors. Also: 40% DD on $50k starting equity is near risk-of-ruin territory — headline Sharpe obscures unacceptable tail risk.</div></details>
+
+<details><summary>Reviewer 3 — Sharpe CI includes zero</summary>
+<div class="body">Strongest: Contrarian. Only one naming the fatal methodological gap; specifies the ablation where others gesture at it.
+
+Biggest blind spot: Expansionist. Conflates ML#2's P(win) filter with a directional edge predictor — rejected trades aren't anti-signal, they're low-confidence. Scale-10× ignores $5/contract friction baked into v11; more combos means more marginal trades near cost floor, not more alpha.
+
+All missed: 386 trades/year is statistically thin for a 0.907 Sharpe claim. No bootstrap CI computed. 40% DD survivability under 5% sizing rule unasked.</div></details>
+
+<details><summary>Reviewer 4 — v12 target correlates with trade count</summary>
+<div class="body">Strongest: Contrarian. Only response with a falsifiable test.
+
+Biggest blind spot: Expansionist. Seductive and dangerous. Assumes ML#1's current output has directional information ML#2 exploits with zero evidence. If ablation shows random-50 matches v12, the entire scaffolding collapses.
+
+All missed: v12's target likely correlates with trade count (more trades → stabler walk-forward median). ML#2 needs volume to filter. v12 may be picking high-trade-count combos, and that's the signal — not Sharpe ranking. Control for trade count in the ablation, or it's ambiguous.</div></details>
+
+<details><summary>Reviewer 5 — &quot;Short the rejects&quot; is infrastructurally wrong</summary>
+<div class="body">Strongest: Contrarian. Only falsifiable test.
+
+Biggest blind spot: Expansionist. "Short the rejected 97.7%" ignores MNQ bot infrastructure is long/short symmetric via signal, not portfolio-overlay shortable. Romanticizes the negative-Sharpe pool as "adversarial generator" without evidence the yield-per-bucket curve is non-monotonic.
+
+All missed: 40% DD on 564 trades over 1.46y means 0.907 Sharpe CI is wide enough to include zero. Before any refactor, bootstrap the filtered-portfolio Sharpe CI — the whole debate may be arguing over noise.</div></details>
+
+<footer>
+Council session · 2026-04-19 00:20 CDT · Question: ML#1 v12 surrogate top-50 diagnosis · 5 advisors + 5 peer reviews + chairman synthesis
+</footer>
+</div>
+</body>
+</html>
