@@ -1,0 +1,63 @@
+Running as unit: run-r3db377605d984e73b6d27d753ee94f1b.scope; invocation ID: eee29cd6794a4c4e97b6656993c4c5fc
+[full_pool_2k] EXEC evaluation/v12_full_pool_v4_2k/s1_individual.ipynb at 2026-04-20T04:04:54Z
+[full_pool_2k] mem-before used=674 avail=9293 MB
+[NbClientApp] Executing evaluation/v12_full_pool_v4_2k/s1_individual.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_v4_2k/s1_individual.ipynb
+[full_pool_2k] mem-after used=883 avail=9084 MB
+[full_pool_2k] \u2713 DONE evaluation/v12_full_pool_v4_2k/s1_individual.ipynb
+[full_pool_2k] EXEC evaluation/v12_full_pool_v4_2k/s2_combined.ipynb at 2026-04-20T04:45:55Z
+[full_pool_2k] mem-before used=884 avail=9083 MB
+[NbClientApp] Executing evaluation/v12_full_pool_v4_2k/s2_combined.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_v4_2k/s2_combined.ipynb
+[full_pool_2k] mem-after used=874 avail=9093 MB
+[full_pool_2k] \u2713 DONE evaluation/v12_full_pool_v4_2k/s2_combined.ipynb
+[full_pool_2k] EXEC evaluation/v12_full_pool_v4_2k/s3_mc_combined.ipynb at 2026-04-20T04:46:08Z
+[full_pool_2k] mem-before used=874 avail=9093 MB
+[NbClientApp] Executing evaluation/v12_full_pool_v4_2k/s3_mc_combined.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 657, in async_setup_kernel
+    raise e
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 654, in async_setup_kernel
+    yield
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 709, in async_execute
+    await self.async_execute_cell(
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 1009, in async_execute_cell
+    raise DeadKernelError("Kernel died") from None
+nbclient.exceptions.DeadKernelError: Kernel died
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/bin/jupyter-execute", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/jupyter_core/application.py", line 284, in launch_instance
+    super().launch_instance(argv=argv, **kwargs)
+  File "/usr/local/lib/python3.12/dist-packages/traitlets/config/application.py", line 1074, in launch_instance
+    app.initialize(argv)
+  File "/usr/local/lib/python3.12/dist-packages/traitlets/config/application.py", line 118, in inner
+    return method(app, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/cli.py", line 161, in initialize
+    self.run_notebook(path)
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/cli.py", line 215, in run_notebook
+    client.execute()
+  File "/usr/local/lib/python3.12/dist-packages/jupyter_core/utils/__init__.py", line 165, in wrapped
+    return loop.run_until_complete(inner)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 693, in async_execute
+    async with self.async_setup_kernel(**kwargs):
+  File "/usr/lib/python3.12/contextlib.py", line 231, in __aexit__
+    await self.gen.athrow(value)
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 660, in async_setup_kernel
+    await self._async_cleanup_kernel()
+  File "/usr/local/lib/python3.12/dist-packages/nbclient/client.py", line 504, in _async_cleanup_kernel
+    assert self.km is not None
+           ^^^^^^^^^^^^^^^^^^^
+AssertionError

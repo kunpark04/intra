@@ -1,0 +1,58 @@
+Running as unit: run-ra5a72ff33809435a84b7e73f656f8022.scope; invocation ID: 31bad72990084a899eb2c8f3804403d0
+[skip_s3] EXEC evaluation/v12_full_pool_v4_2k/s4_individual_ml2.ipynb at 2026-04-20T04:56:58Z
+[skip_s3] mem-before used=648 avail=9319 MB
+[NbClientApp] Executing evaluation/v12_full_pool_v4_2k/s4_individual_ml2.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_v4_2k/s4_individual_ml2.ipynb
+[skip_s3] mem-after used=917 avail=9050 MB
+[skip_s3] DONE evaluation/v12_full_pool_v4_2k/s4_individual_ml2.ipynb
+[skip_s3] EXEC evaluation/v12_full_pool_v4_2k/s5_combined_ml2.ipynb at 2026-04-20T04:57:14Z
+[skip_s3] mem-before used=918 avail=9049 MB
+[NbClientApp] Executing evaluation/v12_full_pool_v4_2k/s5_combined_ml2.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_v4_2k/s5_combined_ml2.ipynb
+[skip_s3] mem-after used=1007 avail=8960 MB
+[skip_s3] DONE evaluation/v12_full_pool_v4_2k/s5_combined_ml2.ipynb
+[skip_s3] EXEC evaluation/v12_full_pool_v4_2k/s6_mc_combined_ml2.ipynb at 2026-04-20T04:57:26Z
+[skip_s3] mem-before used=1008 avail=8960 MB
+[NbClientApp] Executing evaluation/v12_full_pool_v4_2k/s6_mc_combined_ml2.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_v4_2k/s6_mc_combined_ml2.ipynb
+[skip_s3] mem-after used=1042 avail=8925 MB
+[skip_s3] DONE evaluation/v12_full_pool_v4_2k/s6_mc_combined_ml2.ipynb
+[skip_s3] EXEC evaluation/v12_full_pool_net_v4_2k/s1_individual_net.ipynb at 2026-04-20T04:57:50Z
+[skip_s3] mem-before used=1042 avail=8925 MB
+[NbClientApp] Executing evaluation/v12_full_pool_net_v4_2k/s1_individual_net.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_net_v4_2k/s1_individual_net.ipynb
+[skip_s3] mem-after used=946 avail=9021 MB
+[skip_s3] DONE evaluation/v12_full_pool_net_v4_2k/s1_individual_net.ipynb
+[skip_s3] EXEC evaluation/v12_full_pool_net_v4_2k/s2_combined_net.ipynb at 2026-04-20T04:58:05Z
+[skip_s3] mem-before used=947 avail=9020 MB
+[NbClientApp] Executing evaluation/v12_full_pool_net_v4_2k/s2_combined_net.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_net_v4_2k/s2_combined_net.ipynb
+[skip_s3] mem-after used=1035 avail=8932 MB
+[skip_s3] DONE evaluation/v12_full_pool_net_v4_2k/s2_combined_net.ipynb
+[skip_s3] EXEC evaluation/v12_full_pool_net_v4_2k/s4_individual_ml2_net.ipynb at 2026-04-20T04:58:17Z
+[skip_s3] mem-before used=1035 avail=8932 MB
+[NbClientApp] Executing evaluation/v12_full_pool_net_v4_2k/s4_individual_ml2_net.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_net_v4_2k/s4_individual_ml2_net.ipynb
+[skip_s3] mem-after used=987 avail=8980 MB
+[skip_s3] DONE evaluation/v12_full_pool_net_v4_2k/s4_individual_ml2_net.ipynb
+[skip_s3] EXEC evaluation/v12_full_pool_net_v4_2k/s5_combined_ml2_net.ipynb at 2026-04-20T04:58:30Z
+[skip_s3] mem-before used=988 avail=8979 MB
+[NbClientApp] Executing evaluation/v12_full_pool_net_v4_2k/s5_combined_ml2_net.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_net_v4_2k/s5_combined_ml2_net.ipynb
+[skip_s3] mem-after used=956 avail=9011 MB
+[skip_s3] DONE evaluation/v12_full_pool_net_v4_2k/s5_combined_ml2_net.ipynb
+[skip_s3] EXEC evaluation/v12_full_pool_net_v4_2k/s6_mc_combined_ml2_net.ipynb at 2026-04-20T04:58:41Z
+[skip_s3] mem-before used=956 avail=9011 MB
+[NbClientApp] Executing evaluation/v12_full_pool_net_v4_2k/s6_mc_combined_ml2_net.ipynb
+[NbClientApp] Executing notebook with kernel: python3
+[NbClientApp] Save executed results to evaluation/v12_full_pool_net_v4_2k/s6_mc_combined_ml2_net.ipynb
+[skip_s3] mem-after used=979 avail=8988 MB
+[skip_s3] DONE evaluation/v12_full_pool_net_v4_2k/s6_mc_combined_ml2_net.ipynb
+[skip_s3] SUITE COMPLETE at 2026-04-20T04:58:59Z
