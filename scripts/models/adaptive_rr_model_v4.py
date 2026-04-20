@@ -133,6 +133,9 @@ def parse_args() -> argparse.Namespace:
                    help="Override v11 source parquet (e.g. pre-2024 partition).")
     p.add_argument("--output-dir", type=str, default=None,
                    help="Override output directory (e.g. data/ml/adaptive_rr_v4_pre2024).")
+    p.add_argument("--no-combo-id", action="store_true",
+                   help="Drop global_combo_id from the trained feature set "
+                        "(combo-agnostic V4, closes per-combo memorization leak).")
     return p.parse_args()
 
 
@@ -427,12 +430,16 @@ def main() -> None:
     args = parse_args()
     t0 = time.time()
 
-    global V11_PARQUET, OUTPUT_DIR, TRAIN_MATRIX_CACHE
+    global V11_PARQUET, OUTPUT_DIR, TRAIN_MATRIX_CACHE, ALL_FEATURES, CATEGORICAL_COLS
     if args.input_parquet:
         V11_PARQUET = Path(args.input_parquet)
     if args.output_dir:
         OUTPUT_DIR = Path(args.output_dir)
         TRAIN_MATRIX_CACHE = OUTPUT_DIR / "train_matrix.parquet"
+    if args.no_combo_id:
+        ALL_FEATURES = [c for c in ALL_FEATURES if c != ID_FEATURE]
+        CATEGORICAL_COLS = [c for c in CATEGORICAL_COLS if c != ID_FEATURE]
+        print("[v4] combo-agnostic mode: global_combo_id DROPPED from features + categoricals")
 
     print(f"[v4] source_parquet = {V11_PARQUET}")
     print(f"[v4] output_dir     = {OUTPUT_DIR}")

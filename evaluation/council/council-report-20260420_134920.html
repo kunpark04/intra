@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council Verdict — V4 Leak Isolation (2026-04-20 13:49)</title>
+<style>
+  :root {
+    --bg: #fafafa; --ink: #1a1a1a; --muted: #666; --border: #ddd;
+    --accent: #2563eb; --warn: #d97706; --danger: #dc2626; --ok: #059669;
+    --contrarian: #b91c1c; --firstprinciples: #7c3aed;
+    --expansionist: #0891b2; --outsider: #059669; --executor: #ea580c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--ink); max-width: 900px;
+    margin: 0 auto; padding: 32px 24px; line-height: 1.55;
+  }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 18px; margin: 28px 0 10px; padding-bottom: 6px;
+       border-bottom: 1px solid var(--border); }
+  h3 { font-size: 15px; margin: 18px 0 8px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .question-box {
+    background: white; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    padding: 14px 18px; margin: 14px 0; border-radius: 3px; font-size: 14px;
+  }
+  .verdict-box {
+    background: white; border: 1px solid var(--border); padding: 18px 20px;
+    margin: 16px 0; border-radius: 3px;
+  }
+  .rec {
+    background: #fff7ed; border: 1px solid #fed7aa; border-left: 3px solid var(--warn);
+    padding: 16px 20px; margin: 18px 0; border-radius: 3px;
+  }
+  .one-thing {
+    background: #ecfdf5; border: 1px solid #a7f3d0; border-left: 3px solid var(--ok);
+    padding: 16px 20px; margin: 18px 0; border-radius: 3px; font-size: 15px;
+  }
+  .spectrum {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;
+    margin: 14px 0; font-size: 12px;
+  }
+  .spectrum .cell {
+    background: white; border: 1px solid var(--border); padding: 8px;
+    border-top-width: 3px; border-radius: 2px;
+  }
+  .spectrum .cell.contrarian { border-top-color: var(--contrarian); }
+  .spectrum .cell.fp { border-top-color: var(--firstprinciples); }
+  .spectrum .cell.expansionist { border-top-color: var(--expansionist); }
+  .spectrum .cell.outsider { border-top-color: var(--outsider); }
+  .spectrum .cell.executor { border-top-color: var(--executor); }
+  .spectrum .cell strong { display: block; margin-bottom: 4px; }
+  .tag {
+    display: inline-block; font-size: 11px; padding: 2px 6px;
+    border-radius: 2px; background: #f3f4f6; color: var(--muted);
+  }
+  .tag.strongest { background: #fef3c7; color: #92400e; }
+  .tag.blindspot { background: #fee2e2; color: #991b1b; }
+  .tag.agree { background: #d1fae5; color: #065f46; }
+  details {
+    background: white; border: 1px solid var(--border); margin: 8px 0;
+    padding: 10px 14px; border-radius: 3px;
+  }
+  details summary {
+    cursor: pointer; font-weight: 600; font-size: 14px; padding: 4px 0;
+  }
+  details[open] summary { border-bottom: 1px solid var(--border);
+    padding-bottom: 8px; margin-bottom: 10px; }
+  details p { margin: 8px 0; font-size: 14px; }
+  code {
+    background: #f3f4f6; padding: 1px 5px; border-radius: 2px;
+    font-family: "SF Mono", Consolas, monospace; font-size: 12.5px;
+  }
+  .advisor-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 600; margin-right: 6px;
+  }
+  .advisor-pill.contrarian { background: #fee2e2; color: var(--contrarian); }
+  .advisor-pill.fp { background: #ede9fe; color: var(--firstprinciples); }
+  .advisor-pill.expansionist { background: #cffafe; color: var(--expansionist); }
+  .advisor-pill.outsider { background: #d1fae5; color: var(--outsider); }
+  .advisor-pill.executor { background: #ffedd5; color: var(--executor); }
+  footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--border);
+           color: var(--muted); font-size: 12px; }
+  ul { padding-left: 22px; }
+  li { margin: 4px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<h1>V4 Leak Isolation — Council Verdict</h1>
+<div class="meta">2026-04-20 13:49 CDT · intra/MNQ trading pipeline · follow-up to 04:30 council on random-K null test</div>
+
+<div class="question-box">
+<strong>The fork:</strong> Phase 1 of the random-K null test blew up on two problems. (1) v11 parquet has no datetime columns — plan's pre-2024 temporal holdout is structurally impossible. (2) Deeper leak discovered: V4 uses <code>global_combo_id</code> as a trained LightGBM categorical, meaning it memorized per-combo win rates. Four options were proposed: (1) combo-agnostic V4, (2) entry-bar temporal holdout, (3) both, (4) accept shipped V4 with caveat.
+</div>
+
+<h2>Advisor Alignment</h2>
+
+<div class="spectrum">
+  <div class="cell contrarian">
+    <strong>Contrarian</strong>
+    <div>Option 1 → ship-litigation</div>
+    <div><span class="tag strongest">5× strongest</span></div>
+  </div>
+  <div class="cell fp">
+    <strong>First Principles</strong>
+    <div>Option 1 → attribution</div>
+    <div><span class="tag agree">Option 1</span></div>
+  </div>
+  <div class="cell outsider">
+    <strong>Outsider</strong>
+    <div>Option 1 → headline finding</div>
+    <div><span class="tag agree">Option 1</span></div>
+  </div>
+  <div class="cell executor">
+    <strong>Executor</strong>
+    <div>Option 1 → just do it</div>
+    <div><span class="tag agree">Option 1</span></div>
+  </div>
+  <div class="cell expansionist">
+    <strong>Expansionist</strong>
+    <div>Option 1 → active search</div>
+    <div><span class="tag blindspot">5× blind spot</span></div>
+  </div>
+</div>
+
+<p style="font-size: 13px; color: var(--muted); margin-top: 6px;">
+All five advisors picked Option 1. All five anonymized peer reviewers independently ranked the Contrarian strongest and the Expansionist as the biggest blind spot. Options 2, 3, 4 were unanimously rejected.
+</p>
+
+<h2>Where the Council Agrees</h2>
+<div class="verdict-box">
+<ul>
+<li>Option 1 (combo-agnostic V4) is the only defensible choice. Temporal holdout doesn't fix ID memorization; combined refit doubles compute for no added signal; shipping with a caveat is indefensible.</li>
+<li>The <code>global_combo_id</code> feature existing in a production filter is the actual headline finding — more important than the null test it was meant to enable.</li>
+<li>Options 2, 3, 4 all fail on the same grounds: none address the memorization channel.</li>
+</ul>
+</div>
+
+<h2>Where the Council Clashes</h2>
+<div class="verdict-box">
+<p><strong>Is the shipped Sharpe 2.13 currently trusted?</strong></p>
+<ul>
+<li><span class="advisor-pill contrarian">Contrarian</span> <span class="advisor-pill outsider">Outsider</span> No — ship decision needs re-litigation before any null test.</li>
+<li><span class="advisor-pill fp">First Principles</span> <span class="advisor-pill expansionist">Expansionist</span> Yes, tacitly — the pipeline shipped; this is learning, not a gate.</li>
+<li><span class="advisor-pill executor">Executor</span> Neutral — execute steps, null follows.</li>
+</ul>
+<p>Chairman sides with Contrarian/Outsider: unanimous peer-review convergence on B-strongest confirms ship-litigation comes first.</p>
+</div>
+
+<h2>Blind Spots the Council Caught</h2>
+<div class="verdict-box">
+<p><strong>Universal miss (4 of 5 reviewers):</strong> <code>audit_full_net_sharpe</code> — the raw-Sharpe top-50 selector — is computed on the <em>same v11 sweep</em> V4 was trained on. The top-50 basket selection and V4's training labels share in-sample trades. Even after a clean combo-agnostic V4 refit, the null test's "shipped-50" anchor is drawn from a leak-contaminated list. Fixing V4 alone is necessary but insufficient.</p>
+<p><strong>Single-reviewer catches:</strong></p>
+<ul>
+<li>V3 (documented as production in CLAUDE.md Phase 5D) may <em>also</em> carry <code>global_combo_id</code>. Leak audit must begin with a grep across all production models, not just V4.</li>
+<li>No rollback / provisional-status mechanics proposed for <code>tasks/ship_decision.md</code> if the audit invalidates the shipped edge.</li>
+</ul>
+</div>
+
+<h2>The Recommendation</h2>
+<div class="rec">
+<p><strong>Do Option 1, adopting the Contrarian's re-sequencing and the reviewers' caught blind spots:</strong></p>
+<ol>
+<li><strong>Scope the leak</strong> — grep V3, V4, and ancillary models for <code>global_combo_id</code> as a categorical/ID feature <em>before</em> retraining.</li>
+<li><strong>Mark <code>tasks/ship_decision.md</code> PROVISIONAL</strong> pending audit outcome (single-line flag at top).</li>
+<li><strong>Refit V4 combo-agnostic:</strong> drop <code>global_combo_id</code> from <code>ALL_FEATURES</code>, <code>CATEGORICAL_COLS</code>, and the LightGBM <code>categorical_feature</code> arg. No other changes.</li>
+<li><strong>Re-run s6_net on the shipped top-50 with refit V4.</strong> Ship-blocker audit.</li>
+<li><strong>Only if step 4 CI overlaps the shipped 2.13</strong> do you proceed to the random-K null test.</li>
+<li><strong>Plan a second-round null</strong> that breaks the <code>audit_full_net_sharpe</code> leak (combo-agnostic selector or held-out combo pool) — otherwise even a passing null under refit V4 only proves half the story.</li>
+</ol>
+</div>
+
+<h2>The One Thing to Do First</h2>
+<div class="one-thing">
+<strong>Grep the production model training scripts for <code>global_combo_id</code> as a feature, before retraining anything.</strong> This scopes the audit. If V3 also has it (CLAUDE.md documents V3, not V4, as production), the rebuild is broader. If only V4, the fix is contained. Ten minutes of grep prevents committing to a retrain scope that's wrong.
+</div>
+
+<h2>Advisor Full Responses</h2>
+
+<details>
+<summary><span class="advisor-pill contrarian">Contrarian</span> The framing is wrong, and all four options are bandaids on a deeper rot <span class="tag strongest">5× strongest</span></summary>
+<p>You just discovered that V4 — the filter inside your shipped Sharpe 2.13 system — is a combo-ID memorizer. That is not a leak to isolate for the null test. That is a leak in the production pipeline you already declared ship-ready yesterday.</p>
+<p>Ask the uncomfortable question: if V4 memorizes <code>global_combo_id</code>, what does the Sharpe 2.13 actually measure? It measures how well LightGBM recalls per-combo base rates on combos it was trained on. The filter isn't filtering — it's retrieving. The 43% ruin on full-pool isn't evidence that concentration is load-bearing; it's evidence that V4 can't rank combos it has over-memorized once you stop pre-filtering by raw Sharpe.</p>
+<p>Option 1 isn't a null-test prep step. It's a <strong>ship-blocker audit</strong>. Retrain combo-agnostic V4, re-run s6_net on the shipped top-50, and see if Sharpe 2.13 survives. If it does, then run the null test. If it collapses, you didn't have a shippable system yesterday.</p>
+<p>Do Option 1. But reframe it: not as null-test prep, as ship-decision re-litigation. The null test waits.</p>
+</details>
+
+<details>
+<summary><span class="advisor-pill fp">First Principles</span> You're asking "which null test" when the real question is "what would change our mind?"</summary>
+<p>The ablation already told you UCB ranking ≡ random. The full-pool collapse told you top-K concentration is load-bearing. Two established facts. The null test asks: "are the shipped 50 better than 50 random from the same pool?" If NO: concentration is the mechanism, combo identity is noise. If YES: the only remaining mechanism is <code>audit_full_net_sharpe</code> itself having OOS signal — a well-known weak-but-nonzero effect.</p>
+<p>You're treating this as a validation gate for shipping. It isn't. You already shipped. This is a <strong>mechanism attribution experiment</strong>, and mechanism attribution demands you isolate one variable at a time.</p>
+<p>Option 2 alone is worthless — you've identified <code>global_combo_id</code> as the memorization channel. Option 3 is 2× compute to answer a question you don't have. Option 4 concedes the leak.</p>
+<p>Parquet having no datetime columns is the universe telling you temporal holdout was never the real experiment. Drop ID, retrain, run random-K. One variable. One answer.</p>
+</details>
+
+<details>
+<summary><span class="advisor-pill outsider">Outsider</span> The framing buries the lede — you're deciding whether a null test can even answer your actual question</summary>
+<p>A model that trained on <code>global_combo_id</code> as a categorical cannot answer "are these 50 better than 50 random." It has memorized which IDs win. Running random-K through it measures "how well did V4 memorize each basket," not "are these combos inherently better." Option 2 is dead on arrival. Option 4 ships a conclusion you can't defend.</p>
+<p>Outsider question nobody's asking: <strong>why does a production filter have combo ID as a feature at all?</strong> That's not a filter — that's a hash table with gradient boosting bolted on. If the ID feature genuinely helps OOS, your pipeline isn't learning generalizable trade quality, it's learning "combo 4471 wins, combo 9823 loses." That should terrify you regardless of the null.</p>
+<p>Pick Option 1. If combo-agnostic V4 still produces Sharpe ~2 on the shipped 50, you've proven non-ID structure. If it collapses, you've learned your shipped edge is partly ID-memorization. Treat the ID-feature discovery as the headline, not a footnote.</p>
+</details>
+
+<details>
+<summary><span class="advisor-pill executor">Executor</span> Option 1. Ship it today.</summary>
+<p>Right now: (1) cp the train script, (2) delete two lines — the <code>global_combo_id</code> entry in the feature list and the <code>categorical_feature</code> arg to LightGBM's <code>train()</code>, (3) <code>git add && git commit && git push</code>, SSH into sweep-runner-1, <code>git pull</code>, launch under <code>systemd-run --scope -p MemoryMax=9G</code> in a screen. Poll at 600s. (4) When it finishes, run the 500-basket null test against this refit V4.</p>
+<p>Option 2 is actively broken — temporal holdout does NOT fix combo-ID memorization. Option 3 is Option 2's waste plus Option 1's work. Option 4 ships a known-confounded null with a caveat — looks like due diligence while providing none.</p>
+<p>One fix, one retrain, one clean null. Don't let "most conservative" masquerade as "most rigorous" when half of it is provably useless.</p>
+</details>
+
+<details>
+<summary><span class="advisor-pill expansionist">Expansionist</span> The framing is too small — this is a product pivot hiding in plain sight <span class="tag blindspot">5× blind spot</span></summary>
+<p>A V4 that only sees parameter-space features is no longer a combo memorizer. It's a <strong>combo generator's scoring function</strong>. That changes the ceiling dramatically:</p>
+<p>(1) Unshackle from the 13,814-combo pool. Sample new combos outside the v11 grid — denser around top-50, or unexplored regions. The sweep becomes your training set, not your universe.</p>
+<p>(2) Null test becomes almost-free bycatch. Run it in parallel with a V4-guided active search proposing 500 synthetic combos. If one survives s6_net at Sharpe > 2.13, the pipeline generalizes — the actual scientific claim.</p>
+<p>(3) "50 is load-bearing" stops being a black box. A combo-agnostic scorer lets you ask <em>why 50</em> — parameter coverage? diversification? Push to Sharpe > 2.5 via diverse high-scorers.</p>
+<p>Ship Option 1, then scope the active-search extension. 10× outcome hiding here.</p>
+<p style="color: var(--danger); font-size: 13px; border-left: 2px solid var(--danger); padding-left: 8px;">Peer review consensus: premature scope expansion — builds a 10× vision on unverified ground (does combo-agnostic V4 even preserve Sharpe 2.13?).</p>
+</details>
+
+<h2>Peer Review Summary</h2>
+
+<details>
+<summary>5 reviewers · Strongest unanimous: B · Biggest blind spot unanimous: E</summary>
+<p><strong>Strongest = Contrarian (B), 5/5 reviewers</strong>: only response that names the real stakes — if V4 memorizes <code>global_combo_id</code>, the Sharpe 2.13 ship decision is already compromised. Null test is downstream of ship-audit.</p>
+<p><strong>Biggest blind spot = Expansionist (E), 5/5 reviewers</strong>: pivots to active search before establishing the refit V4 preserves any edge. Builds a 10× outcome on unverified ground.</p>
+<p><strong>Universal miss (4/5 reviewers)</strong>: <code>audit_full_net_sharpe</code> (the top-50 selector) is computed on the same v11 sweep V4 trained on. Top-50 selection and V4 training labels share in-sample trades. Even combo-agnostic refit doesn't fix the selector-side leak.</p>
+<p><strong>Single-reviewer miss</strong>: V3 (CLAUDE.md-documented production) may also carry the ID feature; audit scope should start with a grep across all production models.</p>
+</details>
+
+<footer>
+Council fired 2026-04-20 13:49 CDT · 5 advisors (Contrarian, First Principles, Expansionist, Outsider, Executor) in parallel → 5 anonymized peer reviewers → chairman synthesis · Prior council 2026-04-20 04:30 prescribed the random-K null; this council resolves the Phase-1 scope fork · Artifacts: <code>evaluation/council/council-transcript-20260420_134920.md</code>, <code>evaluation/council/council-report-20260420_134920.html</code>
+</footer>
+
+</body>
+</html>

@@ -1,8 +1,31 @@
 # Pool B Ship Decision
 
 **Date**: 2026-04-19 / 2026-04-20
-**Status**: **DECIDED — SHIP Pool B + V4** (all 4 gates resolved)
+**Status**: ⚠️ **PROVISIONAL — ship decision on HOLD pending V4 combo-ID leak audit** (2026-04-20 14:00 CDT)
 **Plan**: `C:\Users\kunpa\.claude\plans\sleepy-roaming-kettle.md`
+
+## ⚠️ PROVISIONAL BANNER (2026-04-20)
+
+The Sharpe p50 2.13 figure below was produced by an ML#2 V4 filter that
+trains `global_combo_id` as a LightGBM categorical feature
+(`scripts/models/adaptive_rr_model_v4.py` lines 69, 72, 74). This is a
+per-combo memorization channel: V4 has seen every shipped top-50 combo
+during training and can recover its in-sample win rate directly from the
+ID. A naive random-K null test would be fooled by this leak.
+
+The LLM Council (transcript 2026-04-20 13:49 CDT, `evaluation/council/
+council-transcript-20260420_134920.md`) unanimously recommended Option 1:
+refit V4 combo-agnostic (drop `global_combo_id`) and re-audit s6_net on
+the shipped top-50 before any further evaluation work. `adaptive_rr_v3`
+is contaminated by the same pattern (L64, L67, L69) but is not on the
+shipped path; V3's audit is scoped after V4.
+
+**All downstream claims in this document are contingent on the refit
+V4's s6_net CI overlapping the shipped 2.13**. If the CI collapses,
+paper-trading halts and the pipeline is re-architected.
+
+Tracked in tasks #7–#11. Banner will be removed once the combo-agnostic
+V4 ship-blocker audit completes.
 
 ## Context
 
