@@ -58,7 +58,17 @@ def _load_eval_module(version: str):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod
-    raise ValueError(f"Unknown ML#2 version: {version!r} (expected 'v3' or 'v4')")
+    if version == "v4_no_gcid":
+        spec = importlib.util.spec_from_file_location(
+            "_v4nogcideval",
+            REPO / "scripts/evaluation/final_holdout_eval_v4_no_gcid_fixed500.py",
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    raise ValueError(
+        f"Unknown ML#2 version: {version!r} "
+        f"(expected 'v3', 'v4', or 'v4_no_gcid')")
 
 # NOW configure matplotlib: inline wins over the Agg that v3eval's transitive
 # imports selected.
@@ -192,6 +202,9 @@ def _load_or_build_combos_ml2(combo_ids, bars, version: str = "v3"):
     inf = eval_mod.v3inf if version == "v3" else eval_mod.v4inf
     booster_path = inf.V3_BOOSTER if version == "v3" else inf.V4_BOOSTER
     cal_path = inf.V3_CALIBRATORS if version == "v3" else inf.V4_CALIBRATORS
+    # Both "v4" and "v4_no_gcid" expose V4_BOOSTER/V4_CALIBRATORS on their
+    # respective inference modules; the combo-agnostic paths differ by
+    # virtue of the inference module itself (data/ml/adaptive_rr_v4_no_gcid/).
 
     booster = lgb.Booster(model_file=str(booster_path))
     simple_cals = inf._load_calibrators()
