@@ -357,7 +357,19 @@ on the above four points. Any CRITICAL finding blocks the sweep.
   MC-heavy notebooks (§3 unfiltered bootstrap over ~24k trades) peak around
   2 GB per 10k-sim matrix; single-policy MC after the sizing-policy drop
   fits comfortably. Historical 2-policy MC notebooks needed reduced n_sims
-  (s3 at 2,000) to avoid OOM.
+  (s3 at 2,000) to avoid OOM. Net-suite s3 still needs `n_sims=2000` pinning
+  on raw-Sharpe pools even in single-policy mode — see the shipped V4 pattern
+  in commit 2105b45 and apply the same patch to any new s3 notebook before
+  remote launch.
+- **Net-only eval notebooks (policy from 2026-04-20)**: Any new variant added
+  to `scripts/evaluation/_build_v2_notebooks.py` must use `_build_net_variant`
+  (net-of-friction 6-section suite only), **not** the legacy `_build_variant`
+  (which emits paired gross+net). Gross/zero-friction notebooks are not
+  load-bearing for ship decisions — the ship criterion reads s6_net Sharpe
+  exclusively, and `_ml2_net_ev_mask` gates ML#2 on net E[R]. Gross numbers
+  are at best a diagnostic and at worst leak into write-ups as misleading
+  "upside" figures. Historical variants (v10, v11, v12, raw_sharpe_v3/v4,
+  full_pool_*, v4_no_gcid) stay on the dual API for reproduction only.
 
 ## Dependencies (Python)
 
