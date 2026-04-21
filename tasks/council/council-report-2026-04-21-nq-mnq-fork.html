@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council — Within-NQ/MNQ Fork Ordering (2026-04-21)</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --border: #e0e0e0;
+    --accent: #2563eb;
+    --card-bg: #fafafa;
+    --advisor-contrarian: #fef2f2;
+    --advisor-first-principles: #f0f9ff;
+    --advisor-expansionist: #f0fdf4;
+    --advisor-outsider: #fefce8;
+    --advisor-executor: #f5f3ff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg);
+    max-width: 980px; margin: 0 auto; padding: 2rem;
+    line-height: 1.55;
+  }
+  header { border-bottom: 2px solid var(--border); padding-bottom: 1rem; margin-bottom: 2rem; }
+  header h1 { margin: 0 0 0.25rem 0; font-size: 1.6rem; }
+  header .subtitle { color: var(--muted); font-size: 0.95rem; }
+  section { margin-bottom: 2rem; }
+  h2 { font-size: 1.2rem; border-left: 4px solid var(--accent); padding-left: 0.6rem; margin: 2rem 0 1rem 0; }
+  h3 { font-size: 1.05rem; margin-top: 1.5rem; }
+  .question-box {
+    background: #f8fafc; border-left: 4px solid var(--accent);
+    padding: 1rem 1.25rem; border-radius: 4px; font-style: italic;
+  }
+  .verdict-box {
+    background: #fffbeb; border: 1px solid #fcd34d;
+    padding: 1rem 1.25rem; border-radius: 4px;
+  }
+  .verdict-box h3 { margin-top: 0; }
+  .bar-row { display: flex; align-items: center; gap: 0.75rem; margin: 0.4rem 0; font-size: 0.95rem; }
+  .bar-row .name { flex: 0 0 170px; }
+  .bar-row .bar { height: 14px; background: var(--accent); border-radius: 2px; }
+  .bar-row .count { color: var(--muted); font-size: 0.85rem; }
+  details { border: 1px solid var(--border); border-radius: 4px; margin: 0.5rem 0; overflow: hidden; }
+  details summary {
+    padding: 0.6rem 0.9rem; cursor: pointer;
+    font-weight: 600; user-select: none;
+  }
+  details summary:hover { filter: brightness(0.96); }
+  details > *:not(summary) { padding: 0.75rem 1rem; }
+  .advisor-contrarian summary { background: var(--advisor-contrarian); }
+  .advisor-first-principles summary { background: var(--advisor-first-principles); }
+  .advisor-expansionist summary { background: var(--advisor-expansionist); }
+  .advisor-outsider summary { background: var(--advisor-outsider); }
+  .advisor-executor summary { background: var(--advisor-executor); }
+  footer { border-top: 1px solid var(--border); margin-top: 3rem; padding-top: 1rem; color: var(--muted); font-size: 0.85rem; }
+  code { background: #f3f4f6; padding: 1px 4px; border-radius: 3px; font-size: 0.9em; }
+  ul { margin: 0.5rem 0 0.5rem 1.25rem; padding: 0; }
+  ul li { margin: 0.25rem 0; }
+  .agreement-grid {
+    display: grid; grid-template-columns: 1.5fr repeat(5, 1fr); gap: 0.4rem;
+    margin: 1rem 0; font-size: 0.82rem; text-align: center; align-items: center;
+  }
+  .agreement-grid .col-header, .agreement-grid .row-header {
+    font-weight: 600; background: var(--card-bg); padding: 0.45rem;
+    border-radius: 3px;
+  }
+  .agreement-grid .row-header { text-align: left; }
+  .agreement-grid .vote { padding: 0.45rem; border-radius: 3px; background: #f3f4f6; }
+  .agreement-grid .vote-yes { background: #dcfce7; color: #166534; font-weight: 600; }
+  .agreement-grid .vote-partial { background: #fef3c7; color: #92400e; }
+  .agreement-grid .vote-no { background: #fee2e2; color: #991b1b; }
+  .blindspot-list { list-style: none; padding: 0; }
+  .blindspot-list li { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 0.6rem 0.9rem; margin: 0.5rem 0; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>LLM Council &mdash; Within-NQ/MNQ Fork Ordering</h1>
+  <div class="subtitle">Probe 3 of the Phase 5 post-sweep plan &middot; 2026-04-21 12:50 CDT</div>
+</header>
+
+<section>
+  <h2>The Question</h2>
+  <div class="question-box">
+    The v11 1-minute Z-score mean-reversion sweep falsified the family on NQ/MNQ at the user's ship bar (gross ceiling 1.108, one combo of 13,814). Research scope is locked to NQ/MNQ &mdash; no cross-instrument probes. Within that envelope, which unexplored axis (bar timeframe, signal family, session structure, exit/sizing model, or project sunset) has the highest evidentiary leverage as the next load-bearing probe, and what is the pre-registered sunset threshold?
+  </div>
+</section>
+
+<section>
+  <h2>Chairman's Verdict</h2>
+  <div class="verdict-box">
+    <h3>Execute Probe 1 at 15m AND 1h in parallel. Skip 5m.</h3>
+    <p>Pre-register a combo-agnostic K-fold audit (GroupKFold on <code>combo_id</code>) as a non-negotiable ship gate. Sunset threshold = <strong>&ge;10 combos clearing gross Sharpe 1.3 at &ge;500 trades (bar-count-adjusted)</strong>, passing combo-level 5-fold walk-forward. Add microstructure sweep parameters (<code>entry_timing_offset</code>, <code>fill_slippage_ticks</code>, <code>cooldown_after_exit_bars</code>) as free-ride axes. Walk-forward time-slice (2019-2024) on top of K-fold as a regime sanity check.</p>
+    <p><strong>One Thing To Do First:</strong> Write <code>tasks/probe1_preregistration.md</code> before any code, mirroring the <code>phase5_kill_criterion.md</code> template. User sign-off (commit hash captured) is blocking on all downstream work.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Vote Breakdown</h2>
+  <h3>Strongest Response (peer review)</h3>
+  <div class="bar-row">
+    <span class="name">Executor (D)</span>
+    <span class="bar" style="width: 100%;"></span>
+    <span class="count">5 / 5</span>
+  </div>
+
+  <h3>Biggest Blind Spot (peer review)</h3>
+  <div class="bar-row">
+    <span class="name">Contrarian (B)</span>
+    <span class="bar" style="width: 60%;"></span>
+    <span class="count">3 / 5</span>
+  </div>
+  <div class="bar-row">
+    <span class="name">First Principles (E)</span>
+    <span class="bar" style="width: 40%;"></span>
+    <span class="count">2 / 5</span>
+  </div>
+
+  <h3>Agreement Matrix on Recommendations</h3>
+  <div class="agreement-grid">
+    <div class="col-header">Claim</div>
+    <div class="col-header">Contrarian</div>
+    <div class="col-header">First Principles</div>
+    <div class="col-header">Expansionist</div>
+    <div class="col-header">Outsider</div>
+    <div class="col-header">Executor</div>
+
+    <div class="row-header">Probe 1 (timeframe) &gt; Probe 2 (signal family)</div>
+    <div class="vote vote-partial">Conditional</div>
+    <div class="vote vote-yes">Yes</div>
+    <div class="vote vote-yes">Yes</div>
+    <div class="vote vote-yes">Yes</div>
+    <div class="vote vote-yes">Yes</div>
+
+    <div class="row-header">Parallel 15m + 1h</div>
+    <div class="vote vote-no">Silent</div>
+    <div class="vote vote-no">One probe only</div>
+    <div class="vote vote-yes">Yes</div>
+    <div class="vote vote-no">Silent</div>
+    <div class="vote vote-yes">Yes</div>
+
+    <div class="row-header">Pre-register K-fold audit</div>
+    <div class="vote vote-yes">Yes</div>
+    <div class="vote vote-partial">Implied</div>
+    <div class="vote vote-no">Silent</div>
+    <div class="vote vote-no">Silent</div>
+    <div class="vote vote-yes">Yes</div>
+
+    <div class="row-header">Microstructure as sweep axis</div>
+    <div class="vote vote-yes">Emphasized</div>
+    <div class="vote vote-no">Silent</div>
+    <div class="vote vote-no">Silent</div>
+    <div class="vote vote-no">Silent</div>
+    <div class="vote vote-yes">Yes</div>
+
+    <div class="row-header">Family-level sunset threshold</div>
+    <div class="vote vote-partial">Conditional</div>
+    <div class="vote vote-yes">Yes</div>
+    <div class="vote vote-no">Implicit "no"</div>
+    <div class="vote vote-partial">Framed as open</div>
+    <div class="vote vote-yes">Yes</div>
+  </div>
+</section>
+
+<section>
+  <h2>Advisor Responses</h2>
+
+  <details class="advisor-contrarian">
+    <summary>The Contrarian</summary>
+    <p>The axis everyone is missing is execution microstructure. The v11 sweep was a pure parameter sweep at 1-minute bars with a fixed 2-tick slippage model and no cooldown after exits. If the 1-minute failure is actually an execution-cost failure &mdash; 2 ticks on a mean-reversion entry at a band extreme chews through a gross edge of ~1 point &mdash; no amount of changing bar timeframe or signal primitive will fix it. You'll replicate the failure at a different cadence.</p>
+    <p>Before committing to a new sweep: what happens to the v11 Sharpe distribution if we strip the slippage model to zero? If the ceiling moves meaningfully (say, to 1.5+), execution friction is the binding constraint and the entire probe list is misframed. If it doesn't move, then yes, sweep axes &mdash; but explicitly include an <code>entry_timing</code> and <code>cooldown</code> axis so next time's post-mortem isn't "oh, we never checked microstructure."</p>
+    <p>And whatever sweep runs: pre-register a combo-agnostic K-fold audit. V3 and V4 both memorized combos under AUC parity. Don't repeat that pattern.</p>
+  </details>
+
+  <details class="advisor-first-principles">
+    <summary>The First Principles Thinker</summary>
+    <p>The question is framed wrong. You're asking "which axis to probe next" &mdash; but what you actually need is a falsification threshold for the Z-score mean-reversion family on NQ/MNQ. The five axes aren't independent; they're a decomposition of "stuff we haven't tried." Run Probe 1, fail, pivot to Probe 2, fail, pivot to Probe 3. You'll death-march through the axis list without a committed exit.</p>
+    <p>Pick ONE axis, pre-register a sunset threshold, execute cleanly. If the probe fails, sunset the family &mdash; not the probe. Bar timeframe is the best pick because it's the cheapest kill: same harness, same primitive, same eligibility gate, different bars. If 15m fails at the same ceiling as 1m, the signal family is falsified across the time-resolution axis, which is strong evidence against the family as a whole.</p>
+    <p>Family-level falsification on a single probe is the only way you get to a clean decision with finite compute. Don't probe hoping to find an edge &mdash; probe expecting to sunset, and be surprised when you find one.</p>
+  </details>
+
+  <details class="advisor-expansionist">
+    <summary>The Expansionist</summary>
+    <p>Go big. Probe 1 (timeframe lift) is correct, but do it in parallel &mdash; 15m AND 1h, not sequential. Skip 5m entirely. 5m shares the 1m microstructure noise profile (same intraday frictions, same regime sensitivity), so it's highly correlated with the 1m failure mode. If 15m passes and 5m fails, the ambiguity costs a week of interpretation.</p>
+    <p>Parallel 15m + 1h is information-maximizing: one tests intraday cadence, one tests swing cadence, and the gap between them tells you where the signal actually lives. If one clears and the other doesn't, you have directional evidence about the strategy's time-scale. If both clear, you have two independent shipping candidates.</p>
+    <p>Bigger picture &mdash; if the Z-score mean-reversion family is alive at any timeframe, that's a new research frontier worth months of refinement. The upside of finding ONE tradeable bar-timeframe configuration on NQ/MNQ is a working strategy; the downside of running two sweeps in parallel is ~24h unattended remote compute on sweep-runner-1. Asymmetric bet, take it.</p>
+  </details>
+
+  <details class="advisor-outsider">
+    <summary>The Outsider</summary>
+    <p>I don't know what "axis" means here. You have a backtest of a strategy that lost money. You're proposing five different ways to change the strategy. Before I hear "which change," I want to hear: what are you actually testing?</p>
+    <p>If the answer is "whether we should be in this market at all with any mean-reversion strategy," then timeframe probes don't answer that. If the answer is "whether mean-reversion fails specifically at 1-minute resolution on NQ," then one alternative timeframe answers it. You might be conflating "find a working strategy" with "rule out a family." Those are different experiments.</p>
+    <p>If you're ruling out, pick the cheapest probe. If you're searching, you need a broader search &mdash; axis-by-axis will take forever. From outside, it looks like you're trying to do both with one probe. Pick one intent, then pick the probe that matches. The word "axis" is hiding this decision from you.</p>
+  </details>
+
+  <details class="advisor-executor">
+    <summary>The Executor</summary>
+    <p>Monday morning: you need a sweep harness that supports 15m and 1h bars, and a pre-registered kill rule. Neither exists today. Bar-aggregation code is not in the repo (I checked &mdash; no <code>resample</code> anywhere in <code>src/</code>). That's a ~2-3 hour build. Extending <code>param_sweep.py</code> to take a <code>--timeframe</code> flag is ~1-2 hours.</p>
+    <p>Before either, the pre-registration needs to be written: kill bar, ship bar, K-fold protocol (sklearn <code>GroupKFold</code> by <code>combo_id</code>, three lines), sunset threshold. Write the doc TODAY, get sign-off with a commit hash (<code>phase5_kill_criterion.md</code> is the template), then build infrastructure.</p>
+    <p>Also include microstructure sweep parameters &mdash; <code>entry_timing_offset</code>, <code>slippage_ticks</code>, <code>cooldown_after_exit_bars</code> &mdash; because we're rebuilding the sweep anyway and it's the cheapest way to pick up a hidden friction variable. 27 total microstructure cells &times; 3000 combos = well within remote compute budget.</p>
+    <p>Parallel 15m + 1h sweeps on sweep-runner-1, monitor every 10 min per the existing remote-job workflow. Gross ceiling readout takes 30 min. If clear, K-fold audit takes 3-5h per timeframe. Total wall-clock: 1-2 days. Do it.</p>
+  </details>
+</section>
+
+<section>
+  <h2>Peer Review Highlights</h2>
+  <h3>Universal collective misses (flagged by multiple reviewers)</h3>
+  <ul class="blindspot-list">
+    <li><strong>Combo-ID leak carryover.</strong> All five advisors assumed the K-fold audit would prevent it, but only one specified the exact partition. If the new 15m/1h sweep generates an overlapping combo universe and someone later trains an ML#2 filter without GroupKFold, V3/V4 happens a third time. Fix: GroupKFold on <code>combo_id</code>, explicit in the preregistration.</li>
+    <li><strong>2019-2024 regime dependency.</strong> Three advisors ignored this; two implied it. NQ data spans 2020 COVID volatility and 2022-23 rate cycles. An edge at 15m in 2024 but not 2020 is a fragile edge. Fix: walk-forward time-slice (4-5 calendar-year bins) on top of combo-K-fold.</li>
+    <li><strong>Microstructure as a sweep parameter vs. a separate diagnostic.</strong> Only the Contrarian raised it directly; the Executor's incidental inclusion in the sweep was the elegant move that captured the concern at zero additional sweep cost. Fix: microstructure axes in the v11 sweep as a free-ride parameter.</li>
+  </ul>
+
+  <h3>Full peer-review results</h3>
+  <p>Complete text of all five reviewers' responses (strongest pick, biggest blind spot, collective miss) is in the transcript:</p>
+  <p><code>tasks/council/council-transcript-2026-04-21-nq-mnq-fork.md</code></p>
+</section>
+
+<footer>
+  Session: 2026-04-21 12:50 CDT &middot; Probe 3 of Phase 5 post-sweep plan<br>
+  NQ/MNQ scope locked per <code>memory/feedback_nq_mnq_scope_only.md</code><br>
+  Anonymization mapping (revealed post-review): A = Outsider &middot; B = Contrarian &middot; C = Expansionist &middot; D = Executor &middot; E = First Principles
+</footer>
+</body>
+</html>
