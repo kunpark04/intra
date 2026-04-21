@@ -1,31 +1,46 @@
 # Pool B Ship Decision
 
-**Date**: 2026-04-19 / 2026-04-20
-**Status**: ⚠️ **PROVISIONAL — ship decision on HOLD pending V4 combo-ID leak audit** (2026-04-20 14:00 CDT)
+**Date**: 2026-04-19 / 2026-04-20 / 2026-04-21 UTC
+**Status**: 🛑 **REVOKED — Pool B + V4 ship decision overturned by combo-agnostic audit** (2026-04-21 00:34 UTC)
 **Plan**: `C:\Users\kunpa\.claude\plans\sleepy-roaming-kettle.md`
 
-## ⚠️ PROVISIONAL BANNER (2026-04-20)
+## 🛑 REVOCATION BANNER (2026-04-21)
 
 The Sharpe p50 2.13 figure below was produced by an ML#2 V4 filter that
 trains `global_combo_id` as a LightGBM categorical feature
-(`scripts/models/adaptive_rr_model_v4.py` lines 69, 72, 74). This is a
-per-combo memorization channel: V4 has seen every shipped top-50 combo
-during training and can recover its in-sample win rate directly from the
-ID. A naive random-K null test would be fooled by this leak.
-
-The LLM Council (transcript 2026-04-20 13:49 CDT, `evaluation/council/
+(`scripts/models/adaptive_rr_model_v4.py` lines 69, 72, 74). The LLM
+Council (transcript 2026-04-20 13:49 CDT, `evaluation/council/
 council-transcript-20260420_134920.md`) unanimously recommended Option 1:
 refit V4 combo-agnostic (drop `global_combo_id`) and re-audit s6_net on
-the shipped top-50 before any further evaluation work. `adaptive_rr_v3`
-is contaminated by the same pattern (L64, L67, L69) but is not on the
-shipped path; V3's audit is scoped after V4.
+the shipped top-50.
 
-**All downstream claims in this document are contingent on the refit
-V4's s6_net CI overlapping the shipped 2.13**. If the CI collapses,
-paper-trading halts and the pipeline is re-architected.
+**Audit verdict: FAIL.** Full analysis in
+`tasks/v4_no_gcid_audit_verdict.md`. Highlights on the identical Pool B
+top-50 / identical MC kernel:
 
-Tracked in tasks #7–#11. Banner will be removed once the combo-agnostic
-V4 ship-blocker audit completes.
+| Metric | Shipped V4 | V4 combo-agnostic | Delta |
+|---|---|---|---|
+| `sharpe_p50` | +2.1331 | **−0.4194** | −2.55 Sharpe |
+| `sharpe_ci_95` | (+0.56, +3.64) | **(−2.10, +1.19)** | crosses zero |
+| `sharpe_pos_prob` | 99.6% | **30.2%** | collapse |
+| `risk_of_ruin_prob` | 0.02% | **56.37%** | 2,800× worse |
+| `dd_worst_pct` | 55.1% | **207.69%** | 3.8× worse |
+| `n_trades` | 641 | **1,446** | +126% (leak direction = contraction) |
+
+Source notebook: `evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/
+s6_mc_combined_ml2_net.ipynb`.
+
+**Consequences**:
+- Paper-trading halted per the prior banner's escalation rule.
+- All Sharpe/DD/ruin figures in this document below are **not
+  generalization-valid** — they reflect a per-combo memorization
+  artifact.
+- V3 (declared production in CLAUDE.md) carries the same memorization
+  pattern (lines 64, 67, 69 of `adaptive_rr_model_v3.py`) and now
+  requires its own combo-agnostic refit + ship audit before any further
+  live-capital claims.
+
+Banner is permanent.
 
 ## Context
 
@@ -50,11 +65,13 @@ consolidates the verdicts.
 | 3 | Pool B + V3 | 1.78 | [+0.23, +3.33] | 123.7% | 6.9 | — | Step 3 unbundle — V3 filter arm |
 | 4 | Full pool + V4 (500 subsample) | **0.00** | **[0.00, +2.02]** | **280.4%** | **43.45** | 24,542 | Step 4 — catastrophic collapse; ML#1 concentration is load-bearing |
 | 5 | (ref) Pool B + no filter | n/a | n/a | n/a | n/a | n/a | not run — no filter means no ML#2 gate |
+| 6 | **Pool B + V4 combo-agnostic** | **−0.42** | **[−2.10, +1.19]** | **207.69%** | **56.37** | 1,446 | **Ship-blocker audit 2026-04-21 — VERDICT FAIL.** `global_combo_id` leak confirmed; row 2 numbers are memorization artifact. See `tasks/v4_no_gcid_audit_verdict.md`. |
 
 Source notebooks:
 - Row 2 → `evaluation/v12_topk_top50_raw_sharpe_net_v4/s6_mc_combined_ml2_net.ipynb`
 - Row 3 → `evaluation/v12_topk_top50_raw_sharpe_net_v3/s6_mc_combined_ml2_net.ipynb`
 - Row 4 → `evaluation/v12_full_pool_net_v4_2k/s6_mc_combined_ml2_net.ipynb` (pending)
+- Row 6 → `evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s6_mc_combined_ml2_net.ipynb` (ship-blocker audit)
 
 ## Rank stability (Step 2)
 
