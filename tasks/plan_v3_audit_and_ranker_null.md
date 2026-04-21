@@ -103,16 +103,18 @@ Must assert:
 - AUC on held-out bar is within 0.05 of V3 production baseline (`data/ml/adaptive_rr_v3/`),
 - ECE < 1e-4 per R:R bin (matches V4's 8.14e-7 scale; V3 should come in similar).
 
-### 2.3 Calibrator export
+### 2.3 Calibrator export — SUBSUMED BY TRAINING (no separate step)
 
-**What**: Run `scripts/calibration/export_calibrators_v3.py` against the new booster, writing pooled per-R:R isotonic pickles under `data/ml/adaptive_rr_v3_no_gcid/isotonic/`.
+**What**: No-op. `adaptive_rr_model_v3.py` L439 writes `isotonic_calibrators_v3.json` (pooled per-R:R JSON, all 5 R:R levels as keys) into `--output-dir` atomically alongside `booster_v3.txt`. `inference_v3_no_gcid.py` reads this exact filename at `data/ml/adaptive_rr_v3_no_gcid/isotonic_calibrators_v3.json`.
+
+**Anti-pattern** (was originally mis-specified): `scripts/calibration/export_calibrators_v3.py` exports `per_combo_calibrators_v3.json` — the **retired** two-stage Kelly-sizing calibrator (deprecated Phase 5D, CLAUDE.md). Do not run it for the combo-agnostic audit: the V3 production stack uses a single pooled per-R:R JSON, not the two-stage format.
 
 ### Verification for Phase 2
 
 - [ ] Remote refit completes with AUC within 0.05 of V3 production
 - [ ] `tasks/_check_v3_no_gcid_artifact.py` exits 0
 - [ ] `feature_name()` list lacks `global_combo_id`
-- [ ] All 5 isotonic pickles exist at expected R:R values
+- [ ] `isotonic_calibrators_v3.json` exists with all 5 R:R levels as top-level JSON keys (`"1.00"`, `"1.50"`, `"2.00"`, `"2.50"`, `"3.00"`)
 
 ### Anti-pattern guards
 

@@ -1,10 +1,41 @@
 # Pool B Ship Decision
 
 **Date**: 2026-04-19 / 2026-04-20 / 2026-04-21 UTC
-**Status**: 🛑 **REVOKED — Pool B + V4 ship decision overturned by combo-agnostic audit** (2026-04-21 00:34 UTC)
-**Plan**: `C:\Users\kunpa\.claude\plans\sleepy-roaming-kettle.md`
+**Status**: 🛑 **REVOKED — Pool B + V4 + V3 all fail combo-agnostic audits** (2026-04-21 04:00 UTC)
+**Plan**: `C:\Users\kunpa\.claude\plans\sleepy-roaming-kettle.md` → `tasks/plan_v3_audit_and_ranker_null.md`
 
-## 🛑 REVOCATION BANNER (2026-04-21)
+## 🛑 REVOCATION BANNER (V3) — 2026-04-21 04:00 UTC
+
+V3 (declared production in CLAUDE.md line 58) was refit combo-agnostic
+per Phase 3 of `tasks/plan_v3_audit_and_ranker_null.md` after the V4
+banner (below) flagged it as sharing the same `global_combo_id`
+memorization pattern. V3's s6_net MC with the combo-ID feature stripped
+collapses identically:
+
+| Metric | Shipped V3 (with `global_combo_id`) | V3 combo-agnostic | Delta |
+|---|---|---|---|
+| `sharpe_p50` | +1.7822 | **+0.3054** | −1.48 Sharpe |
+| `sharpe_ci_95` | (+0.23, +3.33) | **(−1.37, +1.93)** | crosses zero |
+| `sharpe_pos_prob` | 98.7% | **64.17%** | 36% of paths negative |
+| `risk_of_ruin_prob` | 6.93% | **53.62%** | 7.7× worse — ruin-majority |
+| `dd_worst_pct` | 123.69% | **271.6%** | 2.2× worse |
+| `n_trades` | 2,791 | **3,299** | +18% (re-weighter, not rejector) |
+
+Source notebook: `evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s6_mc_combined_ml2_net.ipynb`.
+Full analysis: `tasks/v3_no_gcid_audit_verdict.md`.
+
+**Consequences extending the V4 banner**:
+- V3 + V4 are both out of production. No ML#2 stack currently passes
+  ship criteria on clean training.
+- OOF AUC 0.8293 was preserved post-refit — AUC is a necessary but not
+  sufficient ship gate. Future audits must treat AUC parity as a
+  precondition, not evidence of ship readiness.
+- Phase 5 decision fork proceeds under the FAIL branch: deep redesign
+  (Option A K-fold or Option D rank-based) required.
+
+Banner is permanent.
+
+## 🛑 REVOCATION BANNER (V4) — 2026-04-21 00:34 UTC
 
 The Sharpe p50 2.13 figure below was produced by an ML#2 V4 filter that
 trains `global_combo_id` as a LightGBM categorical feature

@@ -19,13 +19,21 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   `tasks/part_b_findings.md`) both prefer R:R near 1:1 under MNQ economics,
   and the calibrated ML#2 model (`adaptive_rr_v3` — current production)
   confirms this. Use whatever R:R the data supports for the chosen combo.
-- **ML#2 production stack** (as of Phase 5D, 2026-04-15): V3 LightGBM
-  booster (`data/ml/adaptive_rr_v3/booster_v3.txt`) + pooled per-R:R
-  isotonic calibrator + fixed 5% sizing. The per-combo two-stage
-  calibrator was **deprecated** (three null-to-negative results across
-  Phase 3, 5A, and 5C; Kelly+two-stage failed the B16 held-out gate with
-  91% DD in portfolio sim). Do not reintroduce it without a new experimental
-  mandate. See `tasks/part_b_findings.md` Phase 5D for the full post-mortem.
+- **ML#2 production stack** — 🛑 **REVOKED 2026-04-21 UTC**. The V3
+  LightGBM booster + pooled per-R:R isotonic at `data/ml/adaptive_rr_v3/`
+  was shown to depend on a `global_combo_id` memorization channel (same
+  leak pattern as V4, revoked 2026-04-21 00:34 UTC). Combo-agnostic
+  refit (`data/ml/adaptive_rr_v3_no_gcid/`, OOF AUC 0.8293 — identical
+  to shipped V3) produces s6_net Sharpe p50 **0.31** / ruin **53.62%** /
+  pos_prob **64%**, a catastrophic collapse from shipped V3's 1.78 /
+  6.93% / 98.7%. Both V3 and V4 are out of production. See
+  `tasks/v3_no_gcid_audit_verdict.md` and `tasks/ship_decision.md`
+  V3 revocation banner (2026-04-21 04:00 UTC). Paper-trading halted.
+  The per-combo two-stage calibrator was **also deprecated** (Phase 5D
+  post-mortem, Kelly+two-stage failed the B16 gate with 91% DD in
+  portfolio sim). Do not reintroduce either stack without first passing
+  a combo-agnostic audit of comparable design. See
+  `tasks/part_b_findings.md` Phase 5D + the Phase 3 V3 verdict above.
 - **Backtest mode first**: use CSV input; no live broker integration yet.
 - **Notebooks run in-place**: notebooks must run from repo root and write artifacts to the correct folders without manual path edits.
 
