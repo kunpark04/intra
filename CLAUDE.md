@@ -50,6 +50,22 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   `tasks/probe1_preregistration.md` (signed commit `d0ee506`). Next fork
   (signal-family swap / session-structure probe / project sunset)
   governed by the post-Branch-A LLM Council.
+- **Combo-865 carve-out — PASSED Probe 2 on 1h holdout 2026-04-21 UTC.**
+  Post-Branch-A LLM Council (Chairman verdict: hybrid "Y-gated-on-865")
+  authorized a single-combo isolation probe on the held-out 20% test
+  partition (2024-10-22 → 2026-04-08) with mechanically-applied gates:
+  net Sharpe ≥ 1.3, n_trades ≥ 50, net $/year ≥ $5,000, ALL on the same
+  timeframe. Observed: **1h PASSED all three** (net Sharpe **2.89** on
+  220 trades, **+$124,896/yr**); **15m FAILED** (net Sharpe −0.55 on
+  780 trades, **−$43,968/yr**). Mechanical interpretation: friction is
+  per-contract at stop-distance-17pts (~$438/trade identical at both TFs);
+  1h's per-trade gross edge (~$1,278) comfortably clears that floor, 15m's
+  (~$355) does not. §4 PASS branch fires → Probe 3 (Option Y session-
+  structure sweep) authorized **on 1h only**, and still requires a fresh
+  LLM Council + new preregistration before signing. See
+  `tasks/probe2_verdict.md` + `tasks/probe2_preregistration.md` (signed
+  commit `a49f370`). This carve-out does NOT unfalsify the family-level
+  Probe 1 verdict above — it's one parameter realization at one TF.
 - **Backtest mode first**: use CSV input; no live broker integration yet.
 - **Notebooks run in-place**: notebooks must run from repo root and write artifacts to the correct folders without manual path edits.
 
