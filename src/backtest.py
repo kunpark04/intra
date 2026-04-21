@@ -69,6 +69,7 @@ def _backtest_core(
     max_hold_bars,       # int   — exit at next open after N bars (0 = disabled)
     hour_arr,            # int64[:] — bar hour-of-day (0–23)
     tod_exit_hour,       # int   — force close at this hour (0 = disabled)
+    cooldown_bars,       # int   — block new entries for K bars after each exit (0 = disabled)
 ):
     """Numba JIT bar-by-bar state machine for one position at a time.
 
@@ -94,6 +95,9 @@ def _backtest_core(
             (`0` disables).
         hour_arr: int64 hour-of-day per bar (only read when TOD exit is on).
         tod_exit_hour: Force-close hour (0 disables).
+        cooldown_bars: Block new entries for K bars after each exit. After
+            a trade exits at bar X, no signal bar `t < X + cooldown_bars`
+            can open a new trade. `0` disables.
 
     Returns:
         13-tuple of per-trade arrays sliced to the actual trade count
@@ -129,23 +133,25 @@ def _backtest_core(
     breakeven_activated = False
     bars_held           = 0
     n_trades            = 0
+    cooldown_until      = 0   # no signal-bar < cooldown_until may open a trade
 
     for t in range(n_bars):
         if not in_trade:
-            sig = signal_arr[t]
-            if sig != 0 and t + 1 < n_bars:
-                in_trade            = True
-                side                = sig
-                signal_bar          = t
-                entry_bar           = t + 1
-                entry_price         = open_arr[t + 1]
-                sl_price            = entry_price - sl_pts * side
-                effective_sl        = sl_price
-                tp_price            = entry_price + tp_pts * side
-                mae                 = 0.0
-                mfe                 = 0.0
-                breakeven_activated = False
-                bars_held           = 0
+            if t >= cooldown_until:
+                sig = signal_arr[t]
+                if sig != 0 and t + 1 < n_bars:
+                    in_trade            = True
+                    side                = sig
+                    signal_bar          = t
+                    entry_bar           = t + 1
+                    entry_price         = open_arr[t + 1]
+                    sl_price            = entry_price - sl_pts * side
+                    effective_sl        = sl_price
+                    tp_price            = entry_price + tp_pts * side
+                    mae                 = 0.0
+                    mfe                 = 0.0
+                    breakeven_activated = False
+                    bars_held           = 0
 
         if in_trade and t >= entry_bar:
             bars_held += 1
@@ -227,6 +233,7 @@ def _backtest_core(
                 n_trades += 1
                 in_trade = False
                 side     = np.int8(0)
+                cooldown_until = t + cooldown_bars  # block signals until t+K
 
     return (
         out_side[:n_trades],
@@ -262,6 +269,7 @@ def _backtest_core_numpy(
     max_hold_bars,
     hour_arr,
     tod_exit_hour,
+    cooldown_bars,
 ):
     """Pure-Python/NumPy fallback — identical logic to `_backtest_core`.
 
@@ -298,23 +306,25 @@ def _backtest_core_numpy(
     breakeven_activated = False
     bars_held           = 0
     n_trades            = 0
+    cooldown_until      = 0
 
     for t in range(n_bars):
         if not in_trade:
-            sig = int(signal_arr[t])
-            if sig != 0 and t + 1 < n_bars:
-                in_trade            = True
-                side                = sig
-                signal_bar          = t
-                entry_bar           = t + 1
-                entry_price         = float(open_arr[t + 1])
-                sl_price            = entry_price - sl_pts * side
-                effective_sl        = sl_price
-                tp_price            = entry_price + tp_pts * side
-                mae                 = 0.0
-                mfe                 = 0.0
-                breakeven_activated = False
-                bars_held           = 0
+            if t >= cooldown_until:
+                sig = int(signal_arr[t])
+                if sig != 0 and t + 1 < n_bars:
+                    in_trade            = True
+                    side                = sig
+                    signal_bar          = t
+                    entry_bar           = t + 1
+                    entry_price         = float(open_arr[t + 1])
+                    sl_price            = entry_price - sl_pts * side
+                    effective_sl        = sl_price
+                    tp_price            = entry_price + tp_pts * side
+                    mae                 = 0.0
+                    mfe                 = 0.0
+                    breakeven_activated = False
+                    bars_held           = 0
 
         if in_trade and t >= entry_bar:
             bars_held += 1
@@ -394,6 +404,7 @@ def _backtest_core_numpy(
                 n_trades += 1
                 in_trade = False
                 side     = 0
+                cooldown_until = t + cooldown_bars
 
     return (
         out_side[:n_trades],
@@ -471,6 +482,7 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
     use_breakeven_stop = bool(getattr(cfg, "USE_BREAKEVEN_STOP", False))
     max_hold_bars      = int(getattr(cfg, "MAX_HOLD_BARS", 0))
     tod_exit_hour      = int(getattr(cfg, "TOD_EXIT_HOUR", 0))
+    cooldown_bars      = int(getattr(cfg, "COOLDOWN_AFTER_EXIT_BARS", 0))
 
     # ── 3. Dispatch: Cython → Numba → NumPy ─────────────────────────────────
     use_cython = CYTHON_AVAILABLE
@@ -503,6 +515,7 @@ def run_backtest(df: pd.DataFrame, cfg, version: str = "V1") -> dict:
         same_bar_tp_first, exit_on_opposite,
         use_breakeven_stop, max_hold_bars,
         hour_arr, tod_exit_hour,
+        cooldown_bars,
     )
 
     n_trades_raw = len(raw_side)

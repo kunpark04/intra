@@ -119,6 +119,10 @@ _COMBO_META_KEYS = [
     "volume_entry_threshold", "vol_regime_lookback",
     "vol_regime_min_pct", "vol_regime_max_pct",
     "session_filter_mode", "tod_exit_hour",
+    # Microstructure axes (Probe 1, v11 15m/1h sweeps). Always non-nullable
+    # int for downstream schema stability. Non-v11 range_modes set all three
+    # to 0 (= disabled) so older combos are a strict subset of the new space.
+    "entry_timing_offset", "fill_slippage_ticks", "cooldown_after_exit_bars",
 ]
 _TRADE_FEATURE_KEYS = [
     "zscore_entry", "zscore_prev", "zscore_delta",
@@ -217,6 +221,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "winrate":
@@ -255,6 +263,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v4":
@@ -301,6 +313,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v5":
@@ -353,6 +369,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     float(rng.choice([1.0, 1.0, 0.9, 0.8, 0.7])),              # 40% no gate
                 "session_filter_mode":    int(rng.choice([0, 0, 0, 1, 2, 3])),                        # 50% all hours
                 "tod_exit_hour":          int(rng.choice([0, 0, 0, 14, 16, 20, 22])),                 # 43% off
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v6":
@@ -404,6 +424,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v7":
@@ -450,6 +474,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v8":
@@ -516,6 +544,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v9":
@@ -582,6 +614,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v11":
@@ -668,6 +704,15 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    int(rng.choice([0, 1, 2])),
                 "tod_exit_hour":          0,
+                # Microstructure axes (Probe 1 live — see tasks/probe1_preregistration.md §4).
+                # Sampled uniformly over 27-cell Cartesian (3 × 3 × 3) via the same
+                # random mechanism as other v11 params; no combinatorial blow-up.
+                #   entry_timing_offset      : bars to delay fill after signal (0,1,2)
+                #   fill_slippage_ticks      : extra ticks/side on top of 2-tick baseline (0,1,2)
+                #   cooldown_after_exit_bars : min bars between exit and next entry (0,3,10)
+                "entry_timing_offset":      int(rng.choice([0, 1, 2])),
+                "fill_slippage_ticks":      int(rng.choice([0, 1, 2])),
+                "cooldown_after_exit_bars": int(rng.choice([0, 3, 10])),
                 "stop_fixed_pts_resolved": None,
             }
         elif range_mode == "v10":
@@ -760,6 +805,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    int(rng.choice([0, 1, 2])),
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         else:
@@ -798,6 +847,10 @@ def _sample_combos(n: int, rng_seed: int = 0, range_mode: str = "default") -> li
                 "vol_regime_max_pct":     1.0,
                 "session_filter_mode":    0,
                 "tod_exit_hour":          0,
+                # Microstructure axes: disabled (legacy behavior)
+                "entry_timing_offset":      0,
+                "fill_slippage_ticks":      0,
+                "cooldown_after_exit_bars": 0,
                 "stop_fixed_pts_resolved": None,
             }
         combos.append(combo)
@@ -832,6 +885,20 @@ def _make_cfg(combo: dict) -> types.SimpleNamespace:
     ns.VOL_REGIME_MAX_PCT      = float(combo.get("vol_regime_max_pct", 1.0))
     ns.SESSION_FILTER_MODE     = int(combo.get("session_filter_mode", 0))
     ns.TOD_EXIT_HOUR           = int(combo.get("tod_exit_hour", 0))
+    # Microstructure axes (Probe 1 v11 sweeps).
+    # - cooldown: threaded into the backtest core via _run_backtest_light
+    # - fill_slippage: per-side ticks add (ticks × 2 sides × TICK_SIZE × $/pt)
+    #   per contract RT on top of the $5 baseline (2 ticks/side + $3 commission)
+    # - entry_timing_offset: applied in _process_one_combo as a signal shift
+    #   (no engine change — just delays which bar the signal fires on)
+    ns.COOLDOWN_AFTER_EXIT_BARS = int(combo.get("cooldown_after_exit_bars", 0))
+    _fill_slip_bump = (
+        int(combo.get("fill_slippage_ticks", 0))
+        * 2
+        * float(_FIXED["TICK_SIZE"])
+        * float(_FIXED["MNQ_DOLLARS_PER_POINT"])
+    )
+    ns.COST_PER_CONTRACT_RT = float(_FIXED["COST_PER_CONTRACT_RT"]) + _fill_slip_bump
     # All stop methods normalised to "fixed" for the Cython core
     ns.STOP_METHOD    = "fixed"
     ns.STOP_FIXED_PTS = float(combo["stop_fixed_pts_resolved"])
@@ -899,6 +966,7 @@ def _run_backtest_light(df: pd.DataFrame, cfg) -> dict:
     use_breakeven_stop = bool(getattr(cfg, "USE_BREAKEVEN_STOP", False))
     max_hold_bars      = int(getattr(cfg, "MAX_HOLD_BARS", 0))
     tod_exit_hour      = int(getattr(cfg, "TOD_EXIT_HOUR", 0))
+    cooldown_bars      = int(getattr(cfg, "COOLDOWN_AFTER_EXIT_BARS", 0))
 
     # Hour array for TOD exit (zero array if column absent)
     if "bar_hour" in df.columns:
@@ -924,6 +992,7 @@ def _run_backtest_light(df: pd.DataFrame, cfg) -> dict:
         same_bar_tp_first, exit_on_opposite,
         use_breakeven_stop, max_hold_bars,
         hour_arr, tod_exit_hour,
+        cooldown_bars,
     )
 
     n_trades_raw = len(raw_side)
@@ -1128,6 +1197,21 @@ def _process_one_combo(combo: dict) -> dict:
         df_sig = generate_signals(df_ind, cfg_c)
         del df_ind
 
+        # Microstructure axis: entry_timing_offset — delay the fill by K bars
+        # after the signal bar. Engine fills at next_bar_open, so shifting the
+        # signal array right by K and zero-padding the leading K positions is
+        # equivalent to "wait K additional bars before placing the order."
+        # Implemented here rather than in the engine because the signal-array
+        # shift is the cleanest semantic and touches zero tier-1 (Cython/Numba)
+        # code.
+        _k_shift = int(combo.get("entry_timing_offset", 0))
+        if _k_shift > 0:
+            _raw_sig = df_sig["signal"].to_numpy(dtype=np.int8)
+            _shifted = np.zeros_like(_raw_sig)
+            _shifted[_k_shift:] = _raw_sig[:-_k_shift]
+            df_sig = df_sig.copy()
+            df_sig["signal"] = _shifted
+
         results = _run_backtest_light(df_sig, cfg_c)
         del df_sig
 
@@ -1298,6 +1382,11 @@ def _parse_args() -> argparse.Namespace:
                    help="Which chronological partition to sweep on. 'train' (default) "
                         "= first 80% of bars (standard). 'test' = last 20% (B6 "
                         "temporal-OOD eval — do not use for iteration backtests).")
+    p.add_argument("--timeframe", choices=["1min", "15min", "1h"], default="1min",
+                   help="Bar timeframe. '1min' (default) loads data/NQ_1min.csv. "
+                        "'15min' / '1h' load data/NQ_{15min,1h}.parquet — must be "
+                        "pre-built via scripts/data_pipeline/build_bar_caches.py. "
+                        "Probe 1 (tasks/probe1_preregistration.md) uses 15min and 1h.")
     return p.parse_args()
 
 
@@ -1344,12 +1433,26 @@ def main() -> None:
     engine = "Cython" if CYTHON_AVAILABLE else ("Numba" if NUMBA_AVAILABLE else "NumPy")
     print(f"[sweep] engine={engine}  combinations={args.combinations}  "
           f"start_combo={args.start_combo}  hours={'unlimited' if args.hours == 0 else args.hours}  "
-          f"seed={args.seed}  range_mode={args.range_mode}",
+          f"seed={args.seed}  range_mode={args.range_mode}  timeframe={args.timeframe}",
           flush=True)
 
     # 1. Load chosen partition once
     print("[sweep] Loading data...", flush=True)
-    df_raw           = load_bars("data/NQ_1min.csv")
+    if args.timeframe == "1min":
+        df_raw = load_bars("data/NQ_1min.csv")
+    else:
+        # 15min / 1h parquets are pre-built by
+        # scripts/data_pipeline/build_bar_caches.py and carry the canonical
+        # schema: time, open, high, low, close, volume, session_break.
+        _parquet_path = Path(f"data/NQ_{args.timeframe}.parquet")
+        if not _parquet_path.exists():
+            raise FileNotFoundError(
+                f"{_parquet_path} not found. Build it first:\n"
+                f"    python scripts/data_pipeline/build_bar_caches.py"
+            )
+        df_raw = pd.read_parquet(_parquet_path)
+        print(f"[sweep] Loaded {len(df_raw):,} {args.timeframe} bars from "
+              f"{_parquet_path}", flush=True)
     train_part, test_part = split_train_test(df_raw, 0.8)
     if args.eval_partition == "test":
         train_df = test_part  # reuse the same local name downstream; semantics: "the bars we backtest on"

@@ -29,6 +29,7 @@ def backtest_core_cy(
     int max_hold_bars,
     const cnp.int64_t[::1] hour_arr,
     int tod_exit_hour,
+    int cooldown_bars,
 ):
     """AOT-compiled bar-by-bar state machine.
 
@@ -45,6 +46,7 @@ def backtest_core_cy(
     max_hold_bars     : exit at next open after this many bars (0 = disabled)
     hour_arr          : bar hour-of-day (0–23); used for TOD exit
     tod_exit_hour     : force close at this hour (0 = disabled)
+    cooldown_bars     : block new entries for K bars after each exit; 0 = disabled
 
     Exit reason codes
     -----------------
@@ -89,6 +91,7 @@ def backtest_core_cy(
     cdef bint   breakeven_activated= False
     cdef int    bars_held          = 0
     cdef int    n_trades           = 0
+    cdef int    cooldown_until     = 0     # next bar index eligible for entry
 
     # ── Per-bar temporaries ───────────────────────────────────────────────────
     cdef int    t, sig
@@ -101,20 +104,21 @@ def backtest_core_cy(
     for t in range(n_bars):
         # ── Entry logic ───────────────────────────────────────────────────────
         if not in_trade:
-            sig = signal_arr[t]
-            if sig != 0 and t + 1 < n_bars:
-                in_trade           = True
-                side               = sig
-                signal_bar_i       = t
-                entry_bar_i        = t + 1
-                entry_price        = open_arr[t + 1]
-                sl_price           = entry_price - sl_pts * side
-                effective_sl       = sl_price
-                tp_price           = entry_price + tp_pts * side
-                mae                = 0.0
-                mfe                = 0.0
-                breakeven_activated= False
-                bars_held          = 0
+            if t >= cooldown_until:
+                sig = signal_arr[t]
+                if sig != 0 and t + 1 < n_bars:
+                    in_trade           = True
+                    side               = sig
+                    signal_bar_i       = t
+                    entry_bar_i        = t + 1
+                    entry_price        = open_arr[t + 1]
+                    sl_price           = entry_price - sl_pts * side
+                    effective_sl       = sl_price
+                    tp_price           = entry_price + tp_pts * side
+                    mae                = 0.0
+                    mfe                = 0.0
+                    breakeven_activated= False
+                    bars_held          = 0
 
         # ── In-trade bar processing ───────────────────────────────────────────
         if in_trade and t >= entry_bar_i:
@@ -197,6 +201,7 @@ def backtest_core_cy(
                 n_trades += 1
                 in_trade = False
                 side     = 0
+                cooldown_until = t + cooldown_bars
 
     return (
         out_side[:n_trades],
