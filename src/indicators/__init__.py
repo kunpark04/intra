@@ -6,6 +6,7 @@ from .zscore import compute_zscore, compute_volume_zscore
 from .atr import compute_atr
 from .pipeline import add_indicators
 from .zscore_variants import compute_zscore_v2, compute_vwap_session
+from .bar_resample import resample_bars
 
 __all__ = [
     "compute_ema",
@@ -15,4 +16,5 @@ __all__ = [
     "add_indicators",
     "compute_zscore_v2",
     "compute_vwap_session",
+    "resample_bars",
 ]
