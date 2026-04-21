@@ -9,11 +9,12 @@
 
 ## Status
 
-**UNSIGNED — awaiting user sign-off.**
+**SIGNED 2026-04-21 18:11:57 UTC at commit `d0ee506`.**
 
-No code (bar-aggregation infrastructure, sweep-harness extension, remote
-sweep launches, or K-fold audit) may run until this document is signed at
-a specific commit hash.
+Probe 1 execution (bar-aggregation infrastructure, sweep-harness
+extension, parallel remote sweeps, gross-ceiling readout, and
+conditional K-fold audit) may now proceed. The decision rule below is
+binding regardless of which branch the observed metrics fall into.
 
 ---
 
@@ -278,9 +279,9 @@ By signing below, the signer commits to this document's decision rule
 without post-hoc reinterpretation. §3 thresholds are mechanically applied
 to the observed metrics. §7's irrevocable commitments stand.
 
-- **Signed**: _______________
-- **Date/time of signature**: _______________
-- **Commit hash at time of signature**: _______________
+- **Signed**: kunpa (confirmed via explicit "signed" reply 2026-04-21 18:11 UTC)
+- **Date/time of signature**: 2026-04-21 18:11:57 UTC
+- **Commit hash at time of signature**: `d0ee506` (d0ee5066abfebdb191bdf9fa9adb449078d49bc8)
 
 ---
 
