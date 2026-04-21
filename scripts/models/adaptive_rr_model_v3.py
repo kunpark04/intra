@@ -108,6 +108,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--n-folds", type=int, default=5)
     p.add_argument("--target-base-trades", type=int, default=1_200_000,
                    help="Base trades to load pre-expansion (default 1.2M)")
+    p.add_argument("--output-dir", type=str, default=None,
+                   help="Override output directory (e.g. data/ml/adaptive_rr_v3_no_gcid).")
+    p.add_argument("--no-combo-id", action="store_true",
+                   help="Drop global_combo_id from the trained feature set "
+                        "(combo-agnostic V3, closes per-combo memorization leak).")
     return p.parse_args()
 
 
@@ -352,6 +357,16 @@ def main() -> None:
     """Train the V3 stack: LightGBM booster + per-R:R pooled isotonic calibrator."""
     args = parse_args()
     t0 = time.time()
+
+    global OUTPUT_DIR, ALL_FEATURES, CATEGORICAL_COLS
+    if args.output_dir:
+        OUTPUT_DIR = Path(args.output_dir)
+    if args.no_combo_id:
+        ALL_FEATURES = [c for c in ALL_FEATURES if c != ID_FEATURE]
+        CATEGORICAL_COLS = [c for c in CATEGORICAL_COLS if c != ID_FEATURE]
+        print("[v3] combo-agnostic mode: global_combo_id DROPPED from features + categoricals")
+
+    print(f"[v3] output_dir = {OUTPUT_DIR}")
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"[v3] Loading v{args.versions}, target {args.target_base_trades:,} base trades...")
