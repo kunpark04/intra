@@ -66,9 +66,17 @@ def _load_eval_module(version: str):
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod
+    if version == "v3_no_gcid":
+        spec = importlib.util.spec_from_file_location(
+            "_v3nogcideval",
+            REPO / "scripts/evaluation/final_holdout_eval_v3_no_gcid_fixed500.py",
+        )
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
     raise ValueError(
         f"Unknown ML#2 version: {version!r} "
-        f"(expected 'v3', 'v4', or 'v4_no_gcid')")
+        f"(expected 'v3', 'v4', 'v4_no_gcid', or 'v3_no_gcid')")
 
 # NOW configure matplotlib: inline wins over the Agg that v3eval's transitive
 # imports selected.
@@ -199,16 +207,23 @@ def _load_or_build_results_raw(strategies, bars):
 def _load_or_build_combos_ml2(combo_ids, bars, version: str = "v3"):
     import lightgbm as lgb
     eval_mod = _load_eval_module(version)
-    inf = eval_mod.v3inf if version == "v3" else eval_mod.v4inf
-    booster_path = inf.V3_BOOSTER if version == "v3" else inf.V4_BOOSTER
-    cal_path = inf.V3_CALIBRATORS if version == "v3" else inf.V4_CALIBRATORS
-    # Both "v4" and "v4_no_gcid" expose V4_BOOSTER/V4_CALIBRATORS on their
-    # respective inference modules; the combo-agnostic paths differ by
-    # virtue of the inference module itself (data/ml/adaptive_rr_v4_no_gcid/).
+    # v3 / v3_no_gcid both expose `v3inf` on their eval module; v4 / v4_no_gcid
+    # expose `v4inf`. The combo-agnostic paths differ by virtue of the
+    # inference module itself (data/ml/adaptive_rr_v{3,4}_no_gcid/).
+    if version in ("v3", "v3_no_gcid"):
+        inf = eval_mod.v3inf
+        booster_path = inf.V3_BOOSTER
+        cal_path = inf.V3_CALIBRATORS
+    else:
+        inf = eval_mod.v4inf
+        booster_path = inf.V4_BOOSTER
+        cal_path = inf.V4_CALIBRATORS
 
     booster = lgb.Booster(model_file=str(booster_path))
     simple_cals = inf._load_calibrators()
-    # V4 has no two-stage calibrator; pass None (build_combo_trades_test ignores).
+    # Only shipped V3 carries the per-combo two-stage calibrator; v3_no_gcid
+    # deliberately omits it (per-combo calibration is antithetical to the
+    # combo-agnostic audit), and V4 / V4-no-gcid never built one.
     two_stage = (inf._load_per_combo_calibrators() if version == "v3" else None)
 
     cache_components = [
@@ -413,8 +428,10 @@ def load_setup(cost_per_contract_rt: float = 0.0, top_strategies_path=None,
     entries each with `global_combo_id` and `parameters`.
 
     version selects the ML#2 stack: 'v3' (default, trained on v2-v10 MFE
-    sweep) or 'v4' (Phase 6.7 retrain on v11 friction-aware sweep — rebuilds
-    the filter for OOD v11 combos). V4 has no per-combo two-stage calibrator.
+    sweep), 'v4' (Phase 6.7 retrain on v11 friction-aware sweep), or
+    'v{3,4}_no_gcid' (combo-agnostic refits that strip `global_combo_id`
+    from the feature list — audit variants only). V4 / no-gcid variants
+    have no per-combo two-stage calibrator.
     """
     tsp = Path(top_strategies_path) if top_strategies_path else TOP_STRATEGIES_PATH
     print(f"Top-K source: {tsp.name}")

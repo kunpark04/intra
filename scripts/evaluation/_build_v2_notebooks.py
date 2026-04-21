@@ -359,6 +359,7 @@ def main() -> None:
                              "v12_top50_raw_sharpe_v4",
                              "v12_top50_raw_sharpe_v4_no_gcid",
                              "v12_top50_raw_sharpe_v3",
+                             "v12_top50_raw_sharpe_v3_no_gcid",
                              "v12_full_pool_v4",
                              "v12_full_pool_v4_2k", "all"],
                     default="all",
@@ -471,6 +472,20 @@ def main() -> None:
             _setup("0.0", tsp, version="v3"),
             _setup("5.0", tsp, version="v3"),
             title_tag="(v12 top-50 raw-Sharpe, V3 filter)",
+        )
+
+    # Phase 3 of plan_v3_audit_and_ranker_null.md — combo-agnostic V3 audit.
+    # Same top-50 raw-Sharpe combo set, V3 refit without global_combo_id
+    # (data/ml/adaptive_rr_v3_no_gcid/). Mirrors the V4 combo-ID-leak audit
+    # that revoked V4's ship decision; this one probes whether the shipped V3
+    # also memorized per-combo identity. Net-only per CLAUDE.md 2026-04-20
+    # policy — s6_net Sharpe is the ship-blocker signal.
+    if args.variant in ("v12_top50_raw_sharpe_v3_no_gcid", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_raw_sharpe_top50.json'"
+        _build_net_variant(
+            EVAL / "v12_topk_top50_raw_sharpe_net_v3_no_gcid",
+            _setup("5.0", tsp, version="v3_no_gcid"),
+            title_tag="(v12 top-50 raw-Sharpe, V3 combo-agnostic filter)",
         )
 
     # Pool B validation gauntlet Step 4 — ML#2 V4 on the full post-gate pool

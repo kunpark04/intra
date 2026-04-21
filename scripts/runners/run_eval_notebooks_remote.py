@@ -118,6 +118,14 @@ UPLOAD_FILES = [
     "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s4_individual_ml2_net.ipynb",
     "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s5_combined_ml2_net.ipynb",
     "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s6_mc_combined_ml2_net.ipynb",
+    # Phase 3 — combo-agnostic V3 s6_net audit (plan_v3_audit_and_ranker_null).
+    # Net-only per CLAUDE.md 2026-04-20 policy (no gross counterpart).
+    "evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s1_individual_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s2_combined_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s3_mc_combined_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s4_individual_ml2_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s5_combined_ml2_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s6_mc_combined_ml2_net.ipynb",
     "evaluation/top_strategies.json",
     "evaluation/top_strategies_v11.json",
     "evaluation/top_strategies_v12.json",
@@ -130,10 +138,12 @@ UPLOAD_FILES = [
     "scripts/evaluation/final_holdout_eval_v3_c1_fixed500.py",
     "scripts/evaluation/final_holdout_eval_v4_fixed500.py",
     "scripts/evaluation/final_holdout_eval_v4_no_gcid_fixed500.py",
+    "scripts/evaluation/final_holdout_eval_v3_no_gcid_fixed500.py",
     "scripts/evaluation/build_trade_log_xlsx.py",
     "scripts/models/adaptive_rr_model_v4.py",
     "scripts/models/inference_v4.py",
     "scripts/models/inference_v4_no_gcid.py",
+    "scripts/models/inference_v3_no_gcid.py",
     "scripts/backtests/filter_backtest_v2.py",
     "scripts/backtests/adaptive_vs_fixed_backtest_v1.py",
     "src/__init__.py",
@@ -256,6 +266,12 @@ NOTEBOOKS = [
     'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s4_individual_ml2_net.ipynb',
     'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s5_combined_ml2_net.ipynb',
     'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s6_mc_combined_ml2_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s1_individual_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s2_combined_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s3_mc_combined_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s4_individual_ml2_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s5_combined_ml2_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s6_mc_combined_ml2_net.ipynb',
 ]
 
 for rel in NOTEBOOKS:
@@ -337,6 +353,7 @@ def main() -> None:
         f"{REMOTE_DIR}/evaluation/v12_topk_top50_v4 {REMOTE_DIR}/evaluation/v12_topk_top50_net_v4 "
         f"{REMOTE_DIR}/evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid "
         f"{REMOTE_DIR}/evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid "
+        f"{REMOTE_DIR}/evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid "
         f"{REMOTE_DIR}/scripts/evaluation {REMOTE_DIR}/scripts/models {REMOTE_DIR}/scripts/backtests "
         f"{REMOTE_DIR}/src {REMOTE_DIR}/src/indicators"
     )[1].channel.recv_exit_status()
