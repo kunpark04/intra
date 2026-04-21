@@ -1,7 +1,11 @@
 """Phase 4.1 — Ranker-Label Overlap Null (Council step 6).
 
 Labels every combo in `combo_features_v12.parquet` with how many of its trade
-rows appear in the V3/V4 training MFE parquet (`ml_dataset_v11_mfe.parquet`).
+rows appear in the V3/V4 training trade-row parquet. For sweeps v2–v10 that
+is `ml_dataset_v{N}_mfe.parquet` (a dedicated MFE re-run pass). For sweep v11
+the MFE/friction columns were inlined at sweep time, so the relevant parquet
+is `data/ml/originals/ml_dataset_v11.parquet` — there is no separate v11 MFE
+variant.
 
 Why this exists
 ---------------
@@ -44,7 +48,7 @@ CLI
 ---
     python scripts/analysis/build_combo_overlap_labels.py \
         --combo-features data/ml/ml1_results_v12/combo_features_v12.parquet \
-        --mfe-parquet   data/ml/mfe/ml_dataset_v11_mfe.parquet \
+        --mfe-parquet   data/ml/originals/ml_dataset_v11.parquet \
         --output        data/ml/ranker_null/combo_overlap_labels.parquet
 
 Exits 0 on success. Exits 1 on schema mismatch (missing `combo_id` column on
@@ -53,6 +57,7 @@ either side, or empty intersection of combos).
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
 from pathlib import Path
@@ -66,7 +71,9 @@ import pyarrow.parquet as pq
 REPO = Path(__file__).resolve().parents[2]
 
 DEFAULT_COMBO_FEATURES = REPO / "data" / "ml" / "ml1_results_v12" / "combo_features_v12.parquet"
-DEFAULT_MFE_PARQUET = REPO / "data" / "ml" / "mfe" / "ml_dataset_v11_mfe.parquet"
+# v11 inlines MFE/friction columns at sweep time, so the trade-row parquet is
+# the originals variant. v2–v10 callers should override with the mfe/ variant.
+DEFAULT_MFE_PARQUET = REPO / "data" / "ml" / "originals" / "ml_dataset_v11.parquet"
 DEFAULT_OUTPUT = REPO / "data" / "ml" / "ranker_null" / "combo_overlap_labels.parquet"
 
 # Progress logging cadence
@@ -184,13 +191,13 @@ def _load_combo_universe(path: Path) -> pd.DataFrame:
 def _derive_mfe_version_prefix(df: pd.DataFrame, mfe_path: Path) -> str:
     """Derive the sweep-version prefix that the MFE parquet corresponds to.
 
-    The MFE parquet filenames follow `ml_dataset_v{N}_mfe.parquet`. The v12
-    features parquet's `global_combo_id` also follows `v{N}_{combo_id_int}`.
+    The filename follows one of two conventions:
+      - `ml_dataset_v{N}_mfe.parquet` (v2–v10 separate MFE re-run pass)
+      - `ml_dataset_v{N}.parquet`     (v11+ with friction/MFE inlined)
+
+    The v12 features parquet's `global_combo_id` follows `v{N}_{combo_id_int}`.
     For the overlap label to be meaningful, the MFE parquet's sweep version
     must match the prefix(es) in the features parquet.
-
-    This function extracts the version prefix from the MFE filename and
-    returns it as the string the caller should filter on (e.g. `v11`).
 
     Args:
         df: combo-features DataFrame (for diagnostic on the prefix distribution).
@@ -200,17 +207,14 @@ def _derive_mfe_version_prefix(df: pd.DataFrame, mfe_path: Path) -> str:
         Version prefix string (e.g. `v11`).
     """
     name = mfe_path.name
-    # expected: ml_dataset_v{N}_mfe.parquet
-    if not name.startswith("ml_dataset_v"):
+    # Find the first v{digits} token in the filename — tolerates both
+    # `ml_dataset_v11.parquet` and `ml_dataset_v11_mfe.parquet`.
+    m = re.search(r"(v\d+)", name)
+    if not m:
         raise RuntimeError(
-            f"MFE parquet filename does not match 'ml_dataset_v*_mfe.parquet': {name}"
+            f"could not parse sweep version from parquet filename: {name}"
         )
-    tag = name[len("ml_dataset_") : name.find("_mfe")]
-    if not tag.startswith("v"):
-        raise RuntimeError(
-            f"could not parse sweep version from MFE filename: {name} "
-            f"(extracted tag: {tag!r})"
-        )
+    tag = m.group(1)
 
     prefixes = df["global_combo_id"].str.split("_").str[0].unique().tolist()
     print(

@@ -183,9 +183,9 @@ Must assert:
 
 ### 4.1 Partition labeling (REMOTE)
 
-**What**: For each of the 13,814 post-gate combos in `data/ml/ml1_results_v12/combo_features_v12.parquet`, label whether any of its trade rows appear in the V3 (or V4) training parquet `data/ml/mfe/ml_dataset_v11_mfe.parquet` post-gate.
+**What**: For each of the 13,814 post-gate combos in `data/ml/ml1_results_v12/combo_features_v12.parquet`, label whether any of its trade rows appear in the V3/V4 training trade-row parquet for sweep v11 — `data/ml/originals/ml_dataset_v11.parquet` (v11 inlines MFE/friction columns at sweep time; unlike v2–v10 there is no separate `/mfe/` variant).
 
-**Where**: executes on sweep-runner-1 — the 102M-row V11 MFE parquet lives there and must NOT be pulled down to local (shipping GB of data to compute a 13k-row label output is wasteful and violates the remote-execution contract).
+**Where**: executes on sweep-runner-1 — the 102M-row V11 parquet (~13 GB) lives there and must NOT be pulled down to local (shipping GB of data to compute a 13k-row label output is wasteful and violates the remote-execution contract).
 
 **Implementation**: `scripts/analysis/build_combo_overlap_labels.py` runs on the remote via the standard paramiko + screen + systemd-run wrapper. Read `scripts/analysis/build_combo_features_ml1.py` locally to trace how the feature parquet was built, then implement the overlap check with the same join semantics. After remote execution, SFTP only `data/ml/ranker_null/combo_overlap_labels.parquet` (small — one row per combo, ~13k rows) back to local.
 
@@ -227,7 +227,7 @@ Remote-execute the 12-notebook audit.
 
 ### Anti-pattern guards
 
-- Do not use a string match on trade IDs without verifying schema compatibility between ml_dataset_v11_mfe and combo_features_v12 — confirm the join key before labeling.
+- Do not use a string match on trade IDs without verifying schema compatibility between ml_dataset_v11 and combo_features_v12 — confirm the join key before labeling. (Note: v11 has no `_mfe` variant; MFE columns are inlined in `data/ml/originals/ml_dataset_v11.parquet`.)
 - Do not reuse `v4_no_gcid` artifacts here — this null tests the *ranker*, not the *filter*; the filter should stay constant across visible and held-out runs.
 
 ---
