@@ -6,7 +6,10 @@ logs/
 sweep_run*.log
 
 # ML sweep datasets (large generated files; live in data/ml/)
-data/ml/
+data/ml/**
+# Exception: small ranker-null overlap labels (13,814 rows, ~224 KB) — load-bearing for Phase 4.1 finding
+!data/ml/ranker_null/
+!data/ml/ranker_null/combo_overlap_labels.parquet
 
 # Python
 __pycache__/
@@ -47,6 +50,7 @@ evaluation/equity_curve.csv
 
 # Parquet intermediates
 *.parquet
+!data/ml/ranker_null/combo_overlap_labels.parquet
 
 # Cython build artifacts
 *.pyd

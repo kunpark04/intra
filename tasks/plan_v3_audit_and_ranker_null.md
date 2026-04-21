@@ -179,6 +179,8 @@ Must assert:
 
 ## Phase 4 — Ranker-Label Overlap Null (Council Step 6)
 
+> 🛑 **PRECONDITION FAILED 2026-04-21 UTC**: Phase 4.1 ran successfully but revealed the held-out partition is empty (100% combo overlap). Phase 4.2–4.5 are BLOCKED as originally specified. See `tasks/phase4_overlap_labels_finding.md`.
+
 **Goal**: Test whether `audit_full_net_sharpe` (the Pool B ranker) depends on combo-level memorization between the selection partition and the ML#2 training partition. **Independent of Phases 1–3 — can run in parallel.**
 
 ### 4.1 Partition labeling (REMOTE)
@@ -192,6 +194,8 @@ Must assert:
 Output: `data/ml/ranker_null/combo_overlap_labels.parquet` with columns `(combo_id, trades_in_training, overlap_pct)`.
 
 ### 4.2 Held-out Pool B construction (REMOTE)
+
+> 🛑 **BLOCKED 2026-04-21 UTC**: Phase 4.1 overlap labels show 100% combo overlap (all 13,814 combos have `trades_in_training > 0`). The held-out Pool B cannot be constructed. See `tasks/phase4_overlap_labels_finding.md` for the finding and redesign options. Phase 4.2–4.5 blocked pending Phase 3 verdict.
 
 **What**: `scripts/analysis/extract_top_combos_heldout_v12.py` — same raw-Sharpe ranking as `extract_top_combos_by_raw_sharpe_v12.py`, but restricted to combos with `trades_in_training == 0` (or `overlap_pct < threshold`).
 
