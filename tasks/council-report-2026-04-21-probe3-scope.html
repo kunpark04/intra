@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council Verdict — Probe 3 Scope (2026-04-21)</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --card: #ffffff;
+    --ink: #1b1b1b;
+    --muted: #5a5a5a;
+    --border: #e2e2df;
+    --accent: #2b5f9e;
+    --warn: #a0522d;
+    --ok: #2f6e4f;
+    --danger: #9e2b2b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px 20px 80px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  header h1 {
+    font-size: 1.65rem;
+    margin: 4px 0 8px;
+    font-weight: 700;
+  }
+  header .meta {
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  .question-block {
+    background: #fff7e8;
+    border-left: 4px solid var(--warn);
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    border-radius: 2px;
+  }
+  .question-block h2 {
+    margin: 0 0 6px;
+    font-size: 0.92rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--warn);
+  }
+  .question-block p { margin: 4px 0; font-size: 0.94rem; }
+  .question-block .axes {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed #e3c593;
+    font-size: 0.92rem;
+  }
+  .verdict {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    padding: 24px 26px;
+    margin-bottom: 32px;
+  }
+  .verdict h2 {
+    margin: 0 0 14px;
+    font-size: 1.2rem;
+    letter-spacing: 0.02em;
+  }
+  .verdict .stamp {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: #fdecec;
+    color: var(--danger);
+    padding: 3px 10px;
+    border: 1px solid #e6bebe;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .verdict p { font-size: 0.97rem; margin: 8px 0; }
+  .verdict .first-step {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #f3f6fb;
+    border-left: 3px solid var(--accent);
+    border-radius: 2px;
+    font-size: 0.94rem;
+  }
+  .verdict .first-step b { color: var(--accent); }
+  .verdict ol { padding-left: 22px; font-size: 0.93rem; }
+  .verdict ol li { margin-bottom: 4px; }
+
+  h3.section {
+    font-size: 1.0rem;
+    margin: 32px 0 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+  }
+  h3.section .caret {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--ink);
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  .positions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 14px 0 8px;
+  }
+  .advisor {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+    font-size: 0.9rem;
+  }
+  .advisor .name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+  .advisor .vote {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin-bottom: 6px;
+  }
+  .advisor .vote.narrow { background: #edf5ed; color: var(--ok); border: 1px solid #c9dcc9; }
+  .advisor .vote.wide { background: #fdecec; color: var(--danger); border: 1px solid #e6bebe; }
+  .advisor p { margin: 6px 0 0; color: var(--muted); }
+
+  .tally {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+    margin: 12px 0 0;
+    font-size: 0.9rem;
+  }
+  .tally table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+  }
+  .tally th, .tally td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tally th {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .tally tr:last-child td { border-bottom: none; }
+  .tally .yes { color: var(--ok); font-weight: 600; }
+  .tally .no { color: var(--danger); font-weight: 600; }
+  .tally .mixed { color: var(--warn); font-weight: 600; }
+
+  .agreement, .clash, .blindspots {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 16px 18px;
+    font-size: 0.94rem;
+  }
+  .agreement { border-left: 3px solid var(--ok); }
+  .clash { border-left: 3px solid var(--warn); }
+  .blindspots { border-left: 3px solid var(--danger); }
+  .agreement h4, .clash h4, .blindspots h4 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+  }
+  .agreement ul, .clash ul, .blindspots ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+  }
+  .agreement li, .clash li, .blindspots li {
+    margin-bottom: 6px;
+  }
+
+  details {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+  details summary {
+    cursor: pointer;
+    font-weight: 600;
+    outline: none;
+  }
+  details[open] summary { margin-bottom: 8px; }
+  details p { margin: 6px 0; color: var(--muted); }
+
+  footer {
+    margin-top: 40px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  footer code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">LLM Council · Verdict</div>
+  <h1>Probe 3 Scope — Session-Structure Sweep on Combo 865 @ 1h</h1>
+  <div class="meta">2026-04-21 UTC · 5 advisors · 5 peer reviews · 1 chairman · Probe 2 §5.6 binding</div>
+</header>
+
+<section class="question-block">
+  <h2>The Question</h2>
+  <p>
+    Probe 2 PASSED on 1h (net Sharpe <b>2.89</b>, +$124,896/yr, 220 trades on held-out bars).
+    §4 authorizes Probe 3 (Option Y session-structure sweep) on the test-passing timeframe.
+    Probe 2 §5.6 requires a fresh council before Probe 3 signing.
+  </p>
+  <div class="axes">
+    <p><b>6 scope axes to decide</b>:</p>
+    <ol style="margin: 6px 0 0; padding-left: 20px; font-size: 0.92rem;">
+      <li>Session-filter set (narrow ≤4 vs. wide 7+)</li>
+      <li>Parameter holdover (freeze all 28 vs. ±δ neighborhood)</li>
+      <li>Timeframe lock (1h only per §4)</li>
+      <li>Trade-count floor (post-filter n_trades_min)</li>
+      <li>Regime-window stress test (temporal halves — HARD gate or diagnostic?)</li>
+      <li>Sizing + friction model (flat $500 / $5 RT — locked?)</li>
+    </ol>
+  </div>
+</section>
+
+<div class="verdict">
+  <h2>The Recommendation <span class="stamp">Narrow probe, multiplicity-gated</span></h2>
+  <p>
+    <b>Run First Principles' three-stack, not Expansionist's wide grid.</b> Probe 3 is not a
+    confirmatory session sweep — it is an <em>exit ritual</em> for a combo that survived a
+    post-hoc selection of ≥9,000 effective tests and now faces a proper multiplicity-corrected
+    gate it may already fail.
+  </p>
+  <ol>
+    <li><b>Scope</b>: 1h only, freeze all 28 non-session params. 4 session buckets
+      {all / RTH / RTH-lunch-exclude / overnight}. 15m included as hard-fail negative control.</li>
+    <li><b>Multiplicity-corrected Sharpe floor</b>: Bonferroni-adjusted over full decision-tree N,
+      not the naive 1.3 gate. Commit the exact number pre-probe.</li>
+    <li><b>Regime halves as HARD gate</b>: both halves of the test window must clear the
+      corrected gate on any passing bucket. One-half-only-passing = FAIL.</li>
+    <li><b>Sizing</b>: flat $500/trade, $5/contract RT friction (locked per user directive).</li>
+    <li><b>Preregistered Option Z sunset trigger</b>: failure retires the combo-865 carve-out and
+      sunsets Z-score family on NQ/MNQ. In writing.</li>
+    <li><b>Preregistered decommission trigger</b>: if paper-trading authorizes, live Sharpe &lt; 0
+      on N=50 fresh trades halts live.</li>
+    <li><b>Test&gt;train bootstrap</b>: compute <code>P(test_Sharpe &gt; train_Sharpe | H0)</code>
+      on observed (2.89, 2.098) × (220, 747). Report in §4.</li>
+  </ol>
+  <div class="first-step">
+    <b>The One Thing to Do First:</b> Write
+    <code>tasks/probe3_multiplicity_memo.md</code> — a one-page quant memo committing to
+    (a) the effective-N decision-tree denominator, (b) Bonferroni-corrected Sharpe floor on 220-
+    and 110-trade samples, (c) pre-probe prior P(real edge), (d) bootstrapped P(test&gt;train|H0).
+    <b>Sunset trigger (revised 2026-04-21 UTC)</b>: the initial draft leaned on
+    Bonferroni-over-9,000 as the binding gate. Corrected: that denominator applies to Stage 1
+    (generation — sweep + cross-TF filter on <em>training</em> data), not Stage 2 (Probe 2's
+    pre-registered single test on <em>held-out</em> data). Probe 2's 2.89 is a legitimate OOS
+    measurement with N=1 confirmation denominator. Sunset fires on <b>any ≥2 of</b>:
+    (1) regime halves FAIL, (2) parameter neighborhood FAIL, (3) 15m negative control FAIL,
+    (4) bootstrap test&gt;train FAIL. V3/V4 precedent remains the strongest project-specific
+    prior — it's the reason a clean OOS PASS alone is not a ship signal in this codebase.
+  </div>
+</div>
+
+<h3 class="section"><span class="caret"></span>Advisor Positions at a Glance</h3>
+
+<div class="positions">
+  <div class="advisor">
+    <div class="name">The Contrarian</div>
+    <span class="vote narrow">Narrow · Multiplicity-first</span>
+    <p>865 is a post-hoc survivor of 13,814-combo sweep; naive Sharpe 1.3 is the wrong gate.
+    ≤4 buckets, freeze params, regime halves HARD, preregistered sunset trigger.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The First Principles Thinker</div>
+    <span class="vote narrow">Reframe · Exit ritual</span>
+    <p>Wrong question. Probe 3 isn't "session structure" — it's "minimum evidence to move
+    posterior past paper-trading." Three orthogonal probes: multiplicity, regime halves,
+    param-neighborhood stability. Session buckets are supplementary at best.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The Expansionist</div>
+    <span class="vote wide">Wide · Upside discovery</span>
+    <p>Strongest clean result in project history. Probe 3 for upside: 7 buckets + param
+    neighborhood + 1m/5m + Kelly diagnostic. Don't starve the one positive result with
+    falsification-discipline.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The Outsider</div>
+    <span class="vote narrow">Narrow · Reader-facing</span>
+    <p>Test&gt;train inversion is a textbook regime-window artifact. Freeze params, ≤4 buckets,
+    regime halves HARD, 15m as negative control, preregistered sunset trigger.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The Executor</div>
+    <span class="vote narrow">Narrow · 1.5 days total</span>
+    <p>4 buckets, freeze params, drop 15m, flat $500. Reuse Probe 2's plumbing. Regime halves
+    as diagnostic (not gate). One probe, one answer, re-council.</p>
+  </div>
+</div>
+
+<div class="tally">
+  <table>
+    <thead>
+      <tr>
+        <th>Scope axis</th>
+        <th>Contrarian</th>
+        <th>First Principles</th>
+        <th>Expansionist</th>
+        <th>Outsider</th>
+        <th>Executor</th>
+        <th>Chairman</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Buckets ≤ 4</b></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes (4 max)</td>
+        <td class="no">no (7)</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes (4)</td>
+      </tr>
+      <tr>
+        <td><b>Freeze 28 params</b></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="no">no (±5%)</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+      </tr>
+      <tr>
+        <td><b>1h only</b></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="no">no (+1m/5m)</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+      </tr>
+      <tr>
+        <td><b>Regime halves HARD</b></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes (primary)</td>
+        <td class="mixed">hard gate</td>
+        <td class="yes">yes</td>
+        <td class="no">diagnostic</td>
+        <td class="yes">yes (HARD)</td>
+      </tr>
+      <tr>
+        <td><b>15m negative control</b></td>
+        <td class="yes">yes</td>
+        <td class="mixed">silent</td>
+        <td class="mixed">as candidate</td>
+        <td class="yes">yes</td>
+        <td class="no">drop</td>
+        <td class="yes">yes (NC)</td>
+      </tr>
+      <tr>
+        <td><b>Sunset trigger</b></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="mixed">if user wants</td>
+        <td class="yes">yes</td>
+        <td class="mixed">re-council</td>
+        <td class="yes">yes (preregistered)</td>
+      </tr>
+      <tr>
+        <td><b>Flat $500 sizing</b></td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="yes">yes</td>
+        <td class="yes">locked (user)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 class="section"><span class="caret"></span>Where the Council Agrees</h3>
+<div class="agreement">
+  <ul>
+    <li><b>Parameter freeze.</b> 4/5 (all but Expansionist). All 28 non-session params from
+    combo 865 stay fixed. No neighborhood jitter. §5.2 of Probe 2 preregistration carries forward.</li>
+    <li><b>Timeframe lock at 1h.</b> 4/5 explicit; Expansionist's 1m/5m proposal violates
+    §7.6 terminal from Probe 1 and is ruled inadmissible.</li>
+    <li><b>Session-bucket cap at ≤4.</b> 4/5. Multiplicity burden scales linearly; 4 is
+    minimally informative, 7 triples the correction without a payoff.</li>
+    <li><b>Regime-window halves as HARD gate.</b> 4/5 mandatory (only Executor frames as
+    diagnostic). Directly responds to the test&gt;train Sharpe inversion flag from Probe 2.</li>
+    <li><b>Flat $500 + $5 RT friction.</b> Unanimous non-objection; user directive locks this
+    at project-standard convention.</li>
+  </ul>
+</div>
+
+<h3 class="section"><span class="caret"></span>Where the Council Clashes</h3>
+<div class="clash">
+  <h4>Upside discovery vs. falsification discipline</h4>
+  <ul>
+    <li><b>Expansionist:</b> Combo 865 is the strongest clean result in project history;
+    Probe 3 should expand the search (7 buckets + neighborhood + 1m/5m + Kelly). Starving
+    the one positive result with falsification discipline throws away discovery potential.</li>
+    <li><b>Contrarian / First Principles / Outsider / Executor:</b> 865 is a post-hoc survivor
+    of ≥9,000 effective tests. Probe 3's role is to test whether the Probe 2 PASS survives
+    adversarial gates (multiplicity, regime, decommission). Expanding the search compounds
+    the degrees-of-freedom problem the sunset was already engineered to close.</li>
+  </ul>
+  <h4>15m inclusion — live candidate vs. hard-fail negative control</h4>
+  <ul>
+    <li><b>Expansionist:</b> 15m stays as a live second-TF candidate — session filtering
+    might unlock it.</li>
+    <li><b>Outsider / Contrarian:</b> 15m as hard-fail negative control. If any 15m bucket
+    passes where 1h doesn't → bucket-level artifact → Probe 3 invalid.</li>
+    <li><b>Executor:</b> Drop 15m entirely (compute savings; it failed §4 mechanically).</li>
+    <li><b>Chairman resolution:</b> Keep as hard-fail negative control (D/E framing wins;
+    costs ~2s compute; high falsification leverage).</li>
+  </ul>
+</div>
+
+<h3 class="section"><span class="caret"></span>Blind Spots the Council Caught (Peer Review)</h3>
+<div class="blindspots">
+  <h4>What ALL five advisors missed</h4>
+  <ul>
+    <li><b>Multiplicity-corrected Sharpe floor was not computed.</b> At α=0.05 Bonferroni over
+    ~9,000 sweep tests on 220-trade samples, required Sharpe ≈ <b>3.7</b>. Combo 865 at 2.89
+    <em>already fails</em> a proper multiplicity-corrected gate. Probe 3 cannot use 1.3.</li>
+    <li><b>Effective N denominator needs the full decision tree</b> — 3×3000 sweep tests + ML#1
+    ranker + cross-TF filter + Probe 2 §4 gate ≈ 20,000+ effective tests. Multiplicity
+    denominator is larger than any advisor wrote down.</li>
+    <li><b>Posterior P(real edge) not preregistered.</b> Under a reasonable prior and the
+    multiplicity adjustment, P(real edge | Probe 2 PASS) ≈ 2-3%. Probe 3 needs a posterior
+    gate (paper-trading requires ≥ 0.5) to know what a PASS is worth.</li>
+    <li><b>ML#2 V3/V4 precedent mandates a decommission trigger, not just a ship gate.</b>
+    Both V3 (shipped Sharpe 1.78) and V4 (shipped 2.13) failed combo-agnostic audits after
+    clean OOS. Probe 3 must preregister paper-trading decommission conditions.</li>
+    <li><b>Test&gt;train Sharpe inversion has a computable null probability.</b> Bootstrap
+    <code>P(test_Sharpe &gt; train_Sharpe | H0)</code> on observed (2.89, 2.098) × (220, 747).
+    If &lt; 1%, diagnostic of regime favorability or selection. Preregister as observation or gate.</li>
+  </ul>
+  <h4>Biggest individual blind spot — The Expansionist (5/5 reviewers)</h4>
+  <ul>
+    <li>Treats combo 865 as discovered alpha rather than post-hoc survivor of Berkson selection.</li>
+    <li>1m/5m proposal directly violates §7.6 terminal of Probe 1 — re-opens the bar-TF axis
+    for a single combo, re-multiplying the searched space the sunset was specifically closing.</li>
+    <li>Kelly-fractional "as diagnostic, not for live sizing" is a number-that-pulls-decisions
+    — it presupposes the edge is real, which is exactly what Probe 3 is supposed to test.</li>
+    <li>Misses the ML#2 V3/V4 revocation precedent: confirmatory evaluation on narrow success
+    metrics is the pattern that already cost the project two shipped stacks.</li>
+  </ul>
+</div>
+
+<h3 class="section"><span class="caret"></span>Advisor Responses (Full Text)</h3>
+
+<details>
+  <summary>The Contrarian — Narrow probe, multiplicity-first, preregistered sunset trigger</summary>
+  <p>Combo 865 at 1h is a post-hoc survivor of a 13,814-combo sweep. Test-partition net
+  Sharpe 2.89 on 220 trades sounds impressive, but the null distribution of the maximum
+  Sharpe from 13,814 independent draws has a large upper tail — and 220 trades is a small
+  sample where Sharpe estimator noise alone produces ±0.5 swings.</p>
+  <p>Before any session probe runs, the honest Probe 3 design should preregister a
+  multiplicity-corrected Sharpe floor, not the naive 1.3 gate. At α=0.05 with Bonferroni
+  over ~9,000 effective tests (post-trade-count gate), the required Sharpe on 220 trades
+  is closer to 3.5–3.8. Combo 865 already fails the proper corrected gate before Probe 3
+  starts. Probe 3's role should be falsification, not confirmation.</p>
+  <p>Recommendations: ≤4 session buckets; freeze all 28 non-session params; regime halves
+  as HARD gate (both halves must pass the corrected floor); 15m as mandatory negative
+  control; preregistered Option Z sunset trigger in writing before signing.</p>
+</details>
+
+<details>
+  <summary>The First Principles Thinker — Reframe the probe as an exit ritual</summary>
+  <p>The framing "session-structure sweep to confirm combo 865's edge" is already wrong.
+  Combo 865 survived (a) a 13,814-combo sweep, (b) an ML#1-driven ranker, (c) a cross-TF
+  consistency check, (d) a 2-gate §4 readout on one window. Each filter already concentrated
+  the posterior; adding a 7-bucket session sweep without a matching posterior update is
+  ceremony, not science.</p>
+  <p>The real question: "Given combo 865's 1h PASS on one held-out window, what is
+  P(real edge) and what is the minimum additional evidence that moves that posterior past
+  the paper-trading threshold?"</p>
+  <p>That needs three orthogonal probes, not a session sweep: (1) multiplicity-adjusted
+  inference — commit the Bonferroni-corrected floor pre-probe; (2) temporal halves as
+  primary evidence — not a side test; (3) parameter-neighborhood stability — does 865's
+  edge survive ±5% jitter? Hard-sparse edges diagnose overfitting; stable neighborhoods
+  diagnose signal. Session buckets are supplementary after gate-passing. Flat $500 sizing.
+  Preregister sunset trigger. 15m as negative control, not upside probe.</p>
+</details>
+
+<details>
+  <summary>The Expansionist — Wide session grid + parameter neighborhood + 1m/5m probes</summary>
+  <p>Combo 865 at 1h on the test window delivered Sharpe 2.89, $124k/yr, 220 trades —
+  after friction, on held-out bars, with a pre-registered gate. That is the single strongest
+  clean result this project has ever produced. The council is one peer-review round away
+  from drafting a probe that treats it like a suspect rather than a lead.</p>
+  <p>Probe 3 should be designed for upside discovery: (1) 7 session buckets — all /
+  RTH-full / RTH-morning / RTH-afternoon / RTH-lunch-exclude / overnight-only / Asia+Europe;
+  (2) parameter neighborhood around 865, ±5% on continuous and ±1 bar on discrete windows
+  (~40 combos × 4 buckets); (3) 1m and 5m probe on 865's parameter dict — §7.6 sunsets the
+  family at intermediate bar-TFs, but 865's carve-out is explicitly a single-realization
+  exception; (4) Kelly-fractional diagnostic on 220 trades — if f* &lt; 0.02 edge is thin,
+  if f* &gt; 0.15 case is strong.</p>
+  <p>15m stays in Probe 3 as a live second-TF candidate, not just a negative control.
+  Flat $500 sizing is fine. Preregister an Option Z sunset trigger if the user wants one,
+  but don't let falsification-discipline optimism-starve the one positive result we have.</p>
+</details>
+
+<details>
+  <summary>The Outsider — Freeze everything, structure for an outside reader</summary>
+  <p>I'm reading Probe 2 for the first time. What I see: one combo, one timeframe, one
+  held-out window, PASS — with a footnote that test Sharpe exceeds train Sharpe, which is
+  the classic regime-window artifact pattern.</p>
+  <p>A reader who didn't grow up with this project would ask: (1) "Is it stable in time?"
+  — test&gt;train is a red flag, split the window in halves before session sweeps; (2) "Is it
+  stable in parameters?" — 28 knobs, 865 picked because it PASSED in a 13,814-combo sweep,
+  so freeze the knobs and test SESSION only; (3) "What does a FAIL look like, and who
+  authorizes it?" — mechanical decision rule same as Probe 1 §3 and Probe 2 §4, including
+  a sunset trigger given the V3/V4 precedent.</p>
+  <p>Recommendations: ≤4 session buckets; freeze all 28 non-session params; regime halves
+  as HARD gate; 15m included as negative control; flat $500 sizing; preregister Option Z
+  sunset trigger in §4.</p>
+</details>
+
+<details>
+  <summary>The Executor — Four buckets, one week, done</summary>
+  <p>Probe 2 took 2 seconds of compute on sweep-runner-1 and 30 minutes of writeup. Probe 3
+  can be the same shape if scope is disciplined.</p>
+  <p>Scope: 1h only, freeze all 28 non-session params, drop 15m entirely (it failed §4
+  mechanically, keeping it for negative-control value costs a bucket and adds noise),
+  4 session buckets, flat $500 sizing with $5/contract RT friction.</p>
+  <p>Execution: reuse <code>scripts/param_sweep.py --start-combo 865 --end-combo 866</code>
+  with a new <code>--session-filter</code> override flag. One combo × 4 buckets = 4 runs,
+  ~2s each. Wrapper + readout scripts mirror Probe 2's.</p>
+  <p>Gates: per-bucket <code>net_sharpe ≥ 1.3</code>, <code>n_trades ≥ 50</code>,
+  <code>net_$/yr ≥ $5000</code>. For each passing bucket, also split window in halves as a
+  diagnostic (not a gate — hard halves double thresholds and kill live buckets).</p>
+  <p>Timeline: prereg half-day, signing half-day, remote run 10 min, readout 30 min,
+  verdict 30 min. Total ~1.5 days. Don't add param neighborhoods, 1m/5m, Kelly — not
+  preregistered, distracting. One probe, one answer, re-council.</p>
+</details>
+
+<h3 class="section"><span class="caret"></span>Peer Review Highlights</h3>
+
+<details>
+  <summary>Reviewer convergence (5/5 strongest = B · 5/5 biggest blind spot = A)</summary>
+  <p><b>Strongest response — unanimous (5/5) picked B (First Principles):</b> only
+  response that engages with the actual decision under uncertainty; reframes "what session
+  design" into "is session design the right question"; the other four answer the question
+  as posed while B rejects the question's frame. The methodological superiority is
+  structural, not stylistic.</p>
+  <p><b>Biggest blind spot — unanimous (5/5) picked A (Expansionist):</b> treats combo 865
+  as discovered alpha rather than post-hoc survivor of Berkson selection; 1m/5m proposal
+  violates §7.6 terminal; Kelly-fractional "as diagnostic" presupposes the edge is real;
+  misses V3/V4 revocation precedent (confirmatory evaluation on narrow metric is the
+  pattern that already cost two shipped stacks).</p>
+</details>
+
+<details>
+  <summary>"What all five missed" — five distinct themes that emerged only in review</summary>
+  <p><b>Reviewer 1 — Multiplicity math not computed:</b> at α=0.05 Bonferroni over ~9,000
+  tests on 220-trade samples, required Sharpe ≈ 3.7. Combo 865 at 2.89 already fails.
+  Commit the number before the probe runs.</p>
+  <p><b>Reviewer 2 — Effective N needs the full decision tree:</b> 3×3000 sweep tests + ML#1
+  ranker + cross-TF filter + Probe 2 §4 gate ≈ 20,000+ effective tests. Denominator larger
+  than any advisor wrote down.</p>
+  <p><b>Reviewer 3 — P(real edge) not preregistered:</b> under a reasonable prior and the
+  multiplicity adjustment, P(real edge | Probe 2 PASS) ≈ 2-3%. Paper-trading needs ≥ 0.5
+  posterior gate to know what a PASS is worth.</p>
+  <p><b>Reviewer 4 — Decommission trigger, not just ship gate:</b> V3 (Sharpe 1.78 shipped)
+  and V4 (2.13 shipped) both failed combo-agnostic audits after clean OOS. Probe 3 must
+  preregister decommission conditions (e.g. live Sharpe &lt; 0 on N=50 halts).</p>
+  <p><b>Reviewer 5 — Test&gt;train inversion null probability:</b> bootstrap
+  <code>P(test_Sharpe &gt; train_Sharpe | H0)</code> on (2.89, 2.098) × (220, 747). If &lt; 1%,
+  diagnostic of regime favorability or selection. Preregister as observation or gate.</p>
+</details>
+
+<footer>
+  <p><b>Artifacts</b>: <code>tasks/council-report-2026-04-21-probe3-scope.html</code> (this file),
+  <code>tasks/council-transcript-2026-04-21-probe3-scope.md</code> (full transcript with
+  anonymization mapping), Probe 2 verdict <code>tasks/probe2_verdict.md</code>,
+  Probe 2 preregistration <code>tasks/probe2_preregistration.md</code> (signed commit
+  <code>a49f370</code>).</p>
+  <p><b>Authority chain</b>: Probe 2 §5.6 binding ("Probe 3 still requires its own council")
+  → this council → draft <code>tasks/probe3_multiplicity_memo.md</code> → decide whether to
+  draft <code>tasks/probe3_preregistration.md</code> or <code>tasks/project_sunset_verdict.md</code>.</p>
+  <p>Scope-lock: NQ/MNQ only per <code>memory/feedback_nq_mnq_scope_only.md</code>.
+  §7.6 of Probe 1 preregistration remains terminal for bar-timeframe axis at family level.</p>
+</footer>
+
+</div>
+</body>
+</html>
