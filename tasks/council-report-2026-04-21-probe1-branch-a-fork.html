@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council Verdict — Probe 1 Branch A Fork (2026-04-21)</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --card: #ffffff;
+    --ink: #1b1b1b;
+    --muted: #5a5a5a;
+    --border: #e2e2df;
+    --accent: #2b5f9e;
+    --warn: #a0522d;
+    --ok: #2f6e4f;
+    --danger: #9e2b2b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px 20px 80px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  header h1 {
+    font-size: 1.65rem;
+    margin: 4px 0 8px;
+    font-weight: 700;
+  }
+  header .meta {
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  .question-block {
+    background: #fff7e8;
+    border-left: 4px solid var(--warn);
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    border-radius: 2px;
+  }
+  .question-block h2 {
+    margin: 0 0 6px;
+    font-size: 0.92rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--warn);
+  }
+  .question-block p { margin: 4px 0; font-size: 0.94rem; }
+  .question-block .fork {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed #e3c593;
+    font-size: 0.92rem;
+  }
+  .question-block .fork b { color: var(--warn); }
+  .verdict {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    padding: 24px 26px;
+    margin-bottom: 32px;
+  }
+  .verdict h2 {
+    margin: 0 0 14px;
+    font-size: 1.2rem;
+    letter-spacing: 0.02em;
+  }
+  .verdict .stamp {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: #eef4ee;
+    color: var(--ok);
+    padding: 3px 10px;
+    border: 1px solid #c9dcc9;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .verdict p { font-size: 0.97rem; margin: 8px 0; }
+  .verdict .first-step {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #f3f6fb;
+    border-left: 3px solid var(--accent);
+    border-radius: 2px;
+    font-size: 0.94rem;
+  }
+  .verdict .first-step b { color: var(--accent); }
+
+  h3.section {
+    font-size: 1.0rem;
+    margin: 32px 0 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+  }
+  h3.section .caret {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    background: var(--ink);
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+
+  .positions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 14px 0 8px;
+  }
+  .advisor {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+    font-size: 0.9rem;
+  }
+  .advisor .name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+  }
+  .advisor .vote {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin-bottom: 6px;
+  }
+  .advisor .vote.y { background: #edf5ed; color: var(--ok); border: 1px solid #c9dcc9; }
+  .advisor .vote.z { background: #fdecec; color: var(--danger); border: 1px solid #e6bebe; }
+  .advisor p { margin: 6px 0 0; color: var(--muted); }
+
+  .tally {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+    margin: 12px 0 0;
+    font-size: 0.9rem;
+  }
+  .tally table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  .tally th, .tally td {
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tally th {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .tally tr:last-child td { border-bottom: none; }
+
+  .agreement, .clash, .blindspots {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 16px 18px;
+    font-size: 0.94rem;
+  }
+  .agreement { border-left: 3px solid var(--ok); }
+  .clash { border-left: 3px solid var(--warn); }
+  .blindspots { border-left: 3px solid var(--danger); }
+  .agreement h4, .clash h4, .blindspots h4 {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+  }
+  .agreement ul, .clash ul, .blindspots ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+  }
+  .agreement li, .clash li, .blindspots li {
+    margin-bottom: 6px;
+  }
+
+  details {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+  details summary {
+    cursor: pointer;
+    font-weight: 600;
+    outline: none;
+  }
+  details[open] summary { margin-bottom: 8px; }
+  details p { margin: 6px 0; color: var(--muted); }
+
+  footer {
+    margin-top: 40px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  footer code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">LLM Council · Verdict</div>
+  <h1>Probe 1 Branch A — Next Fork</h1>
+  <div class="meta">2026-04-21 UTC · 5 advisors · 5 peer reviews · 1 chairman · preregistration §3 action 3</div>
+</header>
+
+<section class="question-block">
+  <h2>The Question</h2>
+  <p>
+    Probe 1's gross-ceiling readout on the bar-timeframe axis fired
+    <b>Branch A (family-level sunset)</b> of the Z-score mean-reversion strategy family on NQ/MNQ.
+    Numbers: <code>N_1.3(1min)=1, N_1.3(15m)=9, N_1.3(1h)=4</code>; the preregistered gate was
+    <code>N_1.3 ≥ 10 on either 15m or 1h</code>. §7.6 makes this terminal for the bar-timeframe axis —
+    30min / 2h / 5min are <em>not</em> admissible without a new preregistration cycle.
+  </p>
+  <div class="fork">
+    <p><b>Admissible paths</b> (scope-locked to NQ/MNQ — no cross-instrument):</p>
+    <ul style="margin: 6px 0 0; padding-left: 20px;">
+      <li><b>Option X</b> — Signal-family swap (ORB / VWAP revert / breakout) on NQ/MNQ.</li>
+      <li><b>Option Y</b> — Session-structure probe (RTH-only / lunch-exclude / overnight-only) staying on 1min Z-score.</li>
+      <li><b>Option Z</b> — Project sunset.</li>
+    </ul>
+  </div>
+</section>
+
+<div class="verdict">
+  <h2>The Recommendation <span class="stamp">Hybrid Y-gated-on-865</span></h2>
+  <p>
+    <b>Do not commit to Option Y's full 5-day session-structure sweep yet.</b> Instead, run a 1-day
+    <b>combo-isolation probe</b> on <code>combo_id = 865</code> — the only Z-score combo with
+    cross-timeframe coherence observed in the project (top-10 on both 15m and 1h).
+  </p>
+  <p>
+    The combo-isolation probe has a preregistered branching gate with <b>two binding thresholds</b>:
+    (a) the usual statistical gate (net Sharpe ≥ 1.3 on held-out 1min data, hit in both random halves
+    of post-train bars), and (b) an <b>economic floor</b>: projected net &gt;= $5,000/year on $50k
+    starting equity at flat $500/trade risk.
+  </p>
+  <p>
+    <b>Pass → fund Option Y.</b> The 865-isolation probe has established there <em>is</em> a real
+    and economically meaningful signal in the family; a session-structure sweep is then worth 5 days.
+  </p>
+  <p>
+    <b>Fail → Option Z (sunset).</b> Three cumulative-null timeframes plus a single outlier that
+    doesn't clear an economic floor is enough evidence to stop spending hobbyist hours on this family.
+  </p>
+  <div class="first-step">
+    <b>The One Thing to Do First:</b> Write
+    <code>tasks/probe2_preregistration.md</code> for the combo-865 isolation probe —
+    hypothesis, partition, both gates, and both branch actions signed before any code runs. Target
+    length: half a page. Target compute: 1 day, not 5.
+  </div>
+</div>
+
+<h3 class="section"><span class="caret"></span>Advisor Positions at a Glance</h3>
+
+<div class="positions">
+  <div class="advisor">
+    <div class="name">The Contrarian</div>
+    <span class="vote z">Option Z — Sunset</span>
+    <p>N_1.3(15m)=9 is 1 combo short of a gate that was set before seeing data. Three-timeframe
+    cumulative null is sufficient evidence. Further probes on the same family are sunk-cost.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The First Principles Thinker</div>
+    <span class="vote z">Option Z — Sunset</span>
+    <p>The project goal is tradeable edge on $50k hobbyist capital, not a Sharpe trophy. Even a
+    successful Option Y pays ~$3–5k/year gross — below minimum wage per research hour.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The Expansionist</div>
+    <span class="vote y">Option Y — Session Probe</span>
+    <p>Combo 865's cross-TF coherence is the first real positive signal ever observed in the project.
+    Burying it under a sunset decision throws away the only interesting finding.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The Outsider</div>
+    <span class="vote y">Option Y — Session Probe</span>
+    <p>Session structure is the most obvious untested axis within the NQ/MNQ scope-lock. But flagged
+    that audit discipline (V3/V4 combo-ID leak pattern) must come before any new ML stack.</p>
+  </div>
+  <div class="advisor">
+    <div class="name">The Executor</div>
+    <span class="vote y">Option Y — Session Probe</span>
+    <p>Plumbing exists (bar resampling, sweep runner, gate infrastructure). Cheap 5-day compute buys
+    a binding verdict. Preregister → sweep → verdict, then re-council.</p>
+  </div>
+</div>
+
+<div class="tally">
+  <table>
+    <thead>
+      <tr><th>Option</th><th>Advisor votes</th><th>Peer-review "strongest" votes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><b>X</b> — Family swap</td><td>0 / 5</td><td>0 / 5</td></tr>
+      <tr><td><b>Y</b> — Session probe</td><td>3 / 5 (Expansionist, Outsider, Executor)</td><td>3 / 5</td></tr>
+      <tr><td><b>Z</b> — Sunset</td><td>2 / 5 (Contrarian, First Principles)</td><td>2 / 5</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 class="section"><span class="caret"></span>Where the Council Agrees</h3>
+<div class="agreement">
+  <ul>
+    <li><b>Option X is rejected.</b> Unanimous — no advisor voted for a family swap. Burden of
+    preregistering a new strategy family from scratch is not justified by what we know today.</li>
+    <li><b>Preregistration discipline holds.</b> Every advisor assumed any next step requires a
+    signed preregistration with pre-committed thresholds. §7.1/§7.6 remain load-bearing.</li>
+    <li><b>The 15m→1h ordinal lift is real but insufficient.</b> N_1.3 went 1 → 9 → 4 as we slowed
+    the timeframe. This is not structurally dead, but it is insufficient <em>by the pre-registered
+    bar</em> to justify continued bar-timeframe spend.</li>
+    <li><b>Scope stays NQ/MNQ.</b> No advisor proposed cross-instrument work; the scope-lock was
+    respected.</li>
+  </ul>
+</div>
+
+<h3 class="section"><span class="caret"></span>Where the Council Clashes</h3>
+<div class="clash">
+  <h4>Continue vs. Stop</h4>
+  <ul>
+    <li><b>Pro-Y (Expansionist, Executor, Outsider):</b> One more cheap probe is worth the data.
+    Combo 865 is a concrete positive observation, not just noise. Session structure is the last
+    untested within-family axis.</li>
+    <li><b>Pro-Z (Contrarian, First Principles):</b> Three cumulative nulls is enough. The
+    Expansionist's "first real signal" argument is single-observation thinking — combo 865 appearing
+    in top 10 on both timeframes has a non-trivial coincidence rate in a 3000-combo sweep.</li>
+  </ul>
+  <h4>How to weight combo 865</h4>
+  <ul>
+    <li><b>Expansionist:</b> Strong signal — this is a cross-timeframe stable edge.</li>
+    <li><b>Contrarian + First Principles:</b> Insufficient — one combo out of thousands is not a
+    finding. The Expansionist didn't compute what the coincidence rate looks like under the null.</li>
+  </ul>
+</div>
+
+<h3 class="section"><span class="caret"></span>Blind Spots the Council Caught (Peer Review)</h3>
+<div class="blindspots">
+  <h4>What ALL five advisors missed</h4>
+  <ul>
+    <li><b>Economic floor.</b> No advisor — not even the First Principles Thinker at the headline
+    level — priced what a successful Option Y <em>actually pays</em>. On $50k starting equity at flat
+    $500 risk, Sharpe 1.5 ≈ $3–5k/year gross. After friction and taxes, this is minimum wage on
+    research hours. A preregistration gate that only measures Sharpe but not net dollars can pass
+    while still being an economically unjustifiable use of time.</li>
+    <li><b>Gate calibration.</b> <code>N_1.3 ≥ 10</code> was chosen by convention, not power analysis.
+    The 9-vs-10 outcome sits inside noise of the gate itself. Neither "passed by 1" nor "missed by 1"
+    carries strong posterior weight.</li>
+    <li><b>Combo 865 is a 1-day test, not a 5-day sweep.</b> The full Option Y over-spends to answer
+    a question the Expansionist's own reasoning can bind cheaply: if 865 isn't robust on fresh data,
+    Y is dead before session axes matter; if 865 <em>is</em> robust, session-axis attribution is
+    worth paying for.</li>
+    <li><b>Opportunity cost is in hobbyist hours, not compute-dollars.</b> Five days of remote
+    compute is ~$5. Five days of the user's attention is the scarce resource no advisor priced.</li>
+  </ul>
+  <h4>Individual blind spots caught</h4>
+  <ul>
+    <li><b>Outsider (3/5 reviewers flagged):</b> Internal contradiction — "fix the V3/V4 auditor
+    first" and "run Option Y next" cannot both be the next step. Chairman discounts the Outsider's Y
+    vote proportionally; effective tally is closer to 2-Y / 2-Z / 1-abstain than the headline 3-2.</li>
+    <li><b>Expansionist (1/5):</b> Over-weighted combo 865 as a standalone signal without addressing
+    the null-hypothesis coincidence rate in a 3000-combo sweep.</li>
+    <li><b>Contrarian (1/5):</b> Asserted v11's sweep already samples session axes. It doesn't —
+    <code>range_mode=v11</code> samples microstructure and stop/target grids, not RTH/overnight
+    session filters. The factual error weakens the specific sunset argument but not the broader
+    economic-floor line of reasoning.</li>
+  </ul>
+</div>
+
+<h3 class="section"><span class="caret"></span>Chairman's Logic</h3>
+
+<div class="agreement" style="border-left-color: var(--accent);">
+  <p style="margin:0 0 8px;"><b>Why the majority isn't sufficient:</b></p>
+  <ul>
+    <li>Headline vote is 3-Y / 2-Z, but the Outsider's Y vote is internally contradicted and one
+    of the 3 is <em>de facto</em> abstaining. That puts the real signal at 2-Y / 2-Z with one
+    blind-spotted vote — not a clear win for Y.</li>
+    <li>The <b>cross-reviewer economic-floor catch</b> is the highest-value observation in the
+    entire session and it was not inside anyone's Y-vote reasoning. A Y preregistration that only
+    re-runs a Sharpe gate repeats the same narrow failure mode.</li>
+    <li>The Expansionist's "combo 865 is the first real signal" claim is <em>testable</em> for one
+    day of compute. If the Expansionist is right, the 5-day Y sweep is worth funding <em>after</em>
+    the cheap test confirms the premise.</li>
+    <li>If the Expansionist is wrong, a 1-day combo-isolation probe prevents 4 wasted days and lets
+    the project converge to Option Z without leaving a "we never tested the session axis" regret.</li>
+  </ul>
+  <p style="margin:8px 0 0;">
+    The hybrid recommendation is the only path that (a) honors the peer-reviewer consensus on the
+    economic floor, (b) doesn't abandon the Expansionist's positive observation, and (c) respects
+    the Contrarian's and First-Principles Thinker's time-budget argument.
+  </p>
+</div>
+
+<h3 class="section"><span class="caret"></span>Full Advisor Responses</h3>
+
+<details>
+  <summary>The Contrarian — Option Z (Sunset)</summary>
+  <p>
+    N_1.3(15m) = 9 sits 1 combo below a pre-registered gate chosen before data was seen, and
+    N_1.3(1h) = 4 is 60% below the gate. The ordinal 1 → 9 → 4 lift has a plausible null
+    explanation (larger bar-count = larger combo-level Sharpe variance), and nothing in the microstructure
+    concentration pattern looks like a genuine edge. Continuing to spend cycles on a family that has
+    now been tested across three timeframes with cumulative null results is textbook sunk-cost reasoning
+    — the argument for "one more probe" after three nulls is exactly the argument that has kept
+    this project running past the point of evidence. Option Z. Stop and write the post-mortem.
+  </p>
+</details>
+
+<details>
+  <summary>The First Principles Thinker — Option Z (Sunset)</summary>
+  <p>
+    Strip the Sharpe talk away and ask: what is this project for? The stated goal is tradeable edge
+    on $50k of hobbyist capital. A successful Option Y that lands at net Sharpe 1.5 on the fixed $500
+    risk sizing rule produces roughly $3–5k/year gross — that's well below the user's minimum
+    wage-equivalent on the research hours already spent, before any taxes or opportunity-cost
+    accounting. The family is failing at the <em>economic</em> layer, not just the statistical one.
+    Further probes inside the same family will not fix that. Option Z, and spend the time on
+    something that can clear an economic floor worth writing home about.
+  </p>
+</details>
+
+<details>
+  <summary>The Expansionist — Option Y (Session Probe)</summary>
+  <p>
+    Combo 865 appearing in the top 10 on <em>both</em> 15m and 1h is the first cross-timeframe
+    coherent signal the project has ever observed. That's not a Sharpe number — that's the kind
+    of qualitative finding that, under a rigorous follow-up, can become a ship. Burying it with a
+    sunset decision is throwing away the one interesting thing the whole Probe 1 exercise found.
+    Session structure is the last untested <em>within-family</em> axis and it's cheap to test. If
+    RTH-only or overnight-only isolates the combo-865 phenomenon, that's a shippable lead. Option Y.
+  </p>
+</details>
+
+<details>
+  <summary>The Outsider — Option Y (Session Probe)</summary>
+  <p>
+    From outside the project: the obvious untested axis inside NQ/MNQ is "when does the trader
+    trade?" Every probe so far has touched microstructure, bar size, stops, z-score formulation
+    — never session filters. Option Y is the natural next step. But separately: the V3/V4 shipped
+    boosters depended on a combo-ID memorization channel, and nothing has fixed that audit pathology
+    yet. Whichever option is chosen, the audit framework has to be repaired before any new ML stack
+    ships on top of it.
+  </p>
+</details>
+
+<details>
+  <summary>The Executor — Option Y (Session Probe)</summary>
+  <p>
+    Practical path: the plumbing exists (bar resampling, sweep-runner-1, preregistration template,
+    gate infrastructure, <code>_probe1_gross_ceiling.py</code> as a readout template). 5-day plan:
+    Day 1 — preregister the session-axis sweep with 3000 combos, session filter ∈ {all, RTH-only,
+    RTH-lunch-exclude, overnight-only}. Day 2–3 — launch on sweep-runner-1, monitor. Day 4 — readout
+    with the same N_1.3 gate pre-committed. Day 5 — verdict document and next-fork council. Option Y.
+  </p>
+</details>
+
+<h3 class="section"><span class="caret"></span>Peer Review Highlights</h3>
+
+<details>
+  <summary>Strongest-response consensus</summary>
+  <p>
+    <b>Executor (Option Y) received 3 of 5 strongest-response votes.</b> Reviewers credited the
+    Executor for having a literal day-by-day plan that could be executed Monday morning, rather than
+    a values-level argument for one option over another. The Contrarian (Option Z) received 2 votes
+    — reviewers who credited its statistical argument that N_1.3 = 9 is not meaningfully distinct
+    from the N_1.3 = 10 gate.
+  </p>
+</details>
+
+<details>
+  <summary>Biggest-blind-spot consensus</summary>
+  <p>
+    <b>Outsider (Option Y) received 3 of 5 biggest-blind-spot votes.</b> Reviewers flagged the
+    internal contradiction: "fix the V3/V4 auditor first" is incompatible with "run Option Y next."
+    The Outsider would need to retract one of the two. Secondary flags: Expansionist (1) for weighting
+    a single combo as a signal without addressing coincidence-rate under the null; Contrarian (1)
+    for asserting v11 already tested session axes, which is factually wrong.
+  </p>
+</details>
+
+<details>
+  <summary>What ALL five reviewers flagged as missed by ALL five advisors</summary>
+  <p>
+    <b>Economic floor</b> (net $/year on hobbyist capital), <b>gate calibration</b> (arbitrary
+    N_1.3 ≥ 10 without power analysis), <b>combo 865 as a 1-day cheap test</b> instead of a 5-day
+    full sweep, and <b>opportunity cost in hobbyist hours</b>. The economic-floor observation is the
+    pivot that makes the Chairman's hybrid recommendation different from either headline vote.
+  </p>
+</details>
+
+<footer>
+  Generated 2026-04-21 UTC · Council ran 5 advisors + 5 peer reviewers + 1 chairman<br>
+  Inputs: <code>tasks/probe1_verdict.md</code> (Branch A verdict),
+          <code>tasks/probe1_preregistration.md</code> §3 action 3 (council trigger),
+          <code>memory/project_probe1_branch_a_verdict.md</code>,
+          <code>memory/feedback_nq_mnq_scope_only.md</code> (scope lock).<br>
+  Full transcript: <code>tasks/council-transcript-2026-04-21-probe1-branch-a-fork.md</code>.
+</footer>
+
+</div>
+</body>
+</html>
