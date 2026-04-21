@@ -103,19 +103,37 @@ UPLOAD_FILES = [
     "evaluation/v12_topk_top50_net_v4/s4_individual_ml2_net.ipynb",
     "evaluation/v12_topk_top50_net_v4/s5_combined_ml2_net.ipynb",
     "evaluation/v12_topk_top50_net_v4/s6_mc_combined_ml2_net.ipynb",
+    # Task #9 — combo-agnostic V4 s6_net ship-blocker audit (LLM Council
+    # Option-1 verdict). Same top-50 raw-Sharpe set, V4 refit without
+    # global_combo_id (data/ml/adaptive_rr_v4_no_gcid/).
+    "evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s1_individual.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s2_combined.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s3_mc_combined.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s4_individual_ml2.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s5_combined_ml2.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s6_mc_combined_ml2.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s1_individual_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s2_combined_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s3_mc_combined_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s4_individual_ml2_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s5_combined_ml2_net.ipynb",
+    "evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s6_mc_combined_ml2_net.ipynb",
     "evaluation/top_strategies.json",
     "evaluation/top_strategies_v11.json",
     "evaluation/top_strategies_v12.json",
     "evaluation/top_strategies_v12_k05.json",
     "evaluation/top_strategies_v12_k10.json",
     "evaluation/top_strategies_v12_top50.json",
+    "evaluation/top_strategies_v12_raw_sharpe_top50.json",
     "scripts/evaluation/_top_perf_common.py",
     "scripts/evaluation/composed_strategy_runner.py",
     "scripts/evaluation/final_holdout_eval_v3_c1_fixed500.py",
     "scripts/evaluation/final_holdout_eval_v4_fixed500.py",
+    "scripts/evaluation/final_holdout_eval_v4_no_gcid_fixed500.py",
     "scripts/evaluation/build_trade_log_xlsx.py",
     "scripts/models/adaptive_rr_model_v4.py",
     "scripts/models/inference_v4.py",
+    "scripts/models/inference_v4_no_gcid.py",
     "scripts/backtests/filter_backtest_v2.py",
     "scripts/backtests/adaptive_vs_fixed_backtest_v1.py",
     "src/__init__.py",
@@ -226,6 +244,18 @@ NOTEBOOKS = [
     'evaluation/v12_topk_top50_net_v4/s4_individual_ml2_net.ipynb',
     'evaluation/v12_topk_top50_net_v4/s5_combined_ml2_net.ipynb',
     'evaluation/v12_topk_top50_net_v4/s6_mc_combined_ml2_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s1_individual.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s2_combined.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s3_mc_combined.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s4_individual_ml2.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s5_combined_ml2.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid/s6_mc_combined_ml2.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s1_individual_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s2_combined_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s3_mc_combined_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s4_individual_ml2_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s5_combined_ml2_net.ipynb',
+    'evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid/s6_mc_combined_ml2_net.ipynb',
 ]
 
 for rel in NOTEBOOKS:
@@ -305,6 +335,8 @@ def main() -> None:
         f"{REMOTE_DIR}/evaluation/v12_topk_k10 {REMOTE_DIR}/evaluation/v12_topk_k10_net "
         f"{REMOTE_DIR}/evaluation/v12_topk_top50 {REMOTE_DIR}/evaluation/v12_topk_top50_net "
         f"{REMOTE_DIR}/evaluation/v12_topk_top50_v4 {REMOTE_DIR}/evaluation/v12_topk_top50_net_v4 "
+        f"{REMOTE_DIR}/evaluation/v12_topk_top50_raw_sharpe_v4_no_gcid "
+        f"{REMOTE_DIR}/evaluation/v12_topk_top50_raw_sharpe_net_v4_no_gcid "
         f"{REMOTE_DIR}/scripts/evaluation {REMOTE_DIR}/scripts/models {REMOTE_DIR}/scripts/backtests "
         f"{REMOTE_DIR}/src {REMOTE_DIR}/src/indicators"
     )[1].channel.recv_exit_status()

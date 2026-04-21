@@ -299,6 +299,15 @@ OUTPUTS = [s["filename"] for s in SECTIONS]
 def _build_variant(gross_dir: Path, net_dir: Path,
                    setup_src: str, setup_net_src: str,
                    title_tag: str = "") -> None:
+    """Emit paired gross + net 6-section suites.
+
+    RETIRED FOR NEW VARIANTS — use `_build_net_variant` instead. This
+    dual-output API is preserved only to keep historical variants (v10,
+    v11, v12, v12_top50_*, full_pool_*, etc.) byte-reproducible. Gross
+    (zero-friction) notebooks are not decision-relevant since the net-
+    aware `_ml2_net_ev_mask` was wired in (April 2026) — see CLAUDE.md
+    "Reporting & styling requirements" for the policy.
+    """
     gross_dir.mkdir(parents=True, exist_ok=True)
     net_dir.mkdir(parents=True, exist_ok=True)
     title_suffix = f" {title_tag}" if title_tag else ""
@@ -317,6 +326,29 @@ def _build_variant(gross_dir: Path, net_dir: Path,
         print(f"Wrote {path}")
 
 
+def _build_net_variant(net_dir: Path, setup_net_src: str,
+                       title_tag: str = "") -> None:
+    """Emit only the net-of-friction 6-section suite. Preferred API for
+    variants added after 2026-04-20.
+
+    Gross (zero-friction) notebooks are not load-bearing for ship
+    decisions — the ship criterion reads s6_net Sharpe exclusively, and
+    `_ml2_net_ev_mask` gates the ML#2 filter on net-of-cost E[R]. Gross
+    numbers serve at best as a diagnostic; at worst they leak into
+    write-ups as misleading "upside" figures. Skip them.
+    """
+    net_dir.mkdir(parents=True, exist_ok=True)
+    title_suffix = f" {title_tag}" if title_tag else ""
+    for section in SECTIONS:
+        net_name = section["filename"].replace(".ipynb", "_net.ipynb")
+        nb = build_section(section, setup_net_src,
+                           title_suffix=f"{title_suffix} — net of costs",
+                           body_suffix=NET_COST_BANNER)
+        path = net_dir / net_name
+        nbf.write(nb, str(path))
+        print(f"Wrote {path}")
+
+
 def main() -> None:
     import argparse
     ap = argparse.ArgumentParser()
@@ -325,6 +357,7 @@ def main() -> None:
                              "v12_k05", "v12_k10", "v12_top50",
                              "v12_top50_v4",
                              "v12_top50_raw_sharpe_v4",
+                             "v12_top50_raw_sharpe_v4_no_gcid",
                              "v12_top50_raw_sharpe_v3",
                              "v12_full_pool_v4",
                              "v12_full_pool_v4_2k", "all"],
@@ -405,6 +438,26 @@ def main() -> None:
             _setup("0.0", tsp, version="v4"),
             _setup("5.0", tsp, version="v4"),
             title_tag="(v12 top-50 raw-Sharpe, V4 filter)",
+        )
+
+    # Task #9 of the LLM Council Option-1 plan (transcript council-transcript-
+    # 20260420_134920.md): re-run the s6_net ship-blocker audit with the
+    # combo-agnostic V4 refit (data/ml/adaptive_rr_v4_no_gcid/) — same combo
+    # set as raw_sharpe_v4, different booster with global_combo_id stripped.
+    # If s6_net Sharpe p50 collapses vs shipped V4's 2.13, V4 was leaking
+    # per-combo memorization and the ship decision must be revoked.
+    #
+    # LAST dual gross+net variant. All variants added after 2026-04-20 use
+    # `_build_net_variant` per CLAUDE.md Reporting & styling requirements —
+    # gross notebooks are not load-bearing for ship decisions.
+    if args.variant in ("v12_top50_raw_sharpe_v4_no_gcid", "all"):
+        tsp = "REPO / 'evaluation' / 'top_strategies_v12_raw_sharpe_top50.json'"
+        _build_variant(
+            EVAL / "v12_topk_top50_raw_sharpe_v4_no_gcid",
+            EVAL / "v12_topk_top50_raw_sharpe_net_v4_no_gcid",
+            _setup("0.0", tsp, version="v4_no_gcid"),
+            _setup("5.0", tsp, version="v4_no_gcid"),
+            title_tag="(v12 top-50 raw-Sharpe, V4 combo-agnostic filter)",
         )
 
     # Pool B validation gauntlet Step 3 — pair the raw-Sharpe top-50 combo set
