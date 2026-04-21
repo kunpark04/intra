@@ -34,6 +34,22 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   portfolio sim). Do not reintroduce either stack without first passing
   a combo-agnostic audit of comparable design. See
   `tasks/part_b_findings.md` Phase 5D + the Phase 3 V3 verdict above.
+- **Signal family status — Z-score mean-reversion on NQ/MNQ** — 🛑
+  **FALSIFIED 2026-04-21 UTC across the bar-timeframe axis.** Probe 1
+  ran pre-registered gross-ceiling sweeps on 15min (3000 combos) and 1h
+  (1500 combos) with a $5/contract RT friction model + microstructure
+  sweep axes (`entry_timing_offset`, `fill_slippage_ticks`,
+  `cooldown_after_exit_bars`). Decision rule: N_1.3(tf) ≥ 10 combos at
+  gross Sharpe ≥ 1.3 and ≥ 50 trades on either timeframe ⇒ proceed to
+  combo-agnostic K-fold audit. Observed: **N_1.3(1min) = 1**,
+  **N_1.3(15m) = 9**, **N_1.3(1h) = 4**. Branch A (sunset) fires per
+  preregistration §3 tie-breaking ("`N_1.3 = 9` on both timeframes →
+  Branch A"). §7.6 makes this terminal for the bar-timeframe axis;
+  intermediate timeframes (30min, 2h, 5min) are not admissible without a
+  new preregistration cycle. See `tasks/probe1_verdict.md` +
+  `tasks/probe1_preregistration.md` (signed commit `d0ee506`). Next fork
+  (signal-family swap / session-structure probe / project sunset)
+  governed by the post-Branch-A LLM Council.
 - **Backtest mode first**: use CSV input; no live broker integration yet.
 - **Notebooks run in-place**: notebooks must run from repo root and write artifacts to the correct folders without manual path edits.
 
