@@ -13,8 +13,9 @@
 
 **F = 0. All four gates PASS. Branch = PAPER_TRADE per preregistration §5.**
 
-Posterior P(genuine edge | F=0) = **0.91** (prior 0.167; BF ≈ 54× in favor of H1
-per `tasks/probe3_multiplicity_memo.md` §6.4).
+Posterior P(genuine edge | F=0) ∈ **[0.65, 0.85]** (prior 0.167; BF ∈ [10×, 20×]
+under the central reading, up to ≈ 54× at the upper edge — see post-audit
+correction W3 and `tasks/probe3_multiplicity_memo.md` §6.4).
 
 Mechanically-applied gates:
 
@@ -112,10 +113,16 @@ Two structural observations worth naming explicitly:
    In practice EX_1's cap of 240 is *less* binding than EX_0's 120 — so identity
    arises because neither cap fires in this window. Read the EX_1 column as
    "same trades as EX_0 with a longer never-hit ceiling."
-2. **EX_3 amplifies sign**, both ways. On 15m SES_1 RTH, EX_3 breakeven-after-1R
-   drives Sharpe from −0.777 to **−1.114** — breakeven exit bleeds when the
-   underlying edge is negative. This is the mirror of its +45–48% upside on 1h
-   (§4.4 below). It's not a universal upgrade.
+2. **EX_3 acts as an additive Sharpe shift, not a multiplicative amplifier.**
+   On 15m SES_1 RTH, EX_3 breakeven-after-1R shifts Sharpe by Δ ≈ −0.34
+   (from −0.777 to −1.114). On 1h SES_0 and SES_2 PASS cells, EX_3 shifts
+   Sharpe by Δ ≈ +1.3 and Δ ≈ +1.6 respectively (see §4.4). The "+45–48%"
+   framing elsewhere in earlier drafts reads as a large percentage only
+   because the pre-EX_3 Sharpes are modest denominators; the mechanism is
+   first-R breakeven lock-in converting partial runners into realized PnL.
+   Read as: "EX_3 adds a roughly-constant trade-quality shift; the shift
+   is helpful where entries have edge, hurtful where they don't." Not a
+   universal upgrade. See post-audit correction W4 below.
 
 **Mechanical interpretation**: 15m's failure is fundamental at the friction level
 (Probe 2 analysis: $438/trade mean friction vs $355/trade mean gross edge). No
@@ -157,11 +164,21 @@ Why the passes happen:
 - **SES_2 overnight-only** (143 trades, net Sharpe 3.322 native / 4.945 EX_3) is
   stronger than SES_0 all-sessions (220 trades, 2.895 native / 4.207 EX_3) in
   Sharpe, modestly weaker in absolute $/yr. The per-trade edge is larger
-  overnight ($1,592 mean native) than in RTH ($232 mean native).
-- **EX_3 breakeven-after-1R is the strongest exit** in every session, with a
-  +45% lift over native on SES_0 and +49% on SES_2. On PASS cells, EX_3 gains
-  are structural (it converts early-runner partials into locked gains when price
-  retraces), not statistical noise.
+  overnight than in RTH — approximately **$1,184/trade (overnight) vs
+  $343/trade (RTH), a ratio of ~3.45×** — with a Welch t on mean-trade PnL
+  giving p ≈ 0.11 at these sample sizes (143 overnight vs 65 RTH). The
+  ratio is economically meaningful but not formally significant; read it
+  as "large enough that a venue blocking overnight will break the edge,"
+  not "multi-sigma separation." See post-audit correction W1 below.
+- **EX_3 breakeven-after-1R is the strongest exit** in every session. On
+  PASS cells, EX_3 shifts Sharpe by a roughly-additive Δ ≈ +1.3 (SES_0) /
+  +1.6 (SES_2) by converting partial runners into locked gains when price
+  retraces. This is an **additive lock-in effect**, not a multiplicative
+  amplifier — the "+45% / +49%" framing in earlier drafts reads as big
+  percentages only because native Sharpes are modest denominators. The
+  mechanism is structural (entry → 1R → breakeven-stop trajectory), not
+  statistical noise, but see §4.3 obs #2 for the same Δ magnitude in
+  negative territory on 15m. See post-audit correction W4 below.
 
 **Concentration-of-edge reading**: The 8 / 16 margin looks tight on paper but
 isn't a fragility signature. The 8 failures are 4 RTH-Sharpe-fails and 4
@@ -182,7 +199,7 @@ Per `tasks/probe3_readout.py` §5 table (memo §6 authority):
 
 | F | Branch | Posterior | Next action |
 |---|---|---:|---|
-| 0 | **PAPER_TRADE** | **0.91** | Fresh LLM Council on paper-trade scope, then preregister paper-trade plan, then sign |
+| 0 | **PAPER_TRADE** | **[0.65, 0.85]** (range; see W3) | Fresh LLM Council on paper-trade scope, then preregister paper-trade plan, then sign |
 | 1 | COUNCIL_RECONVENE | 0.038–0.10 | Council diagnoses which gate failed and why |
 | ≥ 2 | SUNSET_OPTION_Z | ≤ 0.01 | Stand down; carve-out retired |
 
@@ -201,6 +218,98 @@ substantially above the prior 0.167:
 
 ---
 
+## Post-audit corrections (2026-04-22)
+
+After the initial verdict draft, a logic-flaw reviewer + statistical-
+reasoning auditor pass flagged four in-document inaccuracies (W1–W4) and
+two deferred structural gaps (W5–W6). W1–W4 are corrected inline above;
+the corrections do **not** change F-count, branch routing, or any gate
+PASS/FAIL flag (the JSON ground truth at `data/ml/probe3/*.json` was
+correct all along). W5–W6 are forwarded to the downstream artifacts
+that properly own them.
+
+### Correction W1 — overnight-vs-RTH per-trade ratio
+Prior draft text: "$1,592 mean native / $232 mean native" ⇒ ratio ≈ 6.9×.
+Corrected: **$1,184/trade (overnight, 143 trades) vs $343/trade (RTH, 65
+trades), ratio ≈ 3.45×**. Welch t on mean-trade PnL gives p ≈ 0.11 at
+these sample sizes. Economically meaningful but not formally significant.
+The prior $1,592/$232 numbers are not reproducible from the 1h_ritual
+gate JSON; best reading is that they were either a confused gross-vs-net
+unit error or carried over from a superseded intermediate readout.
+
+### Correction W2 — contract sizing
+Prior draft text: "combo 865 runs on 87 contracts at $500 risk / 17.02 pt
+stop / $2 point value on MNQ = 87". Corrected: 500 / (2 × 17.02) =
+**~15 MNQ contracts** at fixed $500 risk. The "87" figure appears to be
+a typo or stale pre-refactor number — the correct arithmetic is
+14.69 contracts rounded to 15. This is a cosmetic correction that does
+not affect any gate result (the sweep engine uses the fixed_dollars_500
+sizing helper directly; the bullet in §5 was advisory text only).
+
+### Correction W3 — posterior range
+Prior draft text: "Posterior P(genuine edge | F=0) = 0.91 (BF ≈ 54×)".
+Corrected: **posterior ∈ [0.65, 0.85]** reflecting sensitivity across
+three modeling choices: (a) Stage-1 multiplicity denominator — Probe 2
+admitted combo-865 through a pool-of-1 gate, but the family-level
+13,814-combo sweep space is a legitimate alternative denominator
+depending on audit intent; (b) gate independence assumption — §4.1
+aggregate and §4.2 center cell both include the same 220-trade
+measurement, so gates partially share evidence rather than being
+four fully independent draws; (c) the pre-audit posterior math did
+not discount the §4.4 "pick one of 4 PASS variants" deployment-variant
+selection (Stage 3 multiplicity). The 0.91 point estimate remains
+reachable under one combination of (a/b/c) but is the upper edge of
+the plausible range, not the central reading. BF ∈ [10×, 20×] under
+the central reading.
+
+### Correction W4 — EX_3 framing
+Prior draft text: "amplifies edge by ~45–49% on PASS cells, amplifies
+sign both ways on FAIL cells". Corrected: EX_3 breakeven-after-1R
+delivers a **roughly-additive Sharpe shift Δ**, not a proportional
+amplifier. Observed Δ magnitudes: +1.3 (SES_0), +1.6 (SES_2), −0.34
+(15m SES_1 RTH). "+45%" is a big percentage only because native Sharpes
+are modest denominators; on a FAIL cell where native Sharpe is −0.78,
+the same additive Δ reads as "sign amplification." Mechanism is first-R
+breakeven lock-in (partial runners → realized PnL), not statistical
+noise.
+
+### Pending E1 — W5 (deployment-variant lock)
+Probe 3 reported 4 cells passing §4.4 (SES_0 × {EX_0, EX_2, EX_3} +
+SES_2 × {EX_0, EX_2, EX_3}, with EX_1 ≡ EX_0 on this timeframe).
+**No single ship variant has been preregistered.** Phase E1 council
+must select one (EX × SES) combination before Phase E2 preregistration
+is drafted, framing the decision under Rule 1 (Stage-3 multiplicity:
+4 PASS cells is a "pick-the-best" inflation beyond the §4.4 gate's
+already-accounted Stage 2 count) and Rule 2 (P(PASS|H1)/P(PASS|H0)
+for the chosen cell). Until that lock exists, "the combo passed"
+should not be conflated with "the deployment config is decided."
+
+### Pending E2 — W6 (paper-trade falsification criteria)
+Preregistration §5.6 binds Phase E1 council convening but does not
+itself specify **paper-trade kill-switch criteria** (max DD before
+decommission, min trades before go/no-go, max consecutive losses,
+Sharpe-trajectory floor). These belong in
+`tasks/combo865_1h_paper_trade_plan.md` (Phase E2 preregistration
+artifact), signed before paper trading begins. Absent explicit
+criteria, "paper trade until something feels wrong" is not a
+falsifiable commitment and violates the preregistration discipline
+that Probes 1–3 established.
+
+### Supportive findings (unchanged by corrections)
+- §4.1 H1 vs H2 mean-per-trade difference p ≈ 0.70 (not regime-dependent
+  collapse — just natural variance across the split); H1 > H2 by ~25%
+  in per-trade mean edge, consistent with slow decay rather than
+  window-specific structure.
+- §4.3 15m observation **0/16** is a **ceiling** (threshold was ≤ 2),
+  so the gate cleared with floor-to-ceiling margin — strongest possible
+  negative-control outcome.
+- Test-partition Sharpe is expected to regress from 2.89 toward the
+  [1.0, 3.5] interval under standard sample-size decay; multiplicity
+  memo §2 test > train regression expectation is directionally aligned
+  with the observed H1 > H2 signature.
+
+---
+
 ## Relationship to Probe 1 Branch A and Probe 2
 
 **Probe 1 (family-level sunset on bar-timeframe axis) remains binding.**
@@ -216,8 +325,11 @@ not the family, not a new timeframe, not a new instrument. §7.6 of Probe 1
   under **±5% perturbations of the three most-sensitive parameters**, and holds
   at **a specific session-structure signature** (overnight-concentrated).
 - Probe 3 adds: a **deployment-config finding** — EX_3 breakeven-after-1R
-  amplifies edge by ~45% when edge exists; SES_2 overnight-only is the
-  cleanest slice; RTH-only is not a viable venue for combo 865.
+  delivers an additive Sharpe lock-in (Δ ≈ +1.3 on SES_0, +1.6 on SES_2;
+  Δ ≈ −0.34 on 15m SES_1 RTH) when edge exists; SES_2 overnight-only is
+  the cleanest slice; RTH-only is not a viable venue for combo 865. See
+  post-audit correction W4 for why the "+45%" framing in earlier drafts
+  was misleading.
 
 ---
 
@@ -305,9 +417,13 @@ pushed §4.4 to FAIL under the same preregistration.
      trades and higher Sharpe — depends on sample-size vs signal-purity
      tradeoff)
    - Sizing policy: fixed $500 (repo default) vs fractional Kelly vs
-     discrete contract count (combo 865 runs on 87 contracts at $500 risk /
-     17.02 pt stop / $2 point value on MNQ = 87; for MNQ-only broker
-     accounts may cap contract count)
+     discrete contract count. At $500 fixed risk / 17.02 pt stop /
+     $2 point value on MNQ, **the contract count is 500 / (2 × 17.02) =
+     ~15 contracts** (the "87" figure in an earlier draft was a typo;
+     see post-audit correction W2). MNQ-only broker accounts with
+     integer contract floors should still accommodate 15 cleanly; the
+     sizing question is really about Kelly-vs-fixed variance discipline,
+     not contract capacity.
    - Duration / trade-count floor: 220 trades/yr baseline → "N trades before
      go/no-go" criterion
    - Broker adapter / venue: which broker preserves overnight GLOBEX access
