@@ -12,12 +12,13 @@ applied mechanically after. Ties go to the stricter (sunset) side.
 
 ## Status
 
-**DRAFT — UNSIGNED** as of 2026-04-21 UTC.
+**SIGNED AND FROZEN** as of 2026-04-22 UTC at base commit `f8447af`.
 
-No part of Probe 3 execution may begin until the signer countersigns §9
-at a specific git commit hash. The §4 gate rules are binding from the
-moment of signing regardless of which branch the observed metrics fall
-into.
+All §4 gate rules, §5 branch routing, and §6 irrevocable commitments
+are binding from this signing regardless of which branch the observed
+metrics fall into. Any subsequent proposal to alter a gate threshold,
+branch rule, or commitment requires a new preregistration cycle and a
+fresh LLM Council — not an edit to this document.
 
 ---
 
@@ -479,9 +480,16 @@ without post-hoc reinterpretation. §4 thresholds, §5 branch routing,
 and §6 irrevocable commitments are all mechanically applied to the
 observed metrics.
 
-- **Signed**: _(awaiting signer; countersign via explicit "Sign
-  Probe 3 at commit `<hash>`" reply; signing is a separate commit from
-  this drafting commit)_
-- **Date/time of signature**: _(populated at signing)_
-- **Commit hash at time of signature**: _(populated at signing; see
-  `git log` immediately after the signing commit lands)_
+- **Signed**: kunpark04 (explicit authorization "Sign Probe 3 at
+  commit `f8447af`" issued in interactive session on 2026-04-22).
+- **Date/time of signature**: 2026-04-22 UTC (authoritative timestamp
+  is the signing commit's `GIT_AUTHOR_DATE`, visible via
+  `git log -1 --format=%aI` immediately after the signing commit lands).
+- **Commit hash signed against**: `f8447af` — the post-WARN-fix
+  preregistration state (§4.1 / §4.2 / §4.3 / §5.2 WARN items W1–W4
+  addressed; gate thresholds, branch rules, and irrevocable commitments
+  bit-identical to unsigned draft `4e5a114`). The signing commit's own
+  hash (the one landing with this §9 populated) is visible via
+  `git log --oneline -1` immediately after this commit.
+- **Reviewing-agent report**: `tasks/probe3_preregistration_review.md`
+  (0 CRITICAL / 4 WARN / 3 INFO; all WARN items fixed in `f8447af`).
