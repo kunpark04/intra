@@ -10,6 +10,9 @@ data/ml/**
 # Exception: small ranker-null overlap labels (13,814 rows, ~224 KB) — load-bearing for Phase 4.1 finding
 !data/ml/ranker_null/
 !data/ml/ranker_null/combo_overlap_labels.parquet
+# Exception: Probe 3 gate artifacts (~810 KB total JSON + parquet) — load-bearing for probe3_verdict.md reproducibility at signing commit 8636167
+!data/ml/probe3/
+!data/ml/probe3/**
 
 # Python
 __pycache__/
@@ -51,6 +54,7 @@ evaluation/equity_curve.csv
 # Parquet intermediates
 *.parquet
 !data/ml/ranker_null/combo_overlap_labels.parquet
+!data/ml/probe3/**/*.parquet
 
 # Cython build artifacts
 *.pyd

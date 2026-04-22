@@ -1,0 +1,45 @@
+{
+  "gate_id": "\u00a74.1_regime_halves",
+  "split_dt_utc": "2025-07-15 00:00:00",
+  "years_span_test": 1.4799,
+  "n_bars_h1": 4079,
+  "n_bars_h2": 4301,
+  "h1": {
+    "metrics": {
+      "n_trades": 102,
+      "net_sharpe": 3.2350923504392295,
+      "net_dollars_per_year": 136197.66237205805,
+      "years_span_half": 0.7203475059665871,
+      "mean_pnl_dollars": 961.8592785116795,
+      "std_pnl_dollars": 3537.9681052484393
+    },
+    "gate": {
+      "sharpe_ge_1.3": true,
+      "n_trades_ge_25": true,
+      "dollars_ge_5000": true,
+      "half_pass": true
+    }
+  },
+  "h2": {
+    "metrics": {
+      "n_trades": 118,
+      "net_sharpe": 2.5799506090534003,
+      "net_dollars_per_year": 114178.32461060928,
+      "years_span_half": 0.7595524940334129,
+      "mean_pnl_dollars": 734.9528069707193,
+      "std_pnl_dollars": 3550.668830181737
+    },
+    "gate": {
+      "sharpe_ge_1.3": true,
+      "n_trades_ge_25": true,
+      "dollars_ge_5000": true,
+      "half_pass": true
+    }
+  },
+  "thresholds": {
+    "net_sharpe": 1.3,
+    "n_trades_per_half": 25,
+    "net_dollars_per_year": 5000.0
+  },
+  "gate_pass": true
+}
