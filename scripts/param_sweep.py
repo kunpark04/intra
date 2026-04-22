@@ -1387,6 +1387,14 @@ def _parse_args() -> argparse.Namespace:
                         "'15min' / '1h' load data/NQ_{15min,1h}.parquet — must be "
                         "pre-built via scripts/data_pipeline/build_bar_caches.py. "
                         "Probe 1 (tasks/probe1_preregistration.md) uses 15min and 1h.")
+    p.add_argument("--explicit-combos-json", type=str, default=None,
+                   help="Path to a JSON file with an explicit list of combo dicts "
+                        "(each must contain every key in _COMBO_META_KEYS). When "
+                        "set, --combinations / --seed / --range-mode / --start-combo / "
+                        "--end-combo are IGNORED for combo generation; the JSON list "
+                        "is used verbatim. Added for Probe 3 "
+                        "(tasks/probe3_preregistration.md §4.2/§4.3/§4.4) — gates "
+                        "that sample outside the v11 RNG space.")
     return p.parse_args()
 
 
@@ -1462,14 +1470,34 @@ def main() -> None:
         train_df = train_part
         print(f"[sweep] eval_partition=train  Train bars: {len(train_df):,}", flush=True)
 
-    # 2. Sample all combos upfront (deterministic via seed)
-    all_combos = _sample_combos(args.combinations, rng_seed=args.seed,
-                                range_mode=args.range_mode)
-    end_combo = args.end_combo if args.end_combo is not None else args.combinations
-    run_combos = [c for c in all_combos
-                  if args.start_combo <= c["combo_id"] < end_combo]
-    print(f"[sweep] Combos to run: {len(run_combos)}  "
-          f"(#{args.start_combo} to #{args.combinations - 1})", flush=True)
+    # 2. Combos: either load explicit list from JSON (Probe 3) or sample via RNG.
+    if args.explicit_combos_json:
+        _combo_path = Path(args.explicit_combos_json)
+        if not _combo_path.exists():
+            raise FileNotFoundError(
+                f"--explicit-combos-json path not found: {_combo_path}"
+            )
+        all_combos = json.loads(_combo_path.read_text())
+        for i, c in enumerate(all_combos):
+            c.setdefault("combo_id", i)
+            _missing = [k for k in _COMBO_META_KEYS if k not in c]
+            if _missing:
+                raise KeyError(
+                    f"Explicit combo index {i} (combo_id={c.get('combo_id')}) "
+                    f"missing required _COMBO_META_KEYS: {_missing}"
+                )
+        run_combos = all_combos
+        print(f"[sweep] explicit_combos_json={args.explicit_combos_json}  "
+              f"n_combos={len(run_combos)}  (--combinations / --seed / "
+              f"--range-mode / --start-combo / --end-combo IGNORED)", flush=True)
+    else:
+        all_combos = _sample_combos(args.combinations, rng_seed=args.seed,
+                                    range_mode=args.range_mode)
+        end_combo = args.end_combo if args.end_combo is not None else args.combinations
+        run_combos = [c for c in all_combos
+                      if args.start_combo <= c["combo_id"] < end_combo]
+        print(f"[sweep] Combos to run: {len(run_combos)}  "
+              f"(#{args.start_combo} to #{args.combinations - 1})", flush=True)
 
     # 3. Pre-compute all unique indicators up front.
     #    With nearly-all-unique parameter combos, computing indicators once per
