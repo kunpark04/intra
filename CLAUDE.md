@@ -66,6 +66,31 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   `tasks/probe2_verdict.md` + `tasks/probe2_preregistration.md` (signed
   commit `a49f370`). This carve-out does NOT unfalsify the family-level
   Probe 1 verdict above — it's one parameter realization at one TF.
+- **Combo-865 carve-out — PASSED Probe 3 robustness suite 2026-04-22 UTC.**
+  Probe 3 ran 4 pre-registered gates on the 1h test partition per
+  `tasks/probe3_preregistration.md` (signed `f8447af` / review fixes
+  `8636167`): §4.1 regime halves (both halves clear 1.3/25/$5k — H1 Sharpe
+  **3.235** on 102 trades, H2 Sharpe **2.580** on 118 trades); §4.2
+  parameter ±5% neighborhood (**27 / 27** cells clear net Sharpe 1.3 +
+  n_trades 50 + $/yr $5k, threshold was ≥ 14 / 27); §4.3 15m negative
+  control (**0 / 16** cells pass, threshold was ≤ 2 / 16 — confirms 15m
+  friction-binding cannot be rescued by session/exit manipulation); §4.4
+  1h session/exit ritual (**8 / 16** cells pass, threshold was ≥ 8 —
+  exact). F-count = **0**. Branch = **PAPER_TRADE** per §5 (posterior
+  0.91, prior 0.167; BF ≈ 54×). Key findings: (1) edge concentrates in
+  GLOBEX overnight (SES_2 all EX pass; SES_1 RTH and SES_3 RTH−lunch all
+  fail on n_trades or Sharpe), so broker/venue that excludes overnight
+  will collapse the edge; (2) EX_3 breakeven-after-1R is the strongest
+  exit variant (+45% Sharpe lift over native on SES_0, +49% on SES_2) but
+  also amplifies losses where edge is negative — not a universal upgrade.
+  §4.4 pass is exactly-at-threshold, worth noting for Phase E1 council
+  (8 RTH-session-cell fails are structurally lawful, not scattershot
+  fragility). **Paper-trade plan pending**: requires fresh LLM Council on
+  scope (EX_0 vs EX_3, session filter, sizing policy, broker adapter,
+  trade-count floor) per §5.6 binding. See `tasks/probe3_verdict.md` +
+  `data/ml/probe3/readout.json`. Family-level Probe 1 sunset and Probe 2
+  single-TF pass both stand unchanged; Probe 3 does not generalize
+  outside combo-865 at 1h on NQ.
 - **Backtest mode first**: use CSV input; no live broker integration yet.
 - **Notebooks run in-place**: notebooks must run from repo root and write artifacts to the correct folders without manual path edits.
 
