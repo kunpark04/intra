@@ -255,9 +255,13 @@ evaluated independently. §5 aggregates the four binary outcomes.
 
 **Gate composite**: **both halves** pass **all three** sub-gates.
 
-**Rationale / power** (from calibration memo §4): at true SR = 2.5, both
-halves pass ≈ **71%**; at null, both pass ≈ **1.8%**. Likelihood ratio
-≈ 40× at this gate alone.
+**Rationale / power** (from calibration memo §4): at **conservative
+H1** (true SR = 2.5), both halves pass ≈ **71%**; at **observed H1**
+(combo 865's Probe 2 point estimate SR = 2.89), both halves pass
+≈ **83%**; at null (SR = 0), both pass ≈ **1.8%**. Likelihood ratio
+at the conservative H1 ≈ **40×** (71 / 1.8); at the observed H1
+≈ **46×** (83 / 1.8). Full power table over SR ∈ {0, 1.3, 2.5, 2.89}:
+calibration memo §4.
 
 ### 4.2 Parameter neighborhood gate
 
@@ -271,7 +275,11 @@ For each of the 27, apply the Probe 2 §4 three-gate set
 passes (expected ≈ 22 – 25 of 27). Under H0 (needle / favorable window),
 ≤ 7 of 27 expected. Base-rate check: uniform pass rate across the
 13,814 v11 sweep combos is ~0.03% at this three-gate level; 14 / 27 is
-~1,700× base rate.
+~1,700× base rate. **Binomial calibration**: under H1 per-combo pass
+rate ≈ **0.85** (ridge) → `P(≥ 14 / 27 | H1)` ≈ **0.999**; under H0
+per-combo pass rate ≤ **0.25** (needle with modest axis jitter) →
+`P(≥ 14 / 27 | H0)` < **0.001**; likelihood ratio > **850×** at this
+gate alone. Full derivation: calibration memo §3.
 
 ### 4.3 15m negative control gate
 
@@ -286,8 +294,20 @@ test partition. For each, apply Probe 2 §4 three-gate set.
 should NOT rescue 15m. If ≥ 3 of 16 cells clear §4 on 15m, that
 contradicts the friction mechanical story and implies the 1h Probe 2
 PASS may itself be findable by session/exit tuning, not a genuine
-single-TF edge. Expected under H0 (with modest session/exit search):
-< 2 passes. Expected under H1 (friction story): 0 passes.
+single-TF edge.
+
+**Power calibration** (negative-control gate; PASS aligns with H1):
+per-cell pass rate under H0 (rescue-capable null) assumed ≈ **0.15** —
+a modest session/exit rescue effect, chosen so the gate has meaningful
+discrimination rather than trivial near-certain PASS under both
+hypotheses. Per-cell pass rate under H1 (friction story holds) ≈ **0**.
+Binomial yields `P(gate PASS | H0)` = `P(≤ 2 / 16 | p ≈ 0.15)`
+≈ **0.50** and `P(gate PASS | H1)` = `P(≤ 2 / 16 | p ≈ 0)` ≈ **0.95**;
+likelihood ratio ≈ **2×** at this gate alone. Full binomial derivation
+and H0-rate sensitivity: calibration memo §4.
+
+Expected under H0 (with modest session/exit search): < 2 passes (border
+of FAIL). Expected under H1 (friction story): 0 passes.
 
 ### 4.4 1h session/exit ritual gate
 
@@ -356,6 +376,18 @@ If `F = 1`, the council's framing must include:
 - Calibration memo's `P(PASS|H1)` and `P(PASS|H0)` for the failed gate.
 - Explicit reference to `memory/feedback_council_methodology.md` Rule 1
   (Stage 1 vs Stage 2) and Rule 2 (`P(PASS|H1)/P(PASS|H0)` per gate).
+
+**Binding clause (Rule 2 restatement, inline)**: For each diagnostic
+gate in this preregistration, both `P(PASS|H1)` and `P(PASS|H0)` are
+committed pre-data in calibration memo §3–§4 and reproduced above in
+§4.1–§4.4. Any future proposal to relax, reweight, or re-derive a gate
+threshold after data has been observed is **not admissible** as a
+mid-flight edit; it requires a new preregistration cycle and a fresh
+LLM Council. The council convened under this §5.2 branch scopes the
+**next-step probe** (what to test next given `F = 1`); it does **not**
+rewrite, waive, or re-score the current gate specifications. The
+Probe 3 verdict record remains the authoritative readout of §4.1–§4.4,
+irrespective of any subsequent council output.
 
 ### 5.3 Sunset details (Z branch)
 
