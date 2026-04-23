@@ -13,6 +13,9 @@ data/ml/**
 # Exception: Probe 3 gate artifacts (~810 KB total JSON + parquet) — load-bearing for probe3_verdict.md reproducibility at signing commit 8636167
 !data/ml/probe3/
 !data/ml/probe3/**
+# Exception: Probe 4 gate artifacts (~160 KB total JSON + parquet) — load-bearing for probe4_verdict.md reproducibility
+!data/ml/probe4/
+!data/ml/probe4/**
 
 # Python
 __pycache__/
