@@ -11,9 +11,9 @@
 
 ## Status
 
-**UNSIGNED DRAFT** as of 2026-04-22 UTC.
+**SIGNED AND FROZEN** (original) at commit `432fb3d` on 2026-04-23 UTC.
 
-Awaits: (1) pre-sign review bus round by `code-logic-reviewer` + `stats-ml-logic-reviewer`, (2) user explicit authorization, (3) signing commit (a separate git commit recording this document at the freeze-point hash). No §4 gate rules, §5 branch routing, or §6 commitments are binding until signing.
+**Amendment 1** (pending sign-off): §4.4 SES_2 redefined from Probe 3 wraparound `[1080, 1440) ∪ [0, 570)` to **complement of RTH** `[0, 570) ∪ [960, 1440)`. Full amendment rationale embedded in §4.4 under "Intentional divergence from Probe 3 §4.4." All other §4 gate rules, §5 branch routing, and §6 commitments remain as signed at `432fb3d`. Precedent: Probe 3 amendment commit `b68fe62` (W1-W4 post-audit corrections).
 
 ---
 
@@ -176,12 +176,14 @@ Why per-trade (not annualized Sharpe differential): annualized Sharpe SE is domi
 Every metric computed in §4.1/§4.2/§4.3 is additionally decomposed by session filter:
 
 - **SES_0** — all sessions (baseline)
-- **SES_1** — RTH only (09:30–16:00 ET)
-- **SES_2** — overnight / GLOBEX (excluding RTH)
+- **SES_1** — RTH only (ET minute in [09:30, 16:00), i.e. `et_min ∈ [570, 960)`)
+- **SES_2** — **complement of RTH** (every bar NOT in SES_1, i.e. `et_min ∈ [0, 570) ∪ [960, 1440)`). By construction SES_1 ∪ SES_2 = SES_0 with no orphan bars.
 
-(Session definitions mirror Probe 3 §4.4. SES_3 RTH-minus-lunch is not reported — Probe 3 established it is consistently thinnest and not decision-relevant.)
+SES_3 (RTH-minus-lunch) is not reported — Probe 3 established it is consistently thinnest and not decision-relevant.
 
-Session decomposition is **not gate-bound**. Its purpose is to surface the session-confound branch route in §5 prospectively. If 1298 passes only in SES_2 (mirroring 865's overnight concentration), §5 routes to SESSION_CONFOUND regardless of whether the aggregate absolute and relative gates pass.
+**Intentional divergence from Probe 3 §4.4** (amended 2026-04-23, original signing `432fb3d`): Probe 3's SES_2 was the narrow wraparound window `et_min ∈ [1080, 1440) ∪ [0, 570)` (18:00 ET → 09:30 ET next day), which orphaned the 16:00 – 18:00 ET window (post-RTH continuation + CME settlement halt) from both SES_1 and SES_2. Probe 4 adopts the broader complement-of-RTH definition so SES_1 ∪ SES_2 covers the full 24-hour bar set with no orphans. Rationale: the §5 row 2 SESSION_CONFOUND operationalization compares SES_1 vs SES_2 absolute gates; an orphaned 2-hour/day band would silently shunt a non-trivial fraction of 1298's trades out of both buckets, producing a row-2 comparison that is not a full session partition. Verdict document must disclose that SES_2 numbers here are NOT directly comparable to Probe 3's reported 3.45× overnight/RTH per-trade ratio (combo-865); any cross-probe SES_2 reasoning must partition further by sub-window if needed. The absolute gates (§4.1/§4.2) are computed on SES_0 and are unaffected by this amendment.
+
+Session decomposition is **not gate-bound**. Its purpose is to surface the session-confound branch route in §5 prospectively. If 1298 passes only in SES_2 (showing a concentration pattern analogous to 865's overnight concentration), §5 routes to SESSION_CONFOUND regardless of whether the aggregate absolute and relative gates pass.
 
 ---
 
