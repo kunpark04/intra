@@ -1395,6 +1395,21 @@ def _parse_args() -> argparse.Namespace:
                         "is used verbatim. Added for Probe 3 "
                         "(tasks/probe3_preregistration.md §4.2/§4.3/§4.4) — gates "
                         "that sample outside the v11 RNG space.")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Print the combo count that would be generated for the "
+                        "given sweep args and exit 0, without running any "
+                        "backtests, writing any parquet, or touching the manifest.")
+    p.add_argument("--bar-hour-tz", choices=["CT", "ET"], default="CT",
+                   help="Timezone used when building the bar_hour column that "
+                        "drives engine-side SESSION_FILTER_MODE 1/2/3 and "
+                        "tod_exit_hour. Default CT: raw CSV hour, matching all "
+                        "historical sweeps (v2-v11, Probe 1-4). Source is Barchart "
+                        "CT per scripts/data_pipeline/update_bars_yfinance.py:37. "
+                        "Use ET ONLY for the 2026-04-23 Probe 1 TZ-fix audit "
+                        "(shifts bar_hour by +1h to match the ET intent implied "
+                        "by src/strategy.py comments). ET sweeps write to a "
+                        "separate --output path and must NOT overwrite historical "
+                        "CT-labeled parquets. See tasks/tz_bug_provenance_log_2026-04-23.md.")
     return p.parse_args()
 
 
@@ -1499,6 +1514,11 @@ def main() -> None:
         print(f"[sweep] Combos to run: {len(run_combos)}  "
               f"(#{args.start_combo} to #{args.combinations - 1})", flush=True)
 
+    if args.dry_run:
+        print(f"dry-run: {len(run_combos)} combos would be generated for "
+              f"range-mode={args.range_mode}", flush=True)
+        sys.exit(0)
+
     # 3. Pre-compute all unique indicators up front.
     #    With nearly-all-unique parameter combos, computing indicators once per
     #    combo from scratch (via add_indicators) costs ~5s each = hours for 3000 combos.
@@ -1554,8 +1574,26 @@ def main() -> None:
     for lb in unique_vol_regime_lookbacks:
         atr_pct_cache[lb] = pd.Series(atr_arr).rolling(lb).rank(pct=True).to_numpy()
 
-    # Bar hour array: constant for all combos
-    hour_np = pd.DatetimeIndex(time_np).hour.to_numpy(dtype=np.int64)
+    # Bar hour array: constant for all combos.
+    # DEFAULT: raw CSV hour = CT hour (Barchart export — see
+    # scripts/data_pipeline/update_bars_yfinance.py:37). This matches all
+    # historical sweeps v2-v11 and Probe 1-4 caches. Engine-side session
+    # filter in src/strategy.py:82-103 therefore operates on CT hours.
+    # OPT-IN (--bar-hour-tz ET): localize the CT timestamps to America/Chicago
+    # and convert to America/New_York before extracting hour. Shifts filter
+    # boundaries by +1h. Used for the 2026-04-23 Probe 1 TZ-fix audit;
+    # must write to a separate output parquet to preserve historical caches.
+    _bar_hour_tz = getattr(args, "bar_hour_tz", "CT")
+    if _bar_hour_tz == "ET":
+        _ts_ct = pd.DatetimeIndex(time_np).tz_localize(
+            "America/Chicago", ambiguous="infer", nonexistent="shift_forward"
+        )
+        _ts_et = _ts_ct.tz_convert("America/New_York")
+        hour_np = _ts_et.hour.to_numpy(dtype=np.int64)
+        print(f"[sweep] bar_hour built under ET semantics "
+              f"(--bar-hour-tz ET opt-in; default CT).", flush=True)
+    else:
+        hour_np = pd.DatetimeIndex(time_np).hour.to_numpy(dtype=np.int64)
 
     print(f"[sweep] Cache built in {time.time()-t_cache:.1f}s — "
           f"z_windows={len(unique_z_windows)}  vol_windows={len(unique_vol_windows)}  "
