@@ -128,12 +128,19 @@ def _load_test_bars_with_et_minutes() -> pd.DataFrame:
     bars = pd.read_parquet(BARS_PARQUET)
     _, test_part = split_train_test(bars, 0.8)
     test_part = test_part.reset_index(drop=True)
+    # Source CSV timestamps are CENTRAL TIME (Barchart export) — see
+    # scripts/data_pipeline/update_bars_yfinance.py:37. Localize to CT, THEN
+    # convert to ET so SES_1/SES_2a/SES_2b wall-clock boundaries are correct.
+    # Prior versions of this block localized to "UTC" — that was a bug rooted
+    # in an incorrect source-TZ premise in the Probe 4 pass-4 code review; see
+    # tasks/_agent_bus/probe4_2026-04-22/stats-ml-logic-reviewer-paper-trade-readiness.md.
     ts = pd.to_datetime(test_part["time"])
     if getattr(ts.dt, "tz", None) is None:
-        ts_utc = ts.dt.tz_localize("UTC")
+        ts_ct = ts.dt.tz_localize("America/Chicago", ambiguous="infer",
+                                  nonexistent="shift_forward")
     else:
-        ts_utc = ts.dt.tz_convert("UTC")
-    ts_et = ts_utc.dt.tz_convert("America/New_York")
+        ts_ct = ts.dt.tz_convert("America/Chicago")
+    ts_et = ts_ct.dt.tz_convert("America/New_York")
     et_min = ts_et.dt.hour * 60 + ts_et.dt.minute
     test_part = test_part.copy()
     test_part["_et_minutes"] = et_min.values.astype(np.int32)

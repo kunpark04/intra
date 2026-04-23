@@ -66,7 +66,30 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   `tasks/probe2_verdict.md` + `tasks/probe2_preregistration.md` (signed
   commit `a49f370`). This carve-out does NOT unfalsify the family-level
   Probe 1 verdict above — it's one parameter realization at one TF.
-- **Combo-865 carve-out — PASSED Probe 3 robustness suite 2026-04-22 UTC.**
+- **Combo-865 Probe 3 — 🛑 PAPER_TRADE RETRACTED 2026-04-23 UTC.** A critical
+  timezone bug was identified in `tasks/_probe3_1h_ritual.py:186` and
+  `tasks/_probe3_15m_nc.py:207`: both scripts called
+  `ts.dt.tz_localize("UTC")` on timestamps from `data/NQ_1h.parquet` and
+  `data/NQ_15min.parquet` that are actually naive **Central Time** (Barchart
+  vendor export — see `scripts/data_pipeline/update_bars_yfinance.py:37`
+  `LOCAL_TZ = "America/Chicago"`). Under corrected CT → ET conversion, the
+  §4.3 15m negative control flips from **0/16 PASS to 8/16 FAIL** (rescue
+  fires — the 15m signal CAN be recovered via session/exit filter
+  combinations under correct labels), and §4.4 strengthens from 8/16
+  exactly-at-threshold to **12/16 comfortably clear**. F-count changes
+  from **0 → 1**; prereg §5.2 *"Exactly 1/4 FAIL → council re-convene"*
+  fires. Branch is therefore **COUNCIL_RECONVENE**, not PAPER_TRADE. The
+  "edge concentrates in GLOBEX overnight (~3.45× per-trade ratio)" finding
+  also inverts — corrected combo-865 RTH Sharpe is **2.64** (not 0.64),
+  overnight Sharpe is **1.47** (not 3.32); edge is RTH-leaning, not
+  overnight-dominant. Absolute-gate Sharpe 2.895 and aggregate dollars/yr
+  +$124,896 from Probe 2 are session-agnostic and stand unchanged. Do not
+  draft paper-trade preregistration on the historical reading below. Full
+  retraction analysis: `tasks/probe3_verdict.md` Amendment 2. Cross-probe
+  cascade: `memory/project_tz_bug_cascade.md`. Durable rule:
+  `memory/feedback_tz_source_ct.md`. Root-cause post-mortem: `lessons.md`
+  `2026-04-23 tz_bug_in_session_decomposition`.
+- **[HISTORICAL — retracted 2026-04-23]** Combo-865 carve-out — PASSED Probe 3 robustness suite 2026-04-22 UTC.
   Probe 3 ran 4 pre-registered gates on the 1h test partition per
   `tasks/probe3_preregistration.md` (signed `f8447af` / review fixes
   `8636167`): §4.1 regime halves (both halves clear 1.3/25/$5k — H1 Sharpe

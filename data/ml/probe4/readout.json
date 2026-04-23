@@ -56,9 +56,9 @@
       "insufficient_n": false
     }
   },
-  "branch": "SESSION_CONFOUND",
-  "matched_row": 2,
-  "rationale": "1298 passed absolute; SES_2 abs_pass=True, SES_1 abs_pass=False, (SES_2 Sharpe - SES_1 Sharpe) = 4.221 > 1.0 (\u00a75 row 2).",
+  "branch": "COUNCIL_RECONVENE",
+  "matched_row": 4,
+  "rationale": "Both 1298 and 664 passed absolute gate (\u00a75 row 4; both-pass adjudication).",
   "narrow_miss_flag": false,
   "narrow_miss_note": null,
   "session_decomposition": {
@@ -75,26 +75,26 @@
         "abs_pass": true
       },
       "SES_1": {
-        "n_trades": 23,
-        "net_sharpe": -0.17254671081402367,
-        "net_dollars_per_year": -3020.2873862619244,
-        "mean_pnl_dollars": -194.3357957795227,
-        "std_pnl_dollars": 4440.111242337171,
-        "sharpe_pass": false,
-        "n_trades_pass": false,
-        "dollars_pass": false,
-        "abs_pass": false
-      },
-      "SES_2": {
-        "n_trades": 100,
-        "net_sharpe": 4.048582405441626,
-        "net_dollars_per_year": 156279.1191696748,
-        "mean_pnl_dollars": 2312.7746845920174,
-        "std_pnl_dollars": 4695.8493588866595,
+        "n_trades": 77,
+        "net_sharpe": 4.413818708410293,
+        "net_dollars_per_year": 146545.07438072,
+        "mean_pnl_dollars": 2816.520202286072,
+        "std_pnl_dollars": 4602.857789054889,
         "sharpe_pass": true,
         "n_trades_pass": true,
         "dollars_pass": true,
         "abs_pass": true
+      },
+      "SES_2": {
+        "n_trades": 46,
+        "net_sharpe": 0.26497650615200813,
+        "net_dollars_per_year": 6713.757402692889,
+        "mean_pnl_dollars": 215.993251744461,
+        "std_pnl_dollars": 4544.598743748224,
+        "sharpe_pass": false,
+        "n_trades_pass": false,
+        "dollars_pass": true,
+        "abs_pass": false
       }
     },
     "664": {
@@ -110,31 +110,31 @@
         "abs_pass": true
       },
       "SES_1": {
-        "n_trades": 169,
-        "net_sharpe": 0.1438185994942944,
-        "net_dollars_per_year": 4168.6621276293035,
-        "mean_pnl_dollars": 36.50416025253613,
-        "std_pnl_dollars": 2712.4046126177336,
+        "n_trades": 243,
+        "net_sharpe": 0.539935707204462,
+        "net_dollars_per_year": 18821.874612697724,
+        "mean_pnl_dollars": 114.62754007955293,
+        "std_pnl_dollars": 2720.406944892194,
         "sharpe_pass": false,
         "n_trades_pass": true,
-        "dollars_pass": false,
+        "dollars_pass": true,
         "abs_pass": false
       },
       "SES_2": {
-        "n_trades": 611,
-        "net_sharpe": 1.4373825396429087,
-        "net_dollars_per_year": 79256.96758967223,
-        "mean_pnl_dollars": 191.96789907685095,
-        "std_pnl_dollars": 2713.692703502168,
-        "sharpe_pass": true,
+        "n_trades": 537,
+        "net_sharpe": 1.25094396980658,
+        "net_dollars_per_year": 64603.75510460381,
+        "mean_pnl_dollars": 178.03928711229642,
+        "std_pnl_dollars": 2711.1212838729753,
+        "sharpe_pass": false,
         "n_trades_pass": true,
         "dollars_pass": true,
-        "abs_pass": true
+        "abs_pass": false
       }
     }
   },
   "per_run_sources": {
-    "combo1298_SES_0": "data/ml/probe4/combo1298_SES_0.json",
-    "combo664_SES_0": "data/ml/probe4/combo664_SES_0.json"
+    "combo1298_SES_0": "data\\ml\\probe4\\combo1298_SES_0.json",
+    "combo664_SES_0": "data\\ml\\probe4\\combo664_SES_0.json"
   }
 }

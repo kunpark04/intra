@@ -1,5 +1,16 @@
 # Scope D — SES_2 Sub-Window Split (Characterization Footnote)
 
+> 🛑 **RETRACTED 2026-04-23 UTC — "SES_2a dominates" thesis inverted.**
+> This brief and its accompanying readout (commit `0ad0153`) were authored
+> using `_scope_d_readout.py` which contained the same TZ bug as
+> `_probe4_readout.py`. Under corrected TZ, all three combos flip to different
+> regimes: combo-865 is RTH-leaning (Sharpe 2.64 RTH vs 1.47 overnight),
+> combo-1298 is strongly RTH-concentrated (Sharpe **4.41** RTH vs 0.53
+> overnight), and combo-664 has a weak overnight lean (Sharpe 1.17 overnight
+> vs 0.54 RTH). The mechanism-check conclusion "paper-trade execution clock
+> bound to 18:00–09:30 ET" is **backwards** — the edge lives predominantly in
+> RTH for 2 of 3 combos. See the Amendment section at the bottom of this document.
+
 **Date**: 2026-04-23 UTC
 **Stage**: Characterization (not a gate, not a preregistered confirmation)
 **Council authority**: `tasks/council-report-2026-04-23-b1-scope.html` + `tasks/council-transcript-2026-04-23-b1-scope.md`
@@ -101,3 +112,87 @@ None of these regimes auto-trigger an action. Human reading of the table + a pap
 - `tasks/council-transcript-2026-04-23-b1-scope.md` — full transcript, anonymization revealed
 - `tasks/probe4_verdict.md` §Amendment 1 + §Interpretation — surfaced the bundling issue disclosed here
 - `memory/feedback_council_methodology.md` — Rule 1 / Rule 2 framing applied to the council that authorized this footnote
+
+---
+
+## Amendment — Timezone bug retraction (2026-04-23 UTC)
+
+### Summary
+
+The `_scope_d_readout.py` script that produced the committed readout contained
+the same TZ bug as `_probe4_readout.py` and `_probe3_1h_ritual.py` — it
+localized naive CT timestamps as UTC before converting to ET, inverting the
+RTH / overnight bucket labels for most bars. Under the corrected CT → ET
+conversion, the "SES_2a dominates" thesis for all three combos is retracted.
+
+Discovery + root cause: see Amendment 2 of `tasks/probe4_verdict.md` and
+`lessons.md` `2026-04-23 tz_bug_in_session_decomposition`.
+
+### Corrected 3-bucket decomposition (2026-04-23 UTC, post-fix re-run)
+
+| Combo | Bucket | Pre-fix Sharpe | Pre-fix n / $/yr | Post-fix Sharpe | Post-fix n / $/yr |
+|---|---|---:|---|---:|---|
+| 865  | SES_1 RTH         | 0.639 | 65 / +$15k   | **2.635** | **126 / +$85,831** |
+| 865  | SES_2a overnight  | 3.322 | 143 / +$114k | 1.467 | 82 / +$38,859 |
+| 865  | SES_2b post-RTH+halt | -0.461 | 12 / -$4.6k  | 0.020 | 12 / +$206 |
+| 1298 | SES_1 RTH         | -0.173 | 23 / -$3k    | **4.414** | **77 / +$146,545** |
+| 1298 | SES_2a overnight  | 4.213 | 98 / +$160k  | 0.531 | 40 / +$12,770 |
+| 1298 | SES_2b post-RTH+halt | -0.781 | 2 / -$4.1k   | -0.781 | 6 / -$6,056 |
+| 664  | SES_1 RTH         | 0.144 | 169 / +$4k   | 0.540 | 243 / +$18,822 |
+| 664  | SES_2a overnight  | 1.437 | 562 / +$87k  | 1.174 | 505 / +$58,876 |
+| 664  | SES_2b post-RTH+halt | -0.507 | 49 / -$8k    | 0.454 | 32 / +$5,727 |
+
+### Corrected regime labels
+
+- **Combo 865**: RTH-leaning (Sharpe 2.64 RTH vs 1.47 overnight) — was "SES_2a dominates"
+- **Combo 1298**: **Strongly RTH-concentrated** (Sharpe 4.41 RTH vs 0.53 overnight) — was "SES_2a dominates"
+- **Combo 664**: Weak overnight lean (Sharpe 1.17 overnight vs 0.54 RTH) — was "SES_2a dominates"
+
+All three combos DO NOT unanimously point overnight. The two tested in Probe 4
+(1298 and 664) actively prefer **opposite sessions**.
+
+### What is retracted
+
+- **"SES_2a (pure overnight) dominates unambiguously"** thesis — false.
+- **"Paper-trade execution clock bound to 18:00–09:30 ET GLOBEX only"** —
+  backwards for combo-1298 (RTH-concentrated) and combo-865 (RTH-leaning);
+  approximately correct for combo-664 but with a CI-straddling-zero margin.
+- **"Settlement-halt phantom-fill concern ruled out mechanically"** — still
+  true in effect (SES_2b is small and approximately-zero per-trade mean for
+  all three combos), but the logic for it flips: the narrative was "the
+  halt window is small AND the overnight edge is real"; the corrected
+  narrative is "the halt window is small AND is irrelevant either way."
+- **The "one thing to do first" that led to this script's creation** — namely,
+  "does this overnight edge survive or is it a settlement-halt artifact?" —
+  is moot. There is no unified overnight edge across the three combos.
+
+### What this means for next steps
+
+The B1 session-structure thesis underlying `tasks/council-report-2026-04-23-b1-scope.html`
+is obsolete; so is the chairman's paper-trade preregistration recommendation
+(because Probe 3's PAPER_TRADE authorization was also retracted — see
+`tasks/probe3_verdict.md` Amendment 2). Any future action on combo-1298 or
+combo-665 must proceed from the corrected baseline:
+
+- Combo-1298 has a real, RTH-concentrated signal at Sharpe 4.41 on n=77, on a
+  partition consumed 5+ times with selection pressure from a 1500-combo sweep
+- Combo-865 has a real but weaker edge (Sharpe 2.64 RTH), originally selected
+  for Probe 2 via a single aggregate gate and now further characterized
+- Combo-664 has a weak signal that is not cleanly RTH or overnight
+
+No deployment path is authorized by the corrected picture alone.
+
+### Code fix
+
+`tasks/_scope_d_readout.py:133` changed from `tz_localize("UTC")` to
+`tz_localize("America/Chicago", ambiguous="infer", nonexistent="shift_forward")`.
+Variable renamed `ts_utc` → `ts_ct`. Re-ran locally to produce corrected
+`data/ml/scope_d/readout.json` (gitignored; reproducible from the script).
+
+### References
+
+- `lessons.md` `2026-04-23 tz_bug_in_session_decomposition`
+- `memory/feedback_tz_source_ct.md`
+- `memory/project_tz_bug_cascade.md`
+- `tasks/probe4_verdict.md` Amendment 2
+- `tasks/probe3_verdict.md` Amendment 2

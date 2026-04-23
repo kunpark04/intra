@@ -1,5 +1,13 @@
 # Probe 3 Verdict — Combo-865 4-Gate Robustness PASS on 1h Holdout
 
+> 🛑 **RETRACTED 2026-04-23 UTC — PAPER_TRADE authorization withdrawn.**
+> A critical timezone bug was identified in the post-hoc session decomposition
+> scripts (`_probe3_1h_ritual.py:186`, `_probe3_15m_nc.py:207`) after this verdict
+> was signed. Under corrected TZ: §4.3 goes from 0/16 PASS to **8/16 FAIL**
+> (rescue fires); §4.4 strengthens from 8/16 to 12/16 PASS. F-count becomes **1**,
+> which under the signed preregistration §5.2 routes to **COUNCIL_RECONVENE**,
+> not PAPER_TRADE. See Amendment 2 at the bottom of this document.
+
 **Date**: 2026-04-22 UTC
 **Probe**: Combo-865 session/exit structure + robustness gates on 1h test partition (2024-10-22 → 2026-04-08)
 **Preregistration**: `tasks/probe3_preregistration.md` (signed commit `f8447af` / review fixes `8636167`)
@@ -447,3 +455,111 @@ pushed §4.4 to FAIL under the same preregistration.
 - Multiplicity memo: `tasks/probe3_multiplicity_memo.md`
 - Preceding verdicts: `tasks/probe2_verdict.md` · `tasks/probe1_verdict.md`
 - Council authority: `tasks/council-report-2026-04-21-probe1-branch-a-fork.html`
+
+---
+
+## Amendment 2 — Timezone bug retraction (2026-04-23 UTC)
+
+### Summary
+
+`tasks/_probe3_1h_ritual.py` and `tasks/_probe3_15m_nc.py` both contained
+`ts.dt.tz_localize("UTC")` on `data/NQ_1h.parquet` and `data/NQ_15min.parquet`
+timestamps, which are actually naive **Central Time** (Barchart vendor export
+— see `scripts/data_pipeline/update_bars_yfinance.py:37` authoritative marker).
+Localizing CT as UTC and then converting to ET shifts every timestamp by ~5–6
+hours and inverts the SES_1 (RTH) / SES_2 (GLOBEX) labels on most bars.
+
+The bug was discovered on 2026-04-23 UTC during a paper-trade-readiness review
+by the stats-ml-logic-reviewer (artifact:
+`tasks/_agent_bus/probe4_2026-04-22/stats-ml-logic-reviewer-paper-trade-readiness.md`).
+Independent verification reproduced the reviewer's numbers to 3 decimal places.
+
+Root cause + propagation trace: see `lessons.md` `2026-04-23 tz_bug_in_session_decomposition`.
+
+### Corrected gate results (re-run 2026-04-23 UTC after the fix)
+
+| Gate | Pre-fix | Post-fix | Threshold | Status |
+|---|---|---|---|---|
+| §4.1 regime halves (uses naive-midpoint, not ET-minute) | both PASS | both PASS (unchanged) | both ≥ 1.3/25/$5k | PASS (TZ-agnostic) |
+| §4.2 param ±5% nbhd (no session decomp) | 27/27 | 27/27 (unchanged) | ≥ 14/27 | PASS (TZ-agnostic) |
+| §4.3 15m negative control | 0/16 PASS | **8/16 FAIL** (rescue fires) | ≤ 2/16 | **FLIPPED: PASS → FAIL** |
+| §4.4 1h session/exit ritual | 8/16 exactly PASS | **12/16** PASS (clear) | ≥ 8/16 | PASS (strengthened) |
+
+### §5 branch routing under corrected gates
+
+F-count was **0** → now **1**. Per preregistration §5.2 ("Exactly 1 / 4 FAIL
+→ **council re-convene** (ambiguous branch)"), the verdict branch is no longer
+PAPER_TRADE.
+
+**New branch: COUNCIL_RECONVENE.**
+
+### Corrected interpretation
+
+The §4.3 15m negative control now fails because specific session/exit filter
+combinations produce a positive 15m signal (8 of 16 cells clear the per-cell
+three-gate set under corrected session labels), even though the 15m aggregate
+Sharpe remains −0.55 per Probe 2. This contradicts the pre-fix claim that "the
+15m signal is absent" — instead, the 15m signal can be **rescued** via session/
+exit manipulation. The "1h is a uniquely privileged timeframe" claim that §4.3
+was designed to test therefore fails.
+
+The §4.4 ritual continues to pass, and actually strengthens (8/16 → 12/16) —
+the 1h edge is robust to session/exit variations. But one PASS does not
+rescue the F=1 branch routing.
+
+### What stands
+
+- §4.1 and §4.2 are unchanged under corrected TZ. Regime stability and
+  parameter neighborhood robustness are real.
+- Probe 2 combo-865 1h single-gate PASS (Sharpe 2.895, 220 trades,
+  +$124,896/yr) stands unchanged. It's a session-agnostic aggregate.
+- Probe 1 family-level falsification (N_1.3=4/1500 on 1h) stands unchanged
+  in direction, though the specific 4 combos may shift under a corrected
+  engine-side bar_hour interpretation (see `memory/feedback_tz_source_ct.md`
+  engine-side caveat).
+
+### What is retracted
+
+- **F=0 → PAPER_TRADE branch.** Under corrected TZ, F=1 → COUNCIL_RECONVENE.
+- **Posterior P(genuine edge | F=0) ∈ [0.65, 0.85].** The Bayes factor
+  estimate was conditioned on F=0; it no longer applies.
+- **"Edge concentrates overnight" structural finding.** Under corrected TZ,
+  combo-865's RTH Sharpe is 2.64 (not 0.64) and overnight Sharpe is 1.47
+  (not 3.32). The edge is RTH-leaning, not overnight-dominant.
+- **Strongest deployment variant EX_3×SES_2 Sharpe 4.95.** The session
+  decomposition underlying this number used the buggy TZ; the re-run under
+  corrected TZ yields a different ranking that has not been computed here.
+- **§4.4 "8/16 exactly at threshold" concern.** The at-threshold concern
+  that Phase E1 council was supposed to adjudicate no longer applies
+  (12/16 is comfortably above threshold). A different concern replaces it:
+  §4.3 fails outright.
+- **Combo-865 paper-trade candidate status.** No new paper-trade
+  preregistration should be drafted without a fresh Probe-3-equivalent
+  preregistration cycle, with gates (including the 15m negative control)
+  re-specified against the corrected TZ.
+
+### Downstream consequence
+
+Per preregistration §5.2, COUNCIL_RECONVENE branch requires a fresh LLM
+Council to scope the ambiguity. As of this amendment, no such council has
+been fired. Any future action on combo-865 must proceed from the
+COUNCIL_RECONVENE state, not from a phantom PAPER_TRADE authorization.
+
+### Code fix
+
+- `tasks/_probe3_1h_ritual.py:186` and `tasks/_probe3_15m_nc.py:207`:
+  `tz_localize("UTC")` → `tz_localize("America/Chicago", ambiguous="infer",
+  nonexistent="shift_forward")`. Variable renamed `ts_utc` → `ts_ct`.
+  Misleading comments replaced with explicit CT reference + vendor marker
+  pointer.
+- Re-ran both scripts locally (pure pandas, no engine re-run required) to
+  produce corrected JSONs at `data/ml/probe3/1h_ritual.json` and
+  `data/ml/probe3/15m_nc.json`.
+
+### References
+
+- `lessons.md` `2026-04-23 tz_bug_in_session_decomposition` — root-cause post-mortem
+- `memory/feedback_tz_source_ct.md` — durable source-TZ rule
+- `memory/project_tz_bug_cascade.md` — cascade summary across Probe 3/4/Scope D
+- `tasks/_agent_bus/probe4_2026-04-22/stats-ml-logic-reviewer-paper-trade-readiness.md` — discovery review
+- `scripts/data_pipeline/update_bars_yfinance.py:37` — authoritative vendor TZ marker

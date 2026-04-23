@@ -2,7 +2,7 @@
   "gate_id": "\u00a74.3_15m_negative_control",
   "timeframe": "15min",
   "grid_n": 16,
-  "n_pass": 0,
+  "n_pass": 8,
   "threshold_max": 2,
   "years_span_test": 1.4799,
   "ex2_tod_utc_hour": 19,
@@ -29,20 +29,20 @@
     {
       "ex_label": "EX_0_native",
       "ses_label": "SES_1_RTH_only",
-      "n_trades": 93,
-      "net_sharpe": -0.7773499067660876,
-      "net_dollars_per_year": -21111.236609912474,
-      "sharpe_pass": false,
+      "n_trades": 437,
+      "net_sharpe": 1.3798060998665895,
+      "net_dollars_per_year": 83604.93879720196,
+      "sharpe_pass": true,
       "n_trades_pass": true,
-      "dollars_pass": false,
-      "cell_pass": false
+      "dollars_pass": true,
+      "cell_pass": true
     },
     {
       "ex_label": "EX_0_native",
       "ses_label": "SES_2_overnight_only",
-      "n_trades": 680,
-      "net_sharpe": -0.31363445984334515,
-      "net_dollars_per_year": -23375.43394504545,
+      "n_trades": 306,
+      "net_sharpe": -2.964319819498149,
+      "net_dollars_per_year": -140559.34348153192,
       "sharpe_pass": false,
       "n_trades_pass": true,
       "dollars_pass": false,
@@ -51,13 +51,13 @@
     {
       "ex_label": "EX_0_native",
       "ses_label": "SES_3_RTH_excl_lunch",
-      "n_trades": 74,
-      "net_sharpe": 0.4644858712362208,
-      "net_dollars_per_year": 11630.156214275281,
-      "sharpe_pass": false,
+      "n_trades": 331,
+      "net_sharpe": 1.5622881181696693,
+      "net_dollars_per_year": 82580.35114264948,
+      "sharpe_pass": true,
       "n_trades_pass": true,
       "dollars_pass": true,
-      "cell_pass": false
+      "cell_pass": true
     },
     {
       "ex_label": "EX_1_maxhold_60h",
@@ -73,20 +73,20 @@
     {
       "ex_label": "EX_1_maxhold_60h",
       "ses_label": "SES_1_RTH_only",
-      "n_trades": 93,
-      "net_sharpe": -0.7773499067660876,
-      "net_dollars_per_year": -21111.236609912474,
-      "sharpe_pass": false,
+      "n_trades": 437,
+      "net_sharpe": 1.3798060998665895,
+      "net_dollars_per_year": 83604.93879720196,
+      "sharpe_pass": true,
       "n_trades_pass": true,
-      "dollars_pass": false,
-      "cell_pass": false
+      "dollars_pass": true,
+      "cell_pass": true
     },
     {
       "ex_label": "EX_1_maxhold_60h",
       "ses_label": "SES_2_overnight_only",
-      "n_trades": 680,
-      "net_sharpe": -0.31363445984334515,
-      "net_dollars_per_year": -23375.43394504545,
+      "n_trades": 306,
+      "net_sharpe": -2.964319819498149,
+      "net_dollars_per_year": -140559.34348153192,
       "sharpe_pass": false,
       "n_trades_pass": true,
       "dollars_pass": false,
@@ -95,13 +95,13 @@
     {
       "ex_label": "EX_1_maxhold_60h",
       "ses_label": "SES_3_RTH_excl_lunch",
-      "n_trades": 74,
-      "net_sharpe": 0.4644858712362208,
-      "net_dollars_per_year": 11630.156214275281,
-      "sharpe_pass": false,
+      "n_trades": 331,
+      "net_sharpe": 1.5622881181696693,
+      "net_dollars_per_year": 82580.35114264948,
+      "sharpe_pass": true,
       "n_trades_pass": true,
       "dollars_pass": true,
-      "cell_pass": false
+      "cell_pass": true
     },
     {
       "ex_label": "EX_2_TOD_1500ET",
@@ -117,20 +117,20 @@
     {
       "ex_label": "EX_2_TOD_1500ET",
       "ses_label": "SES_1_RTH_only",
-      "n_trades": 93,
-      "net_sharpe": -0.842315695476349,
-      "net_dollars_per_year": -22124.953717562676,
-      "sharpe_pass": false,
+      "n_trades": 437,
+      "net_sharpe": 1.3798060998665895,
+      "net_dollars_per_year": 83604.93879720196,
+      "sharpe_pass": true,
       "n_trades_pass": true,
-      "dollars_pass": false,
-      "cell_pass": false
+      "dollars_pass": true,
+      "cell_pass": true
     },
     {
       "ex_label": "EX_2_TOD_1500ET",
       "ses_label": "SES_2_overnight_only",
-      "n_trades": 680,
-      "net_sharpe": -0.31363445984334515,
-      "net_dollars_per_year": -23375.43394504545,
+      "n_trades": 306,
+      "net_sharpe": -2.960739949398161,
+      "net_dollars_per_year": -139334.28901375033,
       "sharpe_pass": false,
       "n_trades_pass": true,
       "dollars_pass": false,
@@ -139,13 +139,13 @@
     {
       "ex_label": "EX_2_TOD_1500ET",
       "ses_label": "SES_3_RTH_excl_lunch",
-      "n_trades": 74,
-      "net_sharpe": 0.31426494725596127,
-      "net_dollars_per_year": 7605.700945075243,
-      "sharpe_pass": false,
+      "n_trades": 331,
+      "net_sharpe": 1.5622881181696693,
+      "net_dollars_per_year": 82580.35114264948,
+      "sharpe_pass": true,
       "n_trades_pass": true,
       "dollars_pass": true,
-      "cell_pass": false
+      "cell_pass": true
     },
     {
       "ex_label": "EX_3_breakeven_after_1R",
@@ -161,20 +161,20 @@
     {
       "ex_label": "EX_3_breakeven_after_1R",
       "ses_label": "SES_1_RTH_only",
-      "n_trades": 94,
-      "net_sharpe": -1.1139912954103777,
-      "net_dollars_per_year": -25564.995688480485,
-      "sharpe_pass": false,
+      "n_trades": 442,
+      "net_sharpe": 2.935102049088617,
+      "net_dollars_per_year": 156842.53390908678,
+      "sharpe_pass": true,
       "n_trades_pass": true,
-      "dollars_pass": false,
-      "cell_pass": false
+      "dollars_pass": true,
+      "cell_pass": true
     },
     {
       "ex_label": "EX_3_breakeven_after_1R",
       "ses_label": "SES_2_overnight_only",
-      "n_trades": 691,
-      "net_sharpe": 0.059484914040714224,
-      "net_dollars_per_year": 3825.5985652080867,
+      "n_trades": 313,
+      "net_sharpe": -4.877491073169261,
+      "net_dollars_per_year": -182255.2029336774,
       "sharpe_pass": false,
       "n_trades_pass": true,
       "dollars_pass": false,
@@ -183,14 +183,14 @@
     {
       "ex_label": "EX_3_breakeven_after_1R",
       "ses_label": "SES_3_RTH_excl_lunch",
-      "n_trades": 74,
-      "net_sharpe": 0.10146849719277805,
-      "net_dollars_per_year": 2179.9115813410426,
-      "sharpe_pass": false,
+      "n_trades": 335,
+      "net_sharpe": 3.2654341638896356,
+      "net_dollars_per_year": 150965.68859991475,
+      "sharpe_pass": true,
       "n_trades_pass": true,
-      "dollars_pass": false,
-      "cell_pass": false
+      "dollars_pass": true,
+      "cell_pass": true
     }
   ],
-  "gate_pass": true
+  "gate_pass": false
 }

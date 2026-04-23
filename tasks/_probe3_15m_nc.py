@@ -201,13 +201,17 @@ def _load_test_bars_with_et_minutes() -> pd.DataFrame:
     bars = pd.read_parquet(BARS_PARQUET)
     _, test_part = split_train_test(bars, 0.8)
     test_part = test_part.reset_index(drop=True)
-    # Times are UTC-naive (CSV source, no tz info). Localize -> ET, handle DST.
+    # Source CSV timestamps are CENTRAL TIME (Barchart export) — see
+    # scripts/data_pipeline/update_bars_yfinance.py:37. The prior "UTC-naive"
+    # comment here was wrong and propagated a TZ bug across Probe 3/4/Scope D.
+    # Localize CT -> ET so 15m session cell boundaries are wall-clock correct.
     ts = pd.to_datetime(test_part["time"])
     if getattr(ts.dt, "tz", None) is None:
-        ts_utc = ts.dt.tz_localize("UTC")
+        ts_ct = ts.dt.tz_localize("America/Chicago", ambiguous="infer",
+                                  nonexistent="shift_forward")
     else:
-        ts_utc = ts.dt.tz_convert("UTC")
-    ts_et = ts_utc.dt.tz_convert("America/New_York")
+        ts_ct = ts.dt.tz_convert("America/Chicago")
+    ts_et = ts_ct.dt.tz_convert("America/New_York")
     # Minutes since midnight (ET) — enables single-array range checks.
     et_min = ts_et.dt.hour * 60 + ts_et.dt.minute
     test_part = test_part.copy()

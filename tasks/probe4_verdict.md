@@ -1,5 +1,20 @@
 # Probe 4 Verdict — Cross-TF-Coherence Property Test Resolves to SESSION_CONFOUND
 
+> 🛑 **RETRACTED 2026-04-23 UTC — verdict rerouted SESSION_CONFOUND → COUNCIL_RECONVENE.**
+> The same TZ bug that retracted Probe 3 also inverted the §4.4 session
+> decomposition and §5 row 2 condition here. Under corrected TZ: combo-1298 is
+> strongly **RTH-concentrated** (Sharpe **4.414** on n=77 RTH trades,
+> +$146,545/yr) and SES_2 overnight fails the absolute gate (Sharpe 0.265 on
+> n=46). Combo-664 is weakly overnight-leaning (Sharpe 1.251 on n=537, just
+> under the 1.3 gate). The §5 row 2 condition `SES_2 abs PASS AND SES_1 abs
+> FAIL AND Δ>1.0` flips to FALSE — both components invert. Row 2 does not fire;
+> row 4 (both-pass adjudication) fires instead → branch = **COUNCIL_RECONVENE**.
+> The three absolute-gate Sharpes (1298 3.55, 664 1.34) and Welch-t (3.851)
+> are session-agnostic and stand unchanged. The downstream binding "B1
+> session-structure sweep authorized" is **retracted** — there is no
+> family-level overnight pattern to sweep. See Amendment 2 at the bottom
+> of this document.
+
 **Date**: 2026-04-23 UTC
 **Probe**: Cross-TF-coherence property test (Path B, B2 second-combo carve-out) — combos 1298 and 664 on 1h test partition (2024-10-22 → 2026-04-08)
 **Preregistration**: `tasks/probe4_preregistration.md`
@@ -235,3 +250,121 @@ No deviations from the signed prereg (beyond Amendment 1 which was user-authoriz
 **UNSIGNED DRAFT** as of 2026-04-23 UTC.
 
 Awaits: (1) user review of the verdict text and numbers, (2) user explicit authorization to commit. Once authorized, this document goes into a verdict commit mirroring Probe 3's `18a22ee` pattern. No downstream action (B1 preregistration, memory update on pivot) fires until the verdict is signed.
+
+*Note: this "UNSIGNED DRAFT" status is stale — the verdict was signed at commit `c419391` and addendum `ec60bf0` on 2026-04-23 UTC, prior to the Amendment 2 retraction below.*
+
+---
+
+## Amendment 2 — Timezone bug retraction (2026-04-23 UTC)
+
+### Summary
+
+`tasks/_probe4_readout.py:129` contained `ts.dt.tz_localize("UTC")` on
+`data/NQ_1h.parquet` timestamps, which are actually naive **Central Time**
+(Barchart vendor export — see `scripts/data_pipeline/update_bars_yfinance.py:37`).
+Localizing CT as UTC then converting to ET shifts every bar by ~5–6 hours,
+which inverts the SES_1 (RTH) and SES_2 (GLOBEX) wall-clock labels.
+
+Discovered 2026-04-23 UTC by stats-ml-logic-reviewer during paper-trade-readiness
+review. Root cause + propagation trace:
+`lessons.md` `2026-04-23 tz_bug_in_session_decomposition`.
+
+### Unaffected (session-agnostic — stand as signed)
+
+- **§4.1 combo-1298 absolute gate (SES_0)**: Sharpe **3.551**, n **123**, **+$153,259/yr** — **PASS**.
+- **§4.2 combo-664 absolute gate (SES_0)**: Sharpe **1.340**, n **780**, **+$83,426/yr** — **PASS**.
+- **§4.3 Welch-t primary gate**: t = **3.851** — **PASS**. Pooled per-trade statistic, session-agnostic.
+
+### Inverted (session-dependent — differ materially)
+
+Corrected §4.4 readout under CT → ET (run 2026-04-23 UTC after the fix):
+
+| Combo | Bucket | Pre-fix Sharpe | Pre-fix n | Post-fix Sharpe | Post-fix n | Post-fix $/yr |
+|---|---|---:|---:|---:|---:|---:|
+| 1298 | SES_1 RTH | −0.173 | 23 | **+4.414** | **77** | **+$146,545** |
+| 1298 | SES_2 GLOBEX | +4.049 | 100 | +0.265 | 46 | +$6,714 |
+| 664 | SES_1 RTH | +0.144 | 169 | +0.540 | 243 | +$18,822 |
+| 664 | SES_2 GLOBEX | +1.437 | 611 | +1.251 | 537 | +$64,604 |
+
+**Combo-1298 is RTH-concentrated**: 77 of 123 trades (63%) land in RTH with a
+Sharpe of 4.414 — the cleanest single readout in the project. SES_2 overnight
+Sharpe fails absolute (0.265 < 1.3).
+
+**Combo-664 is weakly overnight-leaning**: 537 of 780 trades (69%) land
+overnight with Sharpe 1.251 — just under the 1.3 gate. Neither bucket clears
+absolute alone.
+
+### §5 branch routing under corrected gates
+
+Row 2 condition: `gate_1298_abs_pass AND SES_2_abs_pass AND NOT SES_1_abs_pass
+AND (SES_2 Sharpe − SES_1 Sharpe) > 1.0`. Under corrected TZ this becomes
+`True AND False AND False AND ...` — **row 2 does NOT fire**. Row 3 requires
+664 abs FAIL — that also doesn't hold (664 still passes SES_0 absolute). Row 4
+fires: both combos pass absolute.
+
+**New branch: COUNCIL_RECONVENE (row 4, both-pass adjudication).**
+
+The verdict was signed as SESSION_CONFOUND at commit `c419391`; under corrected
+TZ, the signed §5 branch-routing table would have routed to COUNCIL_RECONVENE.
+
+### What is retracted
+
+- **SESSION_CONFOUND branch.** The session-purity condition that row 2
+  required (SES_2 pass + SES_1 fail + delta > 1.0) is inverted under corrected
+  TZ: SES_1 (RTH) passes for combo-1298 and SES_2 fails. Row 2 cannot fire.
+- **"Both combos ~80% SES_2-concentrated" structural finding.** Under
+  corrected TZ, combo-1298's trade distribution is 63% RTH / 37% overnight
+  (not 19% / 81%); combo-664's is 31% RTH / 69% overnight. The two combos
+  have **opposite** session preferences, not shared overnight concentration.
+- **B1 preregistration authorization ("session-structure sweep across
+  multiple combos is the next authoring step").** The B1 downstream binding
+  was predicated on the cross-combo shared-overnight pattern. Under corrected
+  TZ, there is no shared overnight pattern to investigate at the family
+  level. B1 as scoped by `tasks/council-report-2026-04-23-b1-scope.html`
+  is obsolete; the council's "don't launch B1" verdict and its proposed
+  paper-trade alternative are both obsolete too (paper-trade preregistration
+  is no longer authorized because Probe 3 has been retracted; see Probe 3
+  Amendment 2).
+- **"Cross-probe finding — three independent combos × three distinct
+  parameter realizations all show the same overnight-session-structural
+  signal" (verdict §Interpretation).** The pre-fix Probe 3 "3.45× overnight/
+  RTH ratio on 865" was also built on the same TZ bug (see Probe 3
+  Amendment 2). Under corrected TZ, 865 is RTH-leaning, 1298 is strongly
+  RTH-concentrated, 664 is weakly overnight-leaning. The "signal family
+  is overnight" framing was entirely a TZ artifact.
+
+### What stands
+
+- **Combo-1298 has a real, strong signal.** RTH-only Sharpe 4.414 on n=77
+  is the cleanest single-combo readout in the project. It is still selected
+  out of a 1500-combo sweep and tested on a partition consumed ≥ 5 times,
+  so selection + partition-reuse discounts apply.
+- **Probe 2's 1h test-partition single-gate PASS on combo-865** (Sharpe 2.895,
+  220 trades) stands. It is session-agnostic.
+- **Probe 1's family-level falsification direction** (N_1.3=4/1500 vs gate 10)
+  stands. Engine-side session filter bug (see `memory/feedback_tz_source_ct.md`
+  engine caveat) could shift which specific 4 combos passed, but direction
+  is robust.
+
+### Narrow-miss note
+
+The narrow-miss flag is still False under corrected TZ (1298 abs PASS, not
+[1.1, 1.3) miss). §5.2 is not invoked.
+
+### Code fix
+
+- `tasks/_probe4_readout.py:129`: `tz_localize("UTC")` →
+  `tz_localize("America/Chicago", ambiguous="infer", nonexistent="shift_forward")`.
+  Variable renamed `ts_utc` → `ts_ct`.
+- Re-ran `_probe4_readout.py` locally (pure pandas, no engine re-run required)
+  to produce corrected `data/ml/probe4/readout.json`.
+
+### References
+
+- `lessons.md` `2026-04-23 tz_bug_in_session_decomposition`
+- `memory/feedback_tz_source_ct.md`
+- `memory/project_tz_bug_cascade.md`
+- `tasks/probe3_verdict.md` Amendment 2 (parallel retraction)
+- `tasks/scope_d_brief.md` Amendment (parallel retraction)
+- `tasks/_agent_bus/probe4_2026-04-22/stats-ml-logic-reviewer-paper-trade-readiness.md`
+- `scripts/data_pipeline/update_bars_yfinance.py:37` — authoritative vendor TZ marker

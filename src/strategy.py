@@ -79,15 +79,35 @@ def generate_signals(df: pd.DataFrame, cfg) -> pd.DataFrame:
         long_cond  = long_cond  & regime_ok
         short_cond = short_cond & regime_ok
 
-    # 3. Session filter: restrict entries to allowed hours
+    # 3. Session filter: restrict entries to allowed hours.
+    #
+    # *** IMPORTANT TZ NOTE (documented 2026-04-23 UTC) ***
+    # `bar_hour` is built from the raw CSV hour at `scripts/param_sweep.py:1567`:
+    #   hour_np = pd.DatetimeIndex(time_np).hour.to_numpy(dtype=np.int64)
+    # The source data `data/NQ_1min.csv` / `NQ_1h.parquet` is naive CENTRAL
+    # TIME (Barchart export — see `scripts/data_pipeline/update_bars_yfinance.py:37`).
+    # Therefore the hour ranges below are in CT, not ET. The comments
+    # ("daytime 7-19h", "core US 9-15h") were written without TZ specification.
+    # If they were intended as ET, the current implementation is ~1h shifted
+    # (mode 2 "core US" actually runs 09:00-15:00 CT = 10:00-16:00 ET, missing
+    # the 09:30-10:00 ET RTH open and including the 15:00-16:00 ET RTH close).
+    # 2026-04-23 decision: DO NOT shift constants. Rationale: correcting would
+    # invalidate every past sweep's session-filtered parquet, and historical
+    # ML surrogate models (v11/v12) learned feature encodings against the
+    # current (CT) semantics. Any NEW pre-registration that samples
+    # session_filter_mode != 0 or tod_exit_hour != 0 must explicitly state
+    # the CT interpretation. See `memory/feedback_tz_source_ct.md` engine-side
+    # caveat and `memory/project_tz_bug_cascade.md`. Combos {865, 1298, 664}
+    # under the paper-trade umbrella all have session_filter_mode=0 and
+    # tod_exit_hour=0 — unaffected by the TZ ambiguity in this block.
     session_mode = int(getattr(cfg, "SESSION_FILTER_MODE", 0))
     if session_mode != 0 and "bar_hour" in df.columns:
         hour = df["bar_hour"].to_numpy(dtype=np.int64)
-        if session_mode == 1:    # daytime: 7–19h (inclusive)
+        if session_mode == 1:    # "daytime" 7–19h (CT)
             session_ok = (hour >= 7) & (hour < 20)
-        elif session_mode == 2:  # core US: 9–15h (inclusive)
+        elif session_mode == 2:  # "core US" 9–15h (CT)
             session_ok = (hour >= 9) & (hour < 16)
-        else:                    # overnight: 20–6h (wraps midnight)
+        else:                    # "overnight" 20–6h (CT, wraps midnight)
             session_ok = (hour >= 20) | (hour < 7)
         long_cond  = long_cond  & session_ok
         short_cond = short_cond & session_ok
