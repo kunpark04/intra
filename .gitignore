@@ -58,6 +58,7 @@ evaluation/equity_curve.csv
 *.parquet
 !data/ml/ranker_null/combo_overlap_labels.parquet
 !data/ml/probe3/**/*.parquet
+!data/ml/probe4/**/*.parquet
 
 # Cython build artifacts
 *.pyd
