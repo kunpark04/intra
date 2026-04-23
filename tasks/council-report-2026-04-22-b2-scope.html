@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council Verdict — B2 Scope (2026-04-22)</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; background: #fafafa; color: #1a1a1a; max-width: 960px; margin: 2em auto; padding: 0 1.5em; line-height: 1.55; }
+  h1 { font-size: 1.6em; border-bottom: 2px solid #2c3e50; padding-bottom: 0.3em; }
+  h2 { font-size: 1.2em; color: #2c3e50; margin-top: 1.8em; border-bottom: 1px solid #ddd; padding-bottom: 0.2em; }
+  h3 { font-size: 1.02em; color: #34495e; margin-top: 1.2em; }
+  .question { background: #f1f5f9; border-left: 4px solid #64748b; padding: 1em 1.2em; margin: 1em 0; font-size: 0.95em; }
+  .verdict { background: #ecfccb; border: 2px solid #65a30d; border-radius: 6px; padding: 1.2em 1.4em; margin: 1.5em 0; }
+  .verdict h2 { color: #365314; border: none; margin-top: 0; padding: 0; }
+  .first-thing { background: #fef3c7; border: 2px solid #d97706; border-radius: 6px; padding: 1em 1.2em; margin: 1em 0; font-weight: 500; }
+  .alignment-grid { display: grid; grid-template-columns: 140px repeat(5, 1fr); gap: 0; margin: 1em 0; border: 1px solid #ddd; }
+  .alignment-grid > div { padding: 0.5em 0.6em; border-right: 1px solid #eee; border-bottom: 1px solid #eee; font-size: 0.85em; }
+  .alignment-grid > div:last-child { border-right: none; }
+  .alignment-grid .header { background: #334155; color: white; font-weight: 600; text-align: center; font-size: 0.8em; border-right-color: #475569; }
+  .alignment-grid .row-label { background: #f1f5f9; font-weight: 500; }
+  .pos { background: #dcfce7; color: #166534; text-align: center; font-weight: 500; }
+  .neg { background: #fee2e2; color: #991b1b; text-align: center; font-weight: 500; }
+  .mid { background: #fef9c3; color: #854d0e; text-align: center; font-weight: 500; }
+  details { background: white; border: 1px solid #ddd; border-radius: 4px; padding: 0.4em 0.8em; margin: 0.5em 0; }
+  details[open] { padding-bottom: 1em; }
+  summary { cursor: pointer; font-weight: 500; padding: 0.4em 0; color: #0f172a; }
+  summary:hover { color: #2c5282; }
+  .advisor-response { margin-top: 0.6em; padding: 0.6em 0.8em; background: #f8fafc; border-left: 3px solid #64748b; font-size: 0.93em; }
+  .contrarian { border-left-color: #dc2626; }
+  .first-principles { border-left-color: #7c3aed; }
+  .expansionist { border-left-color: #059669; }
+  .outsider { border-left-color: #0891b2; }
+  .executor { border-left-color: #ea580c; }
+  .reviewer-block { margin-top: 0.5em; padding: 0.5em 0.8em; background: #fffbeb; border-left: 3px solid #d97706; font-size: 0.9em; }
+  code { background: #f1f5f9; padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  footer { margin-top: 3em; padding-top: 1em; border-top: 1px solid #ddd; color: #64748b; font-size: 0.85em; }
+  .emphasis { background: #fef3c7; padding: 0 0.2em; }
+</style>
+</head>
+<body>
+
+<h1>LLM Council Verdict — B2 Scope &amp; Sequencing</h1>
+
+<div class="question">
+<strong>Question</strong>: Within Path B (broaden evidence base, no deployment of combo-865), which B2 candidate(s) to advance, how to sequence vs B1, how to account for Stage-0 multiplicity, how to treat combo-1298's rank-1 Sharpe, and whether to inherit Probe 2's exact gate.
+</div>
+
+<div class="verdict">
+<h2>The Recommendation</h2>
+<p><strong>Run combo-1298 + combo-664 in parallel on 1h held-out, with per-session decomposition baked into the preregistration. Drop combo-1149. Gate on a relative-Sharpe test (1298 − 664) as primary, absolute gates as secondary. Do not sequence B2 before B1 unconditionally — make B2's design produce the session-structure evidence that would otherwise require B1.</strong></p>
+
+<p>Combo-664 is not a negative control — it is the <em>treatment</em>. Under H0 ("cross-TF coherence is a Stage-1 overfit"), 664 and 1298 pass at equal rates. Under H1 ("coherence identifies genuine edge"), 664 should systematically underperform. This is the only design where H0 and H1 make different predictions.</p>
+
+<p>Combo-1298's rank-1-of-3000 Sharpe is an <strong>H0 discount, not an H1 boost</strong>. After the V3/V4 ML#2 stacks dissolved under combo-agnostic audit on 2026-04-21, "literal extremum of a sweep" is the project's own base rate failure mode.</p>
+</div>
+
+<div class="first-thing">
+<h3 style="margin-top:0;">The One Thing to Do First</h3>
+<p>Write the B2 preregistration now with per-session decomposition (SES_2 overnight / SES_0 all / SES_1 RTH) and a relative-Sharpe primary gate (1298 − 664 ≥ 1.3 on ≥50 trades each on 1h held-out). Sign it, commit it, push to sweep-runner-1 <em>before</em> running a single backtest.</p>
+<p>The session decomposition is the non-negotiable addition every advisor missed and every reviewer caught — without it, B2 cannot distinguish combo generalization from GLOBEX session inheritance, and you will have spent another probe cycle re-measuring what Probe 3 already found.</p>
+</div>
+
+<h2>Advisor Alignment</h2>
+
+<div class="alignment-grid">
+  <div class="header"></div>
+  <div class="header">Contrarian</div>
+  <div class="header">First Principles</div>
+  <div class="header">Expansionist</div>
+  <div class="header">Outsider</div>
+  <div class="header">Executor</div>
+
+  <div class="row-label">Primary candidate(s)</div>
+  <div class="pos">664 alone</div>
+  <div class="pos">1298 + 664</div>
+  <div class="mid">1298 + 1149 + 664</div>
+  <div class="pos">1298 + 1149 + 664</div>
+  <div class="neg">1298 + 1149 (drop 664)</div>
+
+  <div class="row-label">1298 rank-1 signal</div>
+  <div class="neg">H0 discount</div>
+  <div class="neg">H0 discount</div>
+  <div class="pos">H1 boost</div>
+  <div class="neg">H0 discount</div>
+  <div class="neg">H0 discount</div>
+
+  <div class="row-label">Gate design</div>
+  <div class="mid">Probe 2 exact</div>
+  <div class="pos">Relative (1298 − 664)</div>
+  <div class="mid">Probe 2 exact</div>
+  <div class="mid">(not specified)</div>
+  <div class="neg">Absolute, raise to 1.4</div>
+
+  <div class="row-label">B2 vs B1</div>
+  <div class="pos">B2 first</div>
+  <div class="pos">B2 first</div>
+  <div class="pos">B2 first</div>
+  <div class="mid">B1 first?</div>
+  <div class="pos">B2 first</div>
+</div>
+
+<p><strong>Reviewer consensus</strong>: all 5 peer reviewers independently ranked First Principles as strongest. All 5 flagged Expansionist as having the biggest blind spot (treating rank-1 as H1 evidence, treating Δ=1 microstructure-neighbor as independent replication). All 5 caught the same thing every advisor missed: <span class="emphasis">overnight-GLOBEX concentration may confound every candidate, making B1 potentially prior to B2.</span></p>
+
+<h2>Where the Council Agrees</h2>
+
+<p>Four of five advisors (Contrarian, First Principles, Outsider, Executor) — and every peer reviewer — treat combo-1298's rank-1-of-3000 Sharpe as an <strong>H0 discount, not an H1 boost</strong>.</p>
+
+<p>Four of five agree <strong>B2 before B1</strong> in principle, though reviewers' blind-spot finding destabilizes this.</p>
+
+<p>All 5 reviewers unanimously ranked <strong>First Principles as strongest</strong> for its reframe: 664 as treatment, relative-Sharpe gate as primary.</p>
+
+<p>Everyone — including Expansionist — concedes Stage-0 multiplicity is <strong>not 3-way Bonferroni</strong>. It is a property-filter on a 3000-combo sweep where the property (cross-TF coherence) was reverse-engineered from 865's behavior.</p>
+
+<h2>Where the Council Clashes</h2>
+
+<h3>Include 664 or drop it?</h3>
+<p>Contrarian, First Principles, Outsider: include (as treatment). Executor: drop (doubles writeup burden; 865 @ 15m already serves as control). Expansionist: include but as control, not treatment. The Executor's substitution is weak — 15m failure is a timeframe-axis result from Probe 2, not a test of the Stage-0 selection property.</p>
+
+<h3>Gate: absolute or relative?</h3>
+<p>First Principles: relative-Sharpe (1298 − 664) dissolves multiplicity and is the only falsifiable design. Executor: absolute with Bonferroni-inflated threshold (1.4 instead of 1.3). Contrarian: keep Probe 2's 1.3 exactly. This is the sharpest methodological disagreement.</p>
+
+<h3>1149 in or out?</h3>
+<p>Expansionist and Executor keep it. First Principles drops it (distant params = separate hypothesis, contaminates design). Contrarian drops it (101 trades will fail regime-halves sub-gate). On the evidence, 1149 is dead weight — 101 trades cannot survive a Probe-3-style halves gate.</p>
+
+<h3>B2 vs B1 sequencing — the real clash, surfaced by reviewers</h3>
+<p>Every advisor said B2 → B1. <strong>All five reviewers independently flagged that none of the advisors asked whether 1298/1149/664's 1h edge concentrates overnight the way 865's does (3.45× per-trade net ratio).</strong> If it does, B2 is re-measuring one phenomenon (the GLOBEX session effect) three times under different combo labels. In that world, B1 (session-structure sweep) is logically prior to B2 — reversing the entire sequencing plan.</p>
+
+<h2>Blind Spots the Council Caught</h2>
+
+<p><strong>The overnight-GLOBEX confound.</strong> Unanimous among reviewers, invisible to all five advisors. Probe 3 established 865's edge is ~3.45× overnight vs RTH. If 1298 and 664 share that session structure, any B2 "pass" measures session-timing, not combo-level or property-level edge. Decision-changing.</p>
+
+<p><strong>1298 Δ=1 param-neighbor of 865 means "same basin, one observation."</strong> Two points in one microstructure basin is not two independent pieces of evidence.</p>
+
+<p><strong>Rank-1 conditional on a reverse-engineered filter is a construction extremum.</strong> Even Bonferroni α/3 understates the real multiplicity because the 3-member shortlist was generated by filtering 3000 with a property defined by 865.</p>
+
+<p><strong>Probe 1 §7.6 terminality.</strong> A second 1h singleton does not re-open the family-level falsification. N_1.3 ≥ 10 is the gate; 2 ≠ 10. Expansionist's "fractures the sunset narrative" framing was wrong.</p>
+
+<h2>Advisor Responses</h2>
+
+<details>
+<summary>The Contrarian</summary>
+<div class="advisor-response contrarian">
+<p>The shortlist is a trap. Stage-0 multiplicity is already a lie — you screened the entire 3000-combo sweep for cross-TF coherence, found 3, now want robustness on survivors. The cross-TF coherence property has no preregistered evidentiary weight; it was reverse-engineered from 865's success.</p>
+<p>Combo-1298 is the most dangerous, not safest. Rank 1 of 3000 is an extremum. Its microstructure Δ=1 neighborhood of 865 means they're the same basin — a basin-wide backtest artifact explains both. P(PASS|H0) on 1298 is HIGHER than random rank-500.</p>
+<p>1149 is a fig leaf (101 trades; regime-halves sub-gate will fail on thin tails). 664 as negative control is the only intellectually honest entry.</p>
+<p><strong>Answer: (D) 664 alone, Probe 2 gate unchanged.</strong> If 664 passes despite rank-6, gate is broken and 865 was luck. Don't advance 1298 — can't out-audit rank-1 extremum. B2 before B1.</p>
+</div>
+</details>
+
+<details>
+<summary>The First Principles Thinker</summary>
+<div class="advisor-response first-principles">
+<p>You're asking the wrong question. Real question: what would B2 evidence actually prove? H1 as framed is mush. Cross-TF coherence is Stage-1-selected; passing 1298 corroborates the selection procedure, not 865. Two survivors from a property-filtered triplet is autocorrelated evidence dressed up.</p>
+<p>Correct question: what minimal experiment distinguishes "coherence property identifies genuine edge" from "property is itself overfit"? That experiment is 664 — the pre-gate failure. Under H0, 664 passes OOS as likely as 1298. Under H1, 664 underperforms. <strong>664 is the ONLY candidate whose result carries information.</strong></p>
+<p>Reframe: Run 1298 AND 664 together; 664 is TREATMENT not control. Drop 1149 (distant params = separate hypothesis, contaminates design). Gate on RELATIVE performance (1298 minus 664 net Sharpe), not absolute thresholds.</p>
+<p>Stop optimizing for PASS. Optimize for falsifiability.</p>
+</div>
+</details>
+
+<details>
+<summary>The Expansionist</summary>
+<div class="advisor-response expansionist">
+<p>The asymmetry nobody is pricing: combo-1298 is not a "second candidate" — it's a potential family-level unfalsification event. Probe 1 said N_1.3(1h) = 4. If 1298 passes held-out, we have two independent 1h survivors with cross-TF coherence, and Probe 1 Branch A sunset narrative fractures.</p>
+<p><strong>Q1: Run B (1298 + 1149 parallel). Include 664 as negative control</strong> — pre-gate-fail passing held-out would signal pre-gate is miscalibrated. Q2: B2 first — if 1298 passes, B1 gets a second anchor and becomes generalization probe, not rescue attempt.</p>
+<p>Q3: Don't over-penalize Stage-0 — it's ~3-way on a property with prior evidence (865 passed Probe 3). Bonferroni at α/3, not α/3000. Q4: 1298's rank-1 Sharpe is H1 evidence — rank-1 AND coherent is a joint signal. Q5: Inherit Probe 2 gate exactly — tightening is Contrarian's move.</p>
+</div>
+</details>
+
+<details>
+<summary>The Outsider</summary>
+<div class="advisor-response outsider">
+<p>Coming in cold: 1298 being rank 1 of 3000 should scare you, not excite you. You watched two ML#2 stacks that "looked statistically strong" dissolve under combo-agnostic audit last week. Why would the literal extremum be the exception? 1298's rank-1 is H0 discount, not H1 boost. 1149 at rank 4 / 101 trades is actually more honest.</p>
+<p><strong>Including 664 as negative control is the only option that would convince an outsider you're doing science rather than confirmation-hunting. Run D.</strong></p>
+<p>Stage-0 isn't "pick 1 of 3" — it's 3000-sweep multiplicity with a filter. The filter itself needs justification.</p>
+<p>Naive question: what stops the overnight-GLOBEX concentration from being the ACTUAL signal, with combo-865 just being one of many parameter realizations that happen to trade it? If yes, B1 (session-structure sweep) should come first, not B2.</p>
+</div>
+</details>
+
+<details>
+<summary>The Executor</summary>
+<div class="advisor-response executor">
+<p>Monday morning: <strong>Option B — 1298 + 1149 in parallel.</strong> Both pre-gate PASS, both fit in one remote job. Sequencing 1298 first buys nothing — 1h evaluation is cheap (Probe 2 harness exists). Drop 664 as negative control — doubles writeup burden; you already have 865 @ 15m from Probe 2.</p>
+<p>Q2: B2 before B1. If 1298 or 1149 passes, B1 becomes "map the edge surface"; if both fail, B1 becomes "is 865 a true singleton." Don't write B1 twice.</p>
+<p>Q3: Bonferroni the gate — picked best 2 of 3, inflate effective α by 2. Mechanical fix: net Sharpe ≥ 1.4 (not 1.3). Q4: Discount H1 for 1298 — rank-1 is construction extremum. Q5: Reuse gate structure but raise Sharpe to 1.4.</p>
+<p><strong>First concrete step: write B2 preregistration, sign, push to sweep-runner-1.</strong></p>
+</div>
+</details>
+
+<h2>Peer Review Highlights</h2>
+
+<details>
+<summary>All 5 reviews (unanimous on strongest = First Principles, weakest = Expansionist)</summary>
+<div class="reviewer-block">
+<p><strong>Strongest (unanimous):</strong> First Principles. Only response that interrogates the inferential structure rather than optimizing within a pre-given frame. Reframing 664 from "negative control" to "treatment," gating on relative (1298 − 664) performance, makes the experiment informative regardless of outcome. Relative-gate is the only design where H0 and H1 make different predictions.</p>
+<p><strong>Biggest blind spot (unanimous):</strong> Expansionist. Treats 1298's rank-1 as H1-positive because "coherence is orthogonal to raw Sharpe." Wrong: coherence was reverse-engineered from 865. Rank-1 in a 3000-sweep is a textbook extremum after V3/V4 leak disasters. 1298 being Δ=1 param-neighbor of 865 means "same basin, one observation." Probe 1 §7.6 terminality blocks the "fractures sunset narrative" framing — 2 ≠ 10.</p>
+<p><strong>All 5 advisors missed (unanimous among reviewers):</strong> The overnight-GLOBEX concentration. Probe 3 established 865's edge is ~3.45× overnight vs RTH. If 1298/1149/664 share that session structure, B2 re-measures one phenomenon (the session effect) under different combo labels. Prereg must stratify by session or B2 and B1 collapse to the same experiment. Two reviewers explicitly said B1 may be logically prior to B2, reversing sequencing.</p>
+</div>
+</details>
+
+<footer>
+<p>Generated 2026-04-22. Question: B2 scope &amp; sequencing within Path B (intra project, post-Probe-3 fork). Methodology: Karpathy-style LLM Council (5 advisors + anonymized peer review + chairman synthesis). Framing enforced <code>feedback_council_methodology</code> rules (Rule 1 multiplicity naming + Rule 2 per-gate P(PASS|H1)/P(PASS|H0)). Advisor-to-letter mapping randomized for peer review.</p>
+</footer>
+
+</body>
+</html>
