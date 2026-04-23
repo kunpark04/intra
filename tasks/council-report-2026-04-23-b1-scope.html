@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council — B1 Scope (2026-04-23)</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5f6b7a;
+    --border: #e4e7eb;
+    --accent: #2c5282;
+    --accent-bg: #ebf4ff;
+    --warn: #c05621;
+    --warn-bg: #fffaf0;
+    --ok: #22543d;
+    --ok-bg: #f0fff4;
+    --code-bg: #f7fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 28px 80px;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 18px;
+    margin-bottom: 28px;
+  }
+  header h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  header .meta {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .question {
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+  .question .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .verdict {
+    background: var(--accent-bg);
+    border: 1px solid #bee3f8;
+    border-radius: 4px;
+    padding: 22px 24px;
+    margin-bottom: 32px;
+  }
+  .verdict h2 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .verdict .headline {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 14px;
+    color: #1a365d;
+    line-height: 1.4;
+  }
+  .verdict .body {
+    font-size: 14.5px;
+    color: #2a4365;
+  }
+  .verdict .one-thing {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #bee3f8;
+    font-size: 13.5px;
+  }
+  .verdict .one-thing strong {
+    color: var(--accent);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    display: block;
+    margin-bottom: 4px;
+  }
+  section {
+    margin-bottom: 32px;
+  }
+  h2.section-title {
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 150px repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .grid > div {
+    background: var(--bg);
+    padding: 10px 12px;
+  }
+  .grid .hdr {
+    background: var(--code-bg);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .grid .row-label {
+    background: var(--code-bg);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .pos-yes { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+  .pos-no { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+  .pos-mixed { background: #fffceb; color: #744210; font-weight: 600; }
+  .pos-na { color: var(--muted); }
+  .grid-note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  details {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background: var(--bg);
+  }
+  details[open] {
+    background: #fafbfc;
+  }
+  details summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after {
+    content: "▸";
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  details[open] summary::after {
+    transform: rotate(90deg);
+  }
+  details summary .role {
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 13px;
+    margin-left: 10px;
+  }
+  details .content {
+    padding: 4px 20px 18px;
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+  }
+  details .content p {
+    margin: 10px 0;
+  }
+  details .content strong { color: var(--fg); }
+  details .content em { color: var(--accent); font-style: normal; font-weight: 600; }
+  .subhead {
+    font-weight: 600;
+    color: var(--accent);
+    margin: 14px 0 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .blind-spots {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+  .blind-spots ul { margin: 6px 0 0; padding-left: 22px; }
+  .blind-spots li { margin-bottom: 8px; }
+  .synthesis {
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+  .synthesis h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .synthesis p { margin: 8px 0; }
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  code {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12.5px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>LLM Council — B1 Preregistration Scope</h1>
+  <div class="meta">2026-04-23 UTC · Fired after Probe 4 verdict SESSION_CONFOUND (<code>c419391</code>) · 5 advisors, 5 peer reviews, chairman synthesis</div>
+</header>
+
+<div class="question">
+  <div class="label">Question</div>
+  Scope the B1 preregistration for the session-structure sweep authorized by the Probe 4 SESSION_CONFOUND verdict. Probe 4 showed combos 1298 and 664 both ~80% trade-concentrated in SES_2 (ex-RTH) on the 1h held-out test partition, with SES_1 RTH failing absolute for both. What is the right scope for B1 — a session-structure sweep across multiple combos on 1h NQ — subject to Rule 1 (stage naming & multiplicity denominator) and Rule 2 (P(PASS|H1) and P(PASS|H0) per gate)? Four candidate scopes presented: <strong>A</strong> top-k confirmation on test, <strong>B</strong> train-select / test-confirm, <strong>C</strong> portfolio-level test, <strong>D</strong> sub-session partitioning on {865, 1298, 664}.
+</div>
+
+<div class="verdict">
+  <h2>Chairman Verdict</h2>
+  <div class="headline">Do not launch B1 in any of the four proposed scopes. Replace with a two-track sequence: Scope D as a 10-minute mechanism check, then a paper-trade preregistration on the combo(s) that survive.</h2>
+  <div class="body">
+    The combined weight of constraint #5 (B1 passing doesn't authorize deployment), 3× partition exhaustion (Probes 2, 3, 4), and two independent reviewer ceilings — wall-clock power bound (Reviewer 2) and shared-parameter-geometry making effective n possibly = 1 (Reviewer 3) — means B1 under any scope is narrative characterization whose information value is dominated by forward paper-trade data on the carve-outs already in hand (Reviewer 1: the clock generates the only genuinely fresh partition). Probe 4's 3.45× overnight ratio <strong>cannot</strong> be used to power-calibrate any gate run on the same 1h test partition (circular — all 4 reviewers caught this) but <strong>can</strong> serve as an a priori sizing input for forward paper-trade, because forward is a different partition.
+  </div>
+  <div class="one-thing">
+    <strong>The one thing to do first</strong>
+    Run Scope D as a 10-minute patch to <code>tasks/_probe4_readout.py</code> — split SES_2 into 16:00–18:00 (post-RTH + settlement halt) and 18:00–09:30 (GLOBEX overnight) on combos {865, 1298, 664} against the 1h test partition, and read out per-trade net $ and n_trades per cell. The answer to "is this overnight edge or settlement-halt artifact?" decides whether the paper-trade preregistration goes forward at all.
+  </div>
+</div>
+
+<section>
+  <h2 class="section-title">Advisor Position Map</h2>
+  <div class="grid">
+    <div class="hdr"></div>
+    <div class="hdr">Contrarian</div>
+    <div class="hdr">First&nbsp;Principles</div>
+    <div class="hdr">Expansionist</div>
+    <div class="hdr">Outsider</div>
+    <div class="hdr">Executor</div>
+
+    <div class="row-label">Launch B1?</div>
+    <div class="pos-no">No (price partition first)</div>
+    <div class="pos-no">No (wrong question)</div>
+    <div class="pos-yes">Yes (Scope E)</div>
+    <div class="pos-mixed">D first, then B</div>
+    <div class="pos-yes">D → A → B</div>
+
+    <div class="row-label">Favored scope</div>
+    <div class="pos-na">None (independent vendor)</div>
+    <div class="pos-mixed">D as footnote, then paper-trade</div>
+    <div class="pos-yes">E (tensor expansion of B)</div>
+    <div class="pos-yes">B &gt; D &gt; A &gt; C</div>
+    <div class="pos-yes">D → A → B (skip C)</div>
+
+    <div class="row-label">Amendment 1 SES_2?</div>
+    <div class="pos-no">Category error</div>
+    <div class="pos-mixed">Split required for clock</div>
+    <div class="pos-no">Sub-partition mandatory</div>
+    <div class="pos-no">Bundles settlement halt</div>
+    <div class="pos-mixed">Split via D</div>
+
+    <div class="row-label">Use 3.45× as H1?</div>
+    <div class="pos-no">Circular</div>
+    <div class="pos-na">—</div>
+    <div class="pos-yes">Yes, BF=145×</div>
+    <div class="pos-no">H1 not defined</div>
+    <div class="pos-na">—</div>
+
+    <div class="row-label">Kill criterion</div>
+    <div class="pos-yes">Vendor RTH stays non-+</div>
+    <div class="pos-yes">Paper-trade stopping rule</div>
+    <div class="pos-yes">Post-RTH or Europe fail</div>
+    <div class="pos-yes">18:00–09:30 doesn't dominate</div>
+    <div class="pos-mixed">Binomial sign test</div>
+  </div>
+  <div class="grid-note">Green = advisor affirms / endorses. Orange = advisor rejects. Yellow = mixed / conditional. Grey = not addressed. Positions synthesized from full responses below.</div>
+</section>
+
+<section>
+  <h2 class="section-title">Advisor Responses (full text)</h2>
+
+  <details>
+    <summary>The Contrarian<span class="role">· "Do not launch B1 until partition exhaustion is priced"</span></summary>
+    <div class="content">
+      <p><strong>B1 Preregistration Attack.</strong> Rule 1 stage-naming sleight-of-hand is already embedded in every scope. Scopes A, C, and D all propose running on the 1h test partition. That partition has been consumed three times. Call it what it is: <em>the "test partition" is now a training-adjacent surface</em>. Pricing this as a "Bonferroni-1" single test is the exact 2026-04-21 Probe 3 error dressed in new clothes. The honest denominator is <em>researcher-DOF-inflated, bounded below by 3 prior probes + whatever selection pressure produced the combo set</em>.</p>
+      <p class="subhead">Fatal flaws per scope</p>
+      <p><strong>Scope A</strong> — selection on noise (family Probe 1 <em>falsified</em> at N_1.3=4 vs gate 10). Top-k-by-training-Sharpe implicitly conditions on session structure. P(PASS|H0) is inflated by the training-gross-Sharpe floor.</p>
+      <p><strong>Scope B</strong> — the "cleanest" and therefore most dangerous. Selection criterion is session-based and <em>the clock doesn't know about the train/test split</em>. Session structure leaks across the split. You are not Stage-1/Stage-2 separating anything — you're selecting on session, confirming on session, and calling it partition discipline.</p>
+      <p><strong>Scope C</strong> — "multiplicity denominator = 1"? No. Portfolio construction (equal-weight vs Sharpe-weight vs correlation-pruned) is <em>three gardens-of-forking-paths</em>.</p>
+      <p><strong>Scope D</strong> — the 17:00–18:00 CME settlement halt means Probe 4's SES_2 includes a window where no trades should execute anyway. Sub-partitioning might just recover the Probe-3 narrow-wraparound result with extra steps. The "16:00–18:00 doesn't contribute" kill criterion is nearly pre-determined by microstructure.</p>
+      <p class="subhead">Rule 2 attack</p>
+      <p>Every scope proposes Welch-t or Sharpe-difference gates. P(PASS|H1) requires an assumed effect size. Probe 3 and Probe 4 both observed ~3× overnight/RTH ratios — <em>but those are the training data for H1</em>. Using observed ratios to power-calibrate a confirmation test is circular.</p>
+      <p class="subhead">Real kill criterion</p>
+      <p>Pre-register that <strong>SES_1 RTH must remain negative or zero on an independent NQ-1h data vendor's partition</strong> (Polygon, Databento). If RTH is net-profitable on clean vendor data, the session-structure thesis dies. None of A/B/C/D proposes this.</p>
+      <p><strong>Recommendation:</strong> do not launch B1 until partition exhaustion is priced.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The First Principles Thinker<span class="role">· "You're three probes deep into a falsified family — deploy or stop"</span></summary>
+    <div class="content">
+      <p><strong>Stop. Before answering A/B/C/D, ask what B1 actually buys you.</strong> Three candidate questions are getting conflated:</p>
+      <p><strong>Q1.</strong> Does 1h NQ Z-score mean-reversion have a real edge? Probe 1 already answered this at the family level: no. N_1.3 = 4 of 1500. Sunset fired. Closed.</p>
+      <p><strong>Q2.</strong> Is there a tradable pocket inside the falsified family? Probes 2-4 answered: yes, for {865, 1298, 664}, concentrated overnight. You have three carve-outs + mechanism narrative (3.45× ratio, ~80% trade concentration, SES_1 fails absolute).</p>
+      <p><strong>Q3.</strong> Does the overnight-structural story generalize to a basin large enough to justify deployment confidence? This is what B1 ostensibly tests — <em>but constraint #5 says B1 passing doesn't authorize deployment</em>. So B1 is research-stage family characterization that by the user's own hard constraints cannot close the deployment loop. It produces a narrative asset, not a decision input.</p>
+      <p class="subhead">Rule 1 honestly</p>
+      <p>Test partition consumed 3× on this exact signal family. Researcher DOF across Probes 2, 3, 4 has already biased which patterns you're chasing. Scope B is the only one that re-imposes partition discipline, but it pays full Stage 1 multiplicity on a sweep you already know the family answer to.</p>
+      <p class="subhead">Rule 2 honestly</p>
+      <p>Under H0 "no overnight structural edge," 3 combos already refute H0. Under H1 "overnight edge generalizes," effective n ≈ 3 post-Probes 2-4. The likelihood ratio from another 20-50 combo basin is bounded — you're mostly re-measuring what you already measured.</p>
+      <p class="subhead">Reframe</p>
+      <p>The productive question isn't "does the basin confirm session-structure." It's: <em>what is the minimum-ceremony preregistration that authorizes a paper-trade decision on the combos you already have?</em> Specify (i) overnight sub-window binding (Scope D's split picks your execution clock), (ii) forward-walking paper-trade protocol with stopping rules, (iii) ex-ante sizing floor tied to per-trade net $, not Sharpe. <strong>That answers a decision, not a narrative.</strong></p>
+      <p><strong>Recommendation:</strong> don't run B1 as scoped. Run Scope D as a characterization footnote, then write the paper-trade preregistration.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The Expansionist<span class="role">· "Scope E — maximum learning per dollar, BF=145×"</span></summary>
+    <div class="content">
+      <p class="subhead">Stage &amp; denominator (Rule 1)</p>
+      <p>B1 is CONFIRMATION on 1h test for the session-structural hypothesis (sweep = Probe 1 generation; "overnight &gt; RTH" emerged from Probes 3, 4). Primary-gate denominator = 1 single prespecified family-level test. What I add: <em>chronological split of test window</em> — discovery half (2024-10-22 → 2025-09-14) for free ancillary, confirmation half (2025-09-15 → 2026-04-08) reserved for prespecified gate.</p>
+      <p class="subhead">Scope E — Expanded B</p>
+      <p>Train-select on training partition (Scope B's discipline), run selected set on test with <em>tensor decomposition</em>, not just SES_0/1/2:</p>
+      <ul>
+        <li>Session × sub-window: GLOBEX-Asia [18:00–02:00 ET], GLOBEX-Europe [02:00–09:30 ET], post-RTH [16:00–18:00 incl. settlement halt]</li>
+        <li>Day-of-week (Sun-open vs Fri-close are structurally different)</li>
+        <li>Volatility regime (top/bottom tercile 20-bar realized vol)</li>
+        <li>Macro event windows (FOMC, NFP, CPI days vs clean)</li>
+        <li>Post-gap vs no-gap Sundays</li>
+      </ul>
+      <p class="subhead">Primary gate (denom=1)</p>
+      <p>On confirmation half, pooled per-trade net PnL in GLOBEX-overnight ∪ Europe &gt; RTH, Welch-t ≥ 2.5. P(PASS|H1 ≈ Probe 4's 3.45×) ≈ 0.88 per-trade bootstrap; P(PASS|H0) ≈ 0.006 one-sided. <strong>Bayes factor ≈ 145×.</strong></p>
+      <p class="subhead">Sizing &amp; binding</p>
+      <p>30 combos by training-partition session-decomposition score (not Sharpe — selects on the property being tested, not a confound). Ancillary decompositions = characterization, not gates. Do NOT endorse Amendment 1's coarse SES_2 as-is; sub-partition mandatory.</p>
+      <p class="subhead">Kill criterion</p>
+      <p>SES_2 edge concentrates in post-RTH [16:00–18:00] instead of pure-overnight, OR disappears in Europe session → falsifies "overnight inefficiency" and points at settlement-mechanics or US-session-spillover artifact.</p>
+      <p><strong>Max learning per dollar:</strong> one remote run maps the full opportunity surface — sub-session, vol-conditional, event-conditional, DoW. If B1 passes we know <em>exactly</em> where to aim B2.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The Outsider<span class="role">· "Is SES_2 concentration an edge or a sampling artifact?"</span></summary>
+    <div class="content">
+      <p><strong>Wait. Before engaging with this document, things it treats as settled that a fresh reader cannot parse:</strong></p>
+      <p><strong>(1) What is "session-structure inefficiency" claiming to be?</strong> The document glides from "80% of trades are in SES_2" directly to "the edge is overnight-structural." These are not the same claim. NQ overnight has thinner volume → mechanically more Z-score crossings. The signal will <em>fire more often</em> overnight without there being more edge per opportunity. The per-trade $ numbers (+$1,844 vs -$194 for 1298) do suggest more than just count — but has anyone shown the <em>holding-time / opportunity-cost</em> axis? Overnight stretches take longer to revert, tying up the book. I don't see it anywhere.</p>
+      <p><strong>(2) Rule 1.</strong> Scopes A, C, D are the fourth dip on the test partition. Only B has clean hygiene. Denominator = 1 under a single pre-registered contrast on B; A/C/D need a partition-reuse discount nobody has rigorously computed (Probe 3 council failed at this).</p>
+      <p><strong>(3) Rule 2.</strong> I genuinely cannot estimate P(PASS|H1) vs P(PASS|H0) for the proposed gates — and nobody has defined H1 precisely. "Overnight Z-score MR has economic edge" vs "session-ratio pattern generalizes" require different simulations. The document assumes we know.</p>
+      <p><strong>(4) SES_2 spans 16:00–18:00 ET including the settlement halt.</strong> Liquidity collapses AND formal trading halt. Bundling with GLOBEX overnight is a category error. Only Scope D addresses this.</p>
+      <p class="subhead">Scoring</p>
+      <p>B &gt; D &gt; A &gt; C. B has cleanest stage discipline but compound selection → confirmation is what Probes 2/3/4 keep failing. D is small-N but surgical. A reuses test without pricing it. C portfolio-averages away the exact heterogeneity we're trying to characterize.</p>
+      <p class="subhead">Kill criterion wanted</p>
+      <p>If pure-overnight 18:00–09:30 alone doesn't dominate, the "session-structure" framing is wrong and the real finding is <em>"thin-liquidity Z-score noise harvesting"</em> — different risk profile, not an edge anyone should size on.</p>
+      <p><strong>Recommendation:</strong> Run D first as a cheap mechanism-check. Only if D shows 18:00–09:30 dominance, run B with that as prespecified screening. Do not run A or C.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The Executor<span class="role">· "D today in 10 min; A next week in 45 min; skip C"</span></summary>
+    <div class="content">
+      <p class="subhead">Rule 1 (stages)</p>
+      <p>A and C operate on generation → confirmation needs the 1h test partition (touched 3×). Denominator = gates × combos on test. B separates cleanly: sweep on training = generation, test = confirmation. D is pure confirmation on an already-identified trio, denominator = 3 combos × 2 sub-windows.</p>
+      <p class="subhead">Rule 2 (power)</p>
+      <p>Scope D (n=3, 2 sub-windows, binomial on sign) is the only one where P(PASS|H1) / P(PASS|H0) can be computed in &lt;30 min on paper. A/B/C need Monte Carlo null calibration before sign-off.</p>
+      <p class="subhead">Monday-morning version of each</p>
+      <p><strong>Scope A</strong> — loop <code>_probe4_readout.py</code> over top-20 combos from Probe 1's 1h <code>audit_full_net_sharpe</code> ranking with SES_1/SES_2 decomposition. Reuses Probe 4 code verbatim. <strong>Runtime ~45 min.</strong></p>
+      <p><strong>Scope B</strong> — <code>param_sweep.py --range-mode v11</code> training-only 1500-combo sweep on 1h, then select by (SES_2 − SES_1) score, run selected on test. Training-only sweep ~3-4h + confirmation ~30 min = <strong>~4-5h.</strong></p>
+      <p><strong>Scope C</strong> — same data as A, aggregate across top-50 into single PnL series. <strong>~75 min.</strong> Skip — portfolio aggregation confounds session-decomposition with covariance structure.</p>
+      <p><strong>Scope D</strong> — modify <code>_probe4_readout.py</code>'s session mask to add 3rd bucket. 3 combos × 2 sub-windows. <strong>Runtime ~10 min. This is today, not Monday.</strong></p>
+      <p class="subhead">MVP end-of-week</p>
+      <p>D first (10 min, mechanistic win or kill — pure overnight or post-RTH/halt?), then A (45 min, does SES_2 generalize beyond the three combos?). Combined ~1h of compute, both can be preregistered in a single afternoon.</p>
+      <p><strong>End-of-month:</strong> add Scope B as family-level confirmation if D+A both pass.</p>
+      <p><strong>Tightest loop:</strong> D. Prereg is 1 page, result in hand same day.</p>
+    </div>
+  </details>
+</section>
+
+<section>
+  <h2 class="section-title">Peer Review Highlights</h2>
+  <details>
+    <summary>Strongest picks &amp; biggest blind spots (5 anonymized reviewers)</summary>
+    <div class="content">
+      <p><strong>Strongest:</strong> First Principles picked 3×, Contrarian picked 2×. No reviewer endorsed Expansionist, Outsider, or Executor as strongest.</p>
+      <p><strong>Biggest blind spot — 5/5 unanimous: the Expansionist.</strong> Every reviewer independently flagged the same failures: (1) the Bayes factor BF ≈ 145× uses Probe 3/4's 3.45× ratio as the H1 effect size — but that ratio was estimated from the same partition the gate would run on, so the BF is circular false precision; (2) claiming "denominator = 1 single prespecified family-level test" while enumerating a 5-6 axis tensor decomposition is exactly the garden-of-forking-paths Rule 1 exists to prevent; (3) chronological discovery/confirmation split on an already-3×-consumed test partition doesn't restore partition discipline — it subdivides an exhausted resource.</p>
+    </div>
+  </details>
+
+  <div class="blind-spots">
+    <strong>Blind spots the council caught (what ALL 5 advisors missed — one per reviewer):</strong>
+    <ul>
+      <li><strong>Reviewer 1:</strong> Opportunity cost of B1 compute vs forward paper-trade runway. Forward data is the only genuinely fresh partition — generated by the clock, not by researchers. Every week on B1 is a week of uncollected paper-trade data on a half-made decision.</li>
+      <li><strong>Reviewer 2:</strong> Wall-clock sample-size ceiling. 1h test partition is ~1.5 years; after restricting to overnight-only and splitting session × sub-window × combo, per-cell trade counts fall below the n ≥ 50 floor Probes 2-4 established as load-bearing. B1's power is physics-bounded, not method-bounded.</li>
+      <li><strong>Reviewer 3:</strong> {865, 1298, 664} may share common entry-parameter structure (stop-distance × z-threshold × EMA window jointly favoring overnight fills). Effective n may be 1, not 3, collapsing every power calculation. Also: $5 RT friction is session-invariant by assumption, but overnight bid-ask widens — the cost model itself may fail in SES_2.</li>
+      <li><strong>Reviewer 4:</strong> Probe 4's SESSION_CONFOUND may be the ceiling, not a springboard. The carve-outs and the family-level Probe 1 falsification are plausibly the same phenomenon (thin-liquidity noise harvesting). B1 risks characterizing an artifact.</li>
+      <li><strong>Reviewer 5:</strong> No advisor computed VOI or specified a capital threshold. The user's $50k account may not need a 3-combo basin — single-combo paper-trade on 865 may be the economically rational next step.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2 class="section-title">Full Chairman Synthesis</h2>
+
+  <div class="synthesis">
+    <h3>Where the Council Agrees</h3>
+    <p><strong>Scope E (Expansionist) is the most dangerous submission</strong> despite looking the most operational — all 5 reviewers independently flagged it. Claiming "denominator = 1" while enumerating a 5-6 axis tensor decomposition is the Rule 1 garden-of-forking-paths violation that sank Probe 3's original council. The BF ≈ 145× is computed against an H1 effect size lifted from the same partition the gate is about to run on.</p>
+    <p><strong>Scope C is dead.</strong> Executor, Outsider, Contrarian, and First Principles all rank it lowest. Portfolio aggregation conflates session-decomposition with covariance structure without adding inferential signal.</p>
+    <p><strong>The 1h test partition is running out of inferential room.</strong> Contrarian first-class, First Principles routes around it, Outsider calls A/C/D "fourth dip," Reviewers 1-4 all endorse.</p>
+    <p><strong>Amendment 1's SES_2 is a category error</strong> — bundles 16:00-18:00 settlement halt with GLOBEX overnight. Any binding that keeps SES_2 monolithic is wrong.</p>
+  </div>
+
+  <div class="synthesis">
+    <h3>Where the Council Clashes</h3>
+    <p><strong>Launch vs don't launch.</strong> First Principles (backed by Reviewers 1, 2, 5) says B1 under any scope is re-characterization of a falsified family that cannot close the deployment loop — route to paper-trade prereg instead. Contrarian (backed by Reviewers 3, 4) says even paper-trade is downstream; independent-vendor replication (Polygon/Databento 1h) is the only move that breaks researcher-DOF. Expansionist and Executor take the framed question at face value. This is the real fork.</p>
+    <p><strong>Mechanism vs basin.</strong> Outsider and Executor both endorse D first, for different reasons: Outsider wants kill criterion (pure overnight or settlement-halt artifact?); Executor wants cheap 10-minute screen before committing to the 4-5h Scope B. First Principles accepts D as "footnote" but not a gate.</p>
+    <p><strong>Effective n.</strong> Reviewer 3's catch — {865, 1298, 664} may be one parameter realization, not three — directly undercuts Expansionist's 30-combo basin assumption. If effective n = 1, every power calculation in every prereg is overstated.</p>
+  </div>
+
+  <div class="synthesis">
+    <h3>The Recommendation (full)</h3>
+    <p><strong>Do not launch B1 in any of the four proposed scopes.</strong> Replace with a two-track sequence, in order:</p>
+    <p><strong>1. Scope D as a 10-minute mechanistic check only.</strong> Executor's specs: modify <code>tasks/_probe4_readout.py</code> to add a 3rd session bucket splitting SES_2 into 16:00–18:00 and 18:00–09:30 ET on {865, 1298, 664}, 1h test partition. Call it what it is — a mechanism footnote, not a family-level confirmation. Stage = characterization. Denominator = 3 (combos) × 2 (sub-windows).</p>
+    <p><strong>2. Paper-trade preregistration on the combo(s) that survive D.</strong> Forward-walking protocol with ex-ante stopping rules, per-trade net-$ sizing floor (not Sharpe — Reviewer 5's economic anchor), overnight sub-window bound by D's output, clock-generated data (the only genuinely unconsumed partition available).</p>
+    <p><strong>On Probe 4's 3.45× ratio:</strong> cannot be used to power-calibrate any gate on the same 1h test partition (circular — 4/5 reviewers caught). Can be used as a priori effect-size for paper-trade sizing because forward data is a different partition.</p>
+    <p><strong>On Contrarian's independent-vendor replication:</strong> note as future option if paper-trade equivocates, but paper-trade forward data addresses partition-reuse at zero marginal data-acquisition cost.</p>
+  </div>
+</section>
+
+<footer>
+  <strong>Counciled:</strong> B1 preregistration scope after Probe 4 SESSION_CONFOUND verdict · <strong>Predecessors:</strong> probe1 / probe2 / probe3 / probe4 verdicts in <code>tasks/</code> · <strong>Methodology:</strong> <code>memory/feedback_council_methodology.md</code> (Rule 1 stage naming, Rule 2 power calibration) · <strong>Transcript:</strong> <code>tasks/council-transcript-2026-04-23-b1-scope.md</code> · <strong>Generated:</strong> 2026-04-23 UTC
+</footer>
+
+</div>
+</body>
+</html>
