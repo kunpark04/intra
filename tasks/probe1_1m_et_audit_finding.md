@@ -97,3 +97,65 @@ Under ET: N_1.3(1m) = 372, N_1.3(15m) = 10, N_1.3(1h) = 5. The disjunction is TR
 2. **Fix the streaming variance numerical artifact** (≤ 10 lines in `_probe1_stratified_recount_1m.py`; Welford or delegate to `np.var(ddof=1)` per combo). Re-emit the JSON. Low priority unless a specific ET combo's individual Sharpe is load-bearing.
 3. **Decide whether to re-sweep CT with single-generation seed=0** to give a clean matched-pair CT vs ET comparison. Costs ~4.7 h remote; not blocking.
 4. **Do NOT retroactively rewrite the signed Probe 1 verdict.** The signing commit `d0ee506` stands as a historical record. This finding should be appended as an amendment/addendum rather than a revision.
+
+---
+
+## Amendment 1 — Retraction after stats-ml-logic-reviewer verdict (2026-04-23 UTC)
+
+The stats-ml-logic-reviewer returned UNSOUND on this finding and the earlier 15m/1h audit (commit `db5e5f1`). Three independently-verified issues:
+
+### Issue 1 — Wrong Sharpe formula used in the recount
+
+All four TZ-audit recount scripts (`_probe1_gross_ceiling.py`, `_probe1_stratified_recount.py`, `_probe1_stratified_recount_1m.py`) compute Sharpe on the `gross_pnl_dollars` column — which is **contract-sized** dollar PnL per `scripts/param_sweep.py:1034` (`gross_pnl = (exit-entry) × side × contracts × $/pt`). This conflates signal quality with contract-count sizing. The signed ML#1 v12 feature `audit_full_gross_sharpe` at `scripts/analysis/build_combo_features_ml1_v12.py:229` uses `r_multiple × stop × $/pt` — a **1-contract** per-trade PnL that isolates signal quality.
+
+### Issue 2 — `gross_pnl_dollars` column has a contract-count-consistency defect
+
+On combo 3595 in the ET 1m parquet (33,195 trades, constant stop = 4.625 pt, constant friction = $1,620 → 324 contracts via friction-implied back-calc):
+- `r_multiple`-implied contracts: exactly **270** on every trade
+- `friction_dollars`-implied contracts: exactly **324** on every trade
+- `gross_pnl_dollars`-implied contracts: **varies per trade**, min −270, max inf, median 296
+
+Expected per `scripts/param_sweep.py:1030-1038`: all four should agree on a single constant per combo (`contracts = floor(fixed_equity × RISK_PCT / (stop × $/pt))`). They don't. The 324-vs-270 mismatch is a factor-of-1.2 discrepancy consistent with `friction` using RISK_PCT=0.06 while `r_multiple`/`gross` used 0.05, or equivalent. **This is a real data defect affecting every probe that computed Sharpe from `gross_pnl_dollars`** (Probe 2 combo-865 Sharpe 2.895, Probe 3 gate readouts, Probe 4 per-trade Sharpes, Scope D, etc.). Documented separately at `tasks/combo_3595_column_defect.md`.
+
+### Issue 3 — §3 routing rule was misquoted
+
+Signed Probe 1 preregistration §3 (`tasks/probe1_preregistration.md:117-118`):
+```
+Branch A — FAMILY-LEVEL SUNSET:
+  N_1.3(15m) < 10 AND N_1.3(1h) < 10
+```
+**1m is NOT in the disjunction.** 1m is cited in the signed verdict §2 table as a "reference" row only. The finding's three-way disjunction `N_1.3(1m) < 10 AND N_1.3(15m) < 10 AND N_1.3(1h) < 10` was invented, not quoted.
+
+### Corrected numbers (all three TFs, CT + ET, under v12 1-contract formula)
+
+Emitted to `data/ml/probe1_audit/v12_formula_recount.json` via `tasks/_probe1_recount_v12_formula.py`:
+
+| Timeframe | N_1.3 CT (signed formula) | N_1.3 ET (signed formula) | Max Sharpe CT | Max Sharpe ET | Crosses gate = 10? |
+|---|---:|---:|---:|---:|:---:|
+| 1m | 0 | 0 | 1.108 | 1.027 | no |
+| 15m | **2** | **2** | 1.400 | 1.628 | no |
+| 1h | 0 | 0 | 1.115 | 1.115 | no |
+
+**Under the signed v12 1-contract formula, Branch A (FAMILY-LEVEL SUNSET) fires unambiguously on both CT and ET semantics across all three timeframes.** Even the 15m exactly-at-threshold crossing from `db5e5f1` (which claimed CT 9 → ET 10 using `gross_pnl_dollars`) dissolves under the signed measurement — both CT and ET 15m sit at N_1.3 = 2.
+
+### What this retracts
+
+- **1m finding headline** (`ET N_1.3(1m) = 372, crosses gate by 36×`): **retracted**. The true count under signed formula is 0.
+- **§3 routing table with three-way disjunction**: **retracted**. Signed rule is {15m, 1h} only.
+- **15m/1h audit at commit `db5e5f1`** (`CT 9/4 → ET 10/5, 15m flips Branch A`): **retracted**. Under signed formula: CT 2/0 and ET 2/0, no flip, no crossing.
+- **Probe 3 COUNCIL_RECONVENE's chairman verdict "Probe 1 may flip under TZ fix"**: the concern was legitimate but the flip does not occur under the signed measurement; under the flawed `gross_pnl_dollars` measurement the apparent flip was an artifact of the contract-sizing conflation AND the combo-3595-class column defect.
+
+### What stands
+
+- **Probe 1 Branch A (family-level sunset, terminal bar-TF falsification) stands unchanged** when measured under the signed v12 1-contract formula. No K-fold audit is authorized by the TZ correction.
+- **The TZ bug in `_probe3_*` and `_probe4_readout.py` session-decomposition scripts** (different scripts, different fix) — that correction and its impact on Probes 3/4 (PAPER_TRADE retraction, SESSION_CONFOUND retraction) stands. The two TZ fixes are independent:
+  1. **Session-decomposition TZ bug** (at `tasks/_probe3_1h_ritual.py:186`, `tasks/_probe3_15m_nc.py:207`, `tasks/_probe4_readout.py:129`, `tasks/_scope_d_readout.py:133`) → fixed at `a38d3c5`; retracted Probe 3 PAPER_TRADE and Probe 4 SESSION_CONFOUND. Independent of the Sharpe formula.
+  2. **Engine `bar_hour` in CT vs ET interpretation** (the thing this audit was investigating) → matters only for combos with `session_filter_mode != 0`. Under the signed v12 formula, the ET re-sweep produces no Branch A flip on any TF. **The engine's Option B (document CT semantics, don't change) is vindicated** — no further audit-driven changes needed.
+- **The combo-3595 column defect is a separate critical finding** that needs its own investigation (`tasks/combo_3595_column_defect.md`) and affects every project artifact that computed Sharpe from `gross_pnl_dollars` (which is most of them). This is independent of the TZ question.
+
+### Authority for this amendment
+
+- `tasks/_agent_bus/probe1_1m_audit_2026-04-23/stats-ml-logic-reviewer.md` — the UNSOUND review
+- Independent verification reproduced reviewer's N_1.3(1m) = 0 under v12 formula (max 1.027) and combo-3595 column inconsistency (324 vs 270 vs varying)
+- `tasks/probe1_preregistration.md:117-118` — §3 routing rule, {15m, 1h} only
+- `tasks/_probe1_recount_v12_formula.py` — full matrix recount emitting `data/ml/probe1_audit/v12_formula_recount.json`
