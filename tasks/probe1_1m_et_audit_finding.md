@@ -1,8 +1,14 @@
 # Probe 1 — 1m ET audit finding (2026-04-23 UTC)
 
+> 🛑 **RETRACTED 2026-04-23 UTC — the headline "ET N_1.3(1m) = 372" was a measurement mismatch, not evidence.** The stats-ml-logic-reviewer (bus artifact `tasks/_agent_bus/probe1_1m_audit_2026-04-23/stats-ml-logic-reviewer.md`) returned **UNSOUND** on this finding. Under the signed 1-contract Sharpe formula (rmul × stop × $/pt, per `scripts/analysis/build_combo_features_ml1_v12.py:229`), ET N_1.3(1m) = 0 (max Sharpe 1.027 at gate=50), reproduced independently. The 372 number came from using `gross_pnl_dollars` — a contract-sized column that conflates signal quality with sizing policy AND carries a column-consistency defect on combo 3595 (friction implies 324 contracts, r_multiple implies 270, gross-PnL back-calc produces inconsistent values). See Amendment 1 at bottom.
+>
+> Additionally: the signed §3 branch routing disjoins over **{15m, 1h}** only (per `tasks/probe1_preregistration.md:117-118`); 1m is reference-only. The finding doc's three-way disjunction was fabricated. See Amendment 1.
+
 **Authority**: Probe 3 COUNCIL_RECONVENE chairman verdict (2026-04-23) + user directive to audit 1m after the 15m/1h audit flipped Branch A on 15m at commit `db5e5f1` / `161485d`.
 
 **Status**: Complete. Audit machinery at commit `161485d`; data artifacts remain on `sweep-runner-1` and gitignored copies pulled locally to `data/ml/probe1_audit/`.
+
+*[All content below this line reflects the pre-retraction reading. Read the Amendment at the bottom for corrected numbers.]*
 
 ---
 
