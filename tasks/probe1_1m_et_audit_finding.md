@@ -159,3 +159,63 @@ Emitted to `data/ml/probe1_audit/v12_formula_recount.json` via `tasks/_probe1_re
 - Independent verification reproduced reviewer's N_1.3(1m) = 0 under v12 formula (max 1.027) and combo-3595 column inconsistency (324 vs 270 vs varying)
 - `tasks/probe1_preregistration.md:117-118` — §3 routing rule, {15m, 1h} only
 - `tasks/_probe1_recount_v12_formula.py` — full matrix recount emitting `data/ml/probe1_audit/v12_formula_recount.json`
+
+---
+
+## Amendment 2 — Precision correction to Amendment 1 (2026-04-24 UTC)
+
+Amendment 1 (committed at `b545d93` + `83f4879`) overshot in two ways. This Amendment 2 corrects the record precisely.
+
+### What Amendment 1 got wrong
+
+**Wrong-1: Blanket "15m/1h retracted" claim.** Amendment 1 said *"15m/1h audit at commit db5e5f1 (CT 9/4 → ET 10/5) is retracted under signed formula"* — citing the v12 formula (1-contract net) which gives CT 2/0 and ET 2/0. **But the signed Probe 1 verdict used different formulas for different timeframes:**
+
+- **15m and 1h**: `_probe1_gross_ceiling.py` on the `gross_pnl_dollars` column. This reproduces the verdict's 9 and 4 exactly.
+- **1m (reference row)**: v12 `audit_full_gross_sharpe` (1-contract net, misnamed "gross") on `combo_features_v12.parquet`. This gives max 1.108 and N(≥1.3) = 0, consistent with the verdict's "1" being a typo for N(≥1.0)=1 as the reviewer correctly flagged.
+
+The 15m/1h TZ audit at `db5e5f1` used `gross_pnl_dollars` — the **same formula** `_probe1_gross_ceiling.py` uses, same as the signed verdict for those TFs. **That comparison was apples-to-apples and the 15m CT 9 → ET 10 flip IS real under the signed measurement for 15m.** Exactly-at-threshold fragility still applies, but the flip finding is not retracted — Amendment 1's retraction of it was premature.
+
+**Wrong-2: Combo 3595 "column-consistency defect" claim.** Amendment 1 called out a CRITICAL defect where friction/r_multiple/gross implied different contract counts (324 / 270 / varying). **The defect is not real.** Both the stats-ml-logic-reviewer's back-calc and my own independent verification used `COST_PER_CONTRACT_RT = $5`, but the engine at `scripts/param_sweep.py:895-901` adds a per-combo `fill_slippage_ticks`-proportional bump. Combo 3595's `fill_slippage_ticks=1` gives effective cost_rt = $6, under which all four column relationships check to machine precision (max error 0.000000 on net = gross − friction, gross reconstruction, friction = contracts × cost_rt, r_multiple identity). See `tasks/combo_3595_column_defect.md` for the retraction of that false-positive investigation note.
+
+### What stays correct from Amendment 1
+
+- **1m finding retracted: N_1.3(1m) = 372 was a measurement mismatch.** The 1m "reference" row in the signed verdict came from v12's 1-contract-net formula (`rmul × stop × $/pt`), not from `gross_pnl_dollars`. Under the formula the verdict's 1m row actually used, ET N_1.3(1m) = 0 (max 1.027), no crossing, no flip.
+- **§3 routing rule fact-check.** The signed preregistration §3 disjoins only over {15m, 1h} (`tasks/probe1_preregistration.md:117-118`); 1m is reference-only. My three-way disjunction {1m, 15m, 1h} was invented.
+- **stats-ml-logic-reviewer's specific findings on the 1m claim (Sharpe formula and §3 misquote) were correctly grounded.** The review was partially right — correct on the Sharpe-formula-for-1m mismatch and the §3 misquote, wrong on the column defect.
+
+### Corrected summary (replaces the one in Amendment 1)
+
+Under the formula the signed verdict actually used for each timeframe:
+
+| TF | Signed formula | CT N_1.3 | ET N_1.3 | Gate | Crosses? |
+|---|---|---:|---:|---:|:---:|
+| 1m | v12 1-contract net (`rmul × stop × $/pt`) | 0 (max 1.108) | 0 (max 1.027) | 10 | no |
+| **15m** | `gross_pnl_dollars` (contract-sized) via `_probe1_gross_ceiling.py` | 9 | **10** | 10 | **YES, exactly at threshold** |
+| 1h | `gross_pnl_dollars` | 4 | 5 | 10 | no |
+
+Under §3 routing rule `N_1.3(15m) < 10 AND N_1.3(1h) < 10 → Branch A`:
+- **CT**: 9 AND 4 < 10 → Branch A (family-level sunset) fires
+- **ET**: 10 AND 5 → first condition fails (10 is not < 10) → Branch B fires
+
+**The TZ audit does find a 15m flip at exactly-at-threshold** (same result as commit `db5e5f1`). That finding stands. Amendment 1's retraction of it was premature.
+
+### Caveats on the 15m flip (unchanged from db5e5f1)
+
+1. **Exactly-at-threshold fragility.** N_1.3(15m) = 10 sits precisely at the gate; one combo either way flips the branch. Known methodological fragility — a gate at a discrete integer threshold with zero-margin is not a strong signal.
+2. **CT-vs-ET is not a matched-pair comparison.** CT 15m parquet has 2,308 unique combos (historical multi-generation); ET 15m re-sweep has 2,330 (fresh seed=0). Combo_id ↔ parameter equivalence across these is not guaranteed. A clean comparison would require a fresh single-generation CT re-sweep.
+3. **The `gross_pnl_dollars` column is contract-sized** (not 1-contract); for fixed-stop combos Sharpe is scale-invariant and this equals 1-contract gross Sharpe, but for variable-stop combos these differ. Impact on the 15m count is bounded but not verified.
+4. **The preregistration §4.1 says "gross Sharpe ≥ 1.3 (zero-friction)"** which is literally 1-contract gross. `_probe1_gross_ceiling.py` on `gross_pnl_dollars` approximates this for fixed-stop combos; strictly, the formula should be `(rmul × stop × 2 + cost_rt)`. A pedantic re-scoring might shift the count by a combo or two.
+
+### What this means for downstream
+
+- **Probe 1 Branch A is at-threshold fragile under ET, not definitively overturned and not definitively upheld.** The honest status is "TZ-sensitive; 15m crosses by zero margin; re-decision needed under a more robust measurement protocol."
+- **Probe 3 COUNCIL_RECONVENE chairman's "audit Probe 1 first" verdict gets a mixed answer.** The audit did find a 15m flip at the exact threshold; that's consistent with Reviewer 5's original concern (N_1.3(15m)=9 could move across gate=10). But the flip is fragile and the correct response is a stronger gate, not an immediate Branch B K-fold.
+- **The earlier (pre-TZ-audit) Probe 3 PAPER_TRADE and Probe 4 SESSION_CONFOUND retractions stand** — those were driven by the separate session-decomposition TZ bug (commit `a38d3c5`), not by Probe 1's Branch A routing.
+
+### Authority for this amendment
+
+- `tasks/combo_3595_column_defect.md` (retraction of the false-positive defect claim)
+- Independent verification: combo 3595 trades checked under cost_rt=$6, all identities hold to machine precision
+- `scripts/param_sweep.py:895-901` (the slippage-bump formula explaining why effective cost_rt varies per combo)
+- `tasks/_probe1_gross_ceiling.py` (the signed verdict's 15m/1h readout script using `gross_pnl_dollars`)
+- `tasks/probe1_preregistration.md:117-118` (§3 routing rule, {15m, 1h} only)
