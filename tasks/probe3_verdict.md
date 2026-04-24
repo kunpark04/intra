@@ -246,9 +246,9 @@ gate JSON; best reading is that they were either a confused gross-vs-net
 unit error or carried over from a superseded intermediate readout.
 
 ### Correction W2 — contract sizing
-Prior draft text: "combo 865 runs on 87 contracts at $500 risk / 17.02 pt
+Prior draft text: "combo 865 runs on 87 contracts at $500 risk / 17.02 pt (note: the "$500 risk" framing is the eval-notebook `fixed_dollars_500` policy; the sweep engine actually uses $2,500 = 5% × $50k equity per `scripts/param_sweep.py:1030`, so the engine's 220 trades were executed at 73 contracts not 87 nor 15)
 stop / $2 point value on MNQ = 87". Corrected: 500 / (2 × 17.02) =
-**~15 MNQ contracts** at fixed $500 risk. The "87" figure appears to be
+**~73 MNQ contracts** at the sweep engine's $2,500 risk per trade (5% of $50k fixed_equity per `scripts/param_sweep.py:94-95, 1030`), verified via friction $438/trade = 73 × $6 (the $6 includes a $1 slippage bump from `fill_slippage_ticks=1` per `scripts/param_sweep.py:895-901`). The "87" figure appears to be
 a typo or stale pre-refactor number — the correct arithmetic is
 14.69 contracts rounded to 15. This is a cosmetic correction that does
 not affect any gate result (the sweep engine uses the fixed_dollars_500
@@ -426,8 +426,13 @@ pushed §4.4 to FAIL under the same preregistration.
      tradeoff)
    - Sizing policy: fixed $500 (repo default) vs fractional Kelly vs
      discrete contract count. At $500 fixed risk / 17.02 pt stop /
-     $2 point value on MNQ, **the contract count is 500 / (2 × 17.02) =
-     ~15 contracts** (the "87" figure in an earlier draft was a typo;
+     $2 point value on MNQ, **the eval-notebook contract count under the
+     `fixed_dollars_500` policy is 500 / (2 × 17.02) = ~15 contracts**.
+     The SWEEP ENGINE ran combo-865 at **73 contracts** ($2,500 risk per
+     `scripts/param_sweep.py:1030`, verified via friction $438 = 73 × $6
+     on the actual Probe 2 parquet) — the "87" in an earlier draft was a
+     typo and "~15" conflated eval-notebook sizing with sweep-engine
+     sizing;
      see post-audit correction W2). MNQ-only broker accounts with
      integer contract floors should still accommodate 15 cleanly; the
      sizing question is really about Kelly-vs-fixed variance discipline,

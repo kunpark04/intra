@@ -8,7 +8,15 @@ Per preregistration §3/§4:
   - Branch B (K-fold): N_1.3(15m) >= 10 OR N_1.3(1h) >= 10
 
 Sharpe formula (mirrors scripts/analysis/build_combo_features_ml1_v12.py:254-260):
-  gross_pnl_dollars column already = 1-contract gross PnL per trade.
+  gross_pnl_dollars is CONTRACT-SIZED dollar PnL per trade (from
+  scripts/param_sweep.py:1034: gross_pnl = (exit-entry) × side × contracts × $/pt).
+  For fixed-stop combos (which is the entire Probe 1 pool — each combo
+  resolves its stop to a single constant value via _resolve_stop_pts at
+  scripts/param_sweep.py:926-939), contracts is constant per combo, so
+  Sharpe(gross_pnl_dollars) = Sharpe(1-contract gross) by scale-invariance.
+  The original comment "1-contract gross PnL per trade" was imprecise but
+  the produced Sharpe is mathematically the 1-contract gross Sharpe for
+  this pool.
   sharpe = mean(gross) / std(gross, ddof=1) * sqrt(n / YEARS_SPAN_TRAIN)
 
 YEARS_SPAN_TRAIN = 5.8056 is the 1min-baseline value and applies equally to

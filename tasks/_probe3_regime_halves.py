@@ -117,7 +117,11 @@ def main() -> None:
     trades = trades.copy()
     trades["entry_time"] = test_part.loc[idx, "time"].values
 
-    # Split at SPLIT_DT_UTC. Bar times are naive UTC from the CSV; compare naive.
+    # Split at SPLIT_DT_UTC. Bar times are naive CENTRAL TIME from the CSV
+    # (Barchart export per scripts/data_pipeline/update_bars_yfinance.py:37 —
+    # prior "naive UTC" comment was factually wrong but the numeric split is
+    # naive-on-both-sides so no arithmetic error; name is misleading only).
+    # Compare naive; both sides strip tz identically.
     split_naive = SPLIT_DT_UTC.tz_localize(None) if SPLIT_DT_UTC.tzinfo else SPLIT_DT_UTC
     entry_ts = pd.to_datetime(trades["entry_time"])
     if getattr(entry_ts.dt, "tz", None) is not None:

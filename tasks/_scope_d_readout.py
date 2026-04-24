@@ -175,17 +175,33 @@ def _share_of(total: float, part: float) -> float | None:
     return part / total
 
 
-def _dominance_label(share_2a: float | None, share_2b: float | None) -> str:
+def _dominance_label(share_1: float | None,
+                     share_2a: float | None,
+                     share_2b: float | None) -> str:
     """Human-readable regime label per `scope_d_brief.md` Outcome
-    interpretations §1-4. Thresholds are descriptive, not gates."""
-    if share_2a is None or share_2b is None:
+    interpretations §1-4, extended to recognize SES_1 (RTH) dominance per
+    pipeline-review finding (2026-04-24). Thresholds are descriptive, not gates.
+
+    The original classifier only discriminated between SES_2a (overnight) and
+    SES_2b (post-RTH/halt) dominance; under the TZ fix, combos like 1298 with
+    Sharpe 4.41 RTH vs 0.53 overnight had no truthful label and were
+    misclassified as "weak / no clear pattern". Adding the SES_1-dominates
+    branch first preserves the human-readable semantics.
+    """
+    if share_1 is None or share_2a is None or share_2b is None:
         return "indeterminate (near-zero total $)"
+    # Check SES_1 dominance first (new case).
+    if share_1 >= 0.80 and share_2a <= 0.25 and share_2b <= 0.25:
+        return "SES_1 (RTH) dominates"
     if share_2a >= 0.80 and share_2b <= 0.25:
         return "SES_2a dominates (pure overnight)"
     if share_2b >= 0.50:
         return "SES_2b dominates (post-RTH/halt artifact)"
     if share_2a >= 0.25 and share_2b >= 0.25:
         return "mixed (both sub-windows contribute)"
+    # Mixed RTH + overnight (neither dominant, both contribute).
+    if share_1 >= 0.25 and share_2a >= 0.25:
+        return "mixed (RTH + overnight contribute)"
     return "weak / no clear pattern"
 
 
@@ -215,24 +231,31 @@ def main() -> None:
         et_trade = et_min_arr[idx]
         metrics  = _partition_combo(pnl, et_trade)
 
-        # SES_2a/SES_2b share-of-SES_0 summary (per brief §Outcome interpretations).
+        # SES_1/SES_2a/SES_2b share-of-SES_0 summary (per brief §Outcome interpretations).
+        # SES_1 share added 2026-04-24 per pipeline-review finding (previous classifier
+        # missed SES_1-dominant combos like 1298 RTH-concentrated post TZ fix).
+        share_1  = _share_of(metrics["SES_0"]["total_net_dollars"],
+                              metrics["SES_1"]["total_net_dollars"])
         share_2a = _share_of(metrics["SES_0"]["total_net_dollars"],
                               metrics["SES_2a"]["total_net_dollars"])
         share_2b = _share_of(metrics["SES_0"]["total_net_dollars"],
                               metrics["SES_2b"]["total_net_dollars"])
 
         # Trade-count shares (useful when $ shares are ambiguous).
+        n_share_1  = metrics["SES_1"]["n_trades"]  / metrics["SES_0"]["n_trades"]
         n_share_2a = metrics["SES_2a"]["n_trades"] / metrics["SES_0"]["n_trades"]
         n_share_2b = metrics["SES_2b"]["n_trades"] / metrics["SES_0"]["n_trades"]
 
         per_combo[str(cid)] = {
             "source_parquet":    str(parquet_path.relative_to(REPO_ROOT)),
             "metrics":           metrics,
+            "ses_1_dollar_share":  share_1,
             "ses_2a_dollar_share": share_2a,
             "ses_2b_dollar_share": share_2b,
+            "ses_1_count_share":   n_share_1,
             "ses_2a_count_share":  n_share_2a,
             "ses_2b_count_share":  n_share_2b,
-            "regime_label":        _dominance_label(share_2a, share_2b),
+            "regime_label":        _dominance_label(share_1, share_2a, share_2b),
         }
 
     # Cross-combo agreement summary.

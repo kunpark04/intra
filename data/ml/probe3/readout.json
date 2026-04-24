@@ -6,28 +6,30 @@
     {
       "gate_id": "\u00a74.1_regime_halves",
       "gate_pass": true,
-      "source_file": "data/ml/probe3/regime_halves.json"
+      "source_file": "data\\ml\\probe3\\regime_halves.json"
     },
     {
       "gate_id": "\u00a74.2_param_nbhd",
       "gate_pass": true,
-      "source_file": "data/ml/probe3/param_nbhd.json"
+      "source_file": "data\\ml\\probe3\\param_nbhd.json"
     },
     {
       "gate_id": "\u00a74.3_15m_negative_control",
-      "gate_pass": true,
-      "source_file": "data/ml/probe3/15m_nc.json"
+      "gate_pass": false,
+      "source_file": "data\\ml\\probe3\\15m_nc.json"
     },
     {
       "gate_id": "\u00a74.4_1h_session_exit_ritual",
       "gate_pass": true,
-      "source_file": "data/ml/probe3/1h_ritual.json"
+      "source_file": "data\\ml\\probe3\\1h_ritual.json"
     }
   ],
-  "failing_gates": [],
-  "F": 0,
-  "branch": "PAPER_TRADE",
-  "posterior": 0.91,
+  "failing_gates": [
+    "\u00a74.3_15m_negative_control"
+  ],
+  "F": 1,
+  "branch": "COUNCIL_RECONVENE",
+  "posterior": 0.05,
   "posterior_prior": 0.167,
   "posterior_source": "tasks/probe3_multiplicity_memo.md \u00a76.4 Bayes-factor table",
   "gates": {
@@ -528,7 +530,7 @@
       "gate_id": "\u00a74.3_15m_negative_control",
       "timeframe": "15min",
       "grid_n": 16,
-      "n_pass": 0,
+      "n_pass": 8,
       "threshold_max": 2,
       "years_span_test": 1.4799,
       "ex2_tod_utc_hour": 19,
@@ -555,20 +557,20 @@
         {
           "ex_label": "EX_0_native",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 93,
-          "net_sharpe": -0.7773499067660876,
-          "net_dollars_per_year": -21111.236609912474,
-          "sharpe_pass": false,
+          "n_trades": 437,
+          "net_sharpe": 1.3798060998665895,
+          "net_dollars_per_year": 83604.93879720196,
+          "sharpe_pass": true,
           "n_trades_pass": true,
-          "dollars_pass": false,
-          "cell_pass": false
+          "dollars_pass": true,
+          "cell_pass": true
         },
         {
           "ex_label": "EX_0_native",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 680,
-          "net_sharpe": -0.31363445984334515,
-          "net_dollars_per_year": -23375.43394504545,
+          "n_trades": 306,
+          "net_sharpe": -2.964319819498149,
+          "net_dollars_per_year": -140559.34348153192,
           "sharpe_pass": false,
           "n_trades_pass": true,
           "dollars_pass": false,
@@ -577,13 +579,13 @@
         {
           "ex_label": "EX_0_native",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 74,
-          "net_sharpe": 0.4644858712362208,
-          "net_dollars_per_year": 11630.156214275281,
-          "sharpe_pass": false,
+          "n_trades": 331,
+          "net_sharpe": 1.5622881181696693,
+          "net_dollars_per_year": 82580.35114264948,
+          "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
-          "cell_pass": false
+          "cell_pass": true
         },
         {
           "ex_label": "EX_1_maxhold_60h",
@@ -599,20 +601,20 @@
         {
           "ex_label": "EX_1_maxhold_60h",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 93,
-          "net_sharpe": -0.7773499067660876,
-          "net_dollars_per_year": -21111.236609912474,
-          "sharpe_pass": false,
+          "n_trades": 437,
+          "net_sharpe": 1.3798060998665895,
+          "net_dollars_per_year": 83604.93879720196,
+          "sharpe_pass": true,
           "n_trades_pass": true,
-          "dollars_pass": false,
-          "cell_pass": false
+          "dollars_pass": true,
+          "cell_pass": true
         },
         {
           "ex_label": "EX_1_maxhold_60h",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 680,
-          "net_sharpe": -0.31363445984334515,
-          "net_dollars_per_year": -23375.43394504545,
+          "n_trades": 306,
+          "net_sharpe": -2.964319819498149,
+          "net_dollars_per_year": -140559.34348153192,
           "sharpe_pass": false,
           "n_trades_pass": true,
           "dollars_pass": false,
@@ -621,13 +623,13 @@
         {
           "ex_label": "EX_1_maxhold_60h",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 74,
-          "net_sharpe": 0.4644858712362208,
-          "net_dollars_per_year": 11630.156214275281,
-          "sharpe_pass": false,
+          "n_trades": 331,
+          "net_sharpe": 1.5622881181696693,
+          "net_dollars_per_year": 82580.35114264948,
+          "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
-          "cell_pass": false
+          "cell_pass": true
         },
         {
           "ex_label": "EX_2_TOD_1500ET",
@@ -643,20 +645,20 @@
         {
           "ex_label": "EX_2_TOD_1500ET",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 93,
-          "net_sharpe": -0.842315695476349,
-          "net_dollars_per_year": -22124.953717562676,
-          "sharpe_pass": false,
+          "n_trades": 437,
+          "net_sharpe": 1.3798060998665895,
+          "net_dollars_per_year": 83604.93879720196,
+          "sharpe_pass": true,
           "n_trades_pass": true,
-          "dollars_pass": false,
-          "cell_pass": false
+          "dollars_pass": true,
+          "cell_pass": true
         },
         {
           "ex_label": "EX_2_TOD_1500ET",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 680,
-          "net_sharpe": -0.31363445984334515,
-          "net_dollars_per_year": -23375.43394504545,
+          "n_trades": 306,
+          "net_sharpe": -2.960739949398161,
+          "net_dollars_per_year": -139334.28901375033,
           "sharpe_pass": false,
           "n_trades_pass": true,
           "dollars_pass": false,
@@ -665,13 +667,13 @@
         {
           "ex_label": "EX_2_TOD_1500ET",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 74,
-          "net_sharpe": 0.31426494725596127,
-          "net_dollars_per_year": 7605.700945075243,
-          "sharpe_pass": false,
+          "n_trades": 331,
+          "net_sharpe": 1.5622881181696693,
+          "net_dollars_per_year": 82580.35114264948,
+          "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
-          "cell_pass": false
+          "cell_pass": true
         },
         {
           "ex_label": "EX_3_breakeven_after_1R",
@@ -687,20 +689,20 @@
         {
           "ex_label": "EX_3_breakeven_after_1R",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 94,
-          "net_sharpe": -1.1139912954103777,
-          "net_dollars_per_year": -25564.995688480485,
-          "sharpe_pass": false,
+          "n_trades": 442,
+          "net_sharpe": 2.935102049088617,
+          "net_dollars_per_year": 156842.53390908678,
+          "sharpe_pass": true,
           "n_trades_pass": true,
-          "dollars_pass": false,
-          "cell_pass": false
+          "dollars_pass": true,
+          "cell_pass": true
         },
         {
           "ex_label": "EX_3_breakeven_after_1R",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 691,
-          "net_sharpe": 0.059484914040714224,
-          "net_dollars_per_year": 3825.5985652080867,
+          "n_trades": 313,
+          "net_sharpe": -4.877491073169261,
+          "net_dollars_per_year": -182255.2029336774,
           "sharpe_pass": false,
           "n_trades_pass": true,
           "dollars_pass": false,
@@ -709,22 +711,22 @@
         {
           "ex_label": "EX_3_breakeven_after_1R",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 74,
-          "net_sharpe": 0.10146849719277805,
-          "net_dollars_per_year": 2179.9115813410426,
-          "sharpe_pass": false,
+          "n_trades": 335,
+          "net_sharpe": 3.2654341638896356,
+          "net_dollars_per_year": 150965.68859991475,
+          "sharpe_pass": true,
           "n_trades_pass": true,
-          "dollars_pass": false,
-          "cell_pass": false
+          "dollars_pass": true,
+          "cell_pass": true
         }
       ],
-      "gate_pass": true
+      "gate_pass": false
     },
     "\u00a74.4_1h_session_exit_ritual": {
       "gate_id": "\u00a74.4_1h_session_exit_ritual",
       "timeframe": "1h",
       "grid_n": 16,
-      "n_pass": 8,
+      "n_pass": 12,
       "threshold_min": 8,
       "years_span_test": 1.4799,
       "ex2_tod_utc_hour": 19,
@@ -751,20 +753,20 @@
         {
           "ex_label": "EX_0_native",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 65,
-          "net_sharpe": 0.6393354807600299,
-          "net_dollars_per_year": 15061.181464779564,
-          "sharpe_pass": false,
+          "n_trades": 126,
+          "net_sharpe": 2.6352958061974308,
+          "net_dollars_per_year": 85830.7622935033,
+          "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
-          "cell_pass": false
+          "cell_pass": true
         },
         {
           "ex_label": "EX_0_native",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 143,
-          "net_sharpe": 3.3217530163846725,
-          "net_dollars_per_year": 114409.84810142845,
+          "n_trades": 82,
+          "net_sharpe": 1.4670943864093398,
+          "net_dollars_per_year": 38859.370279827446,
           "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
@@ -773,12 +775,12 @@
         {
           "ex_label": "EX_0_native",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 36,
-          "net_sharpe": 0.03545324991639481,
-          "net_dollars_per_year": 618.5899766146474,
-          "sharpe_pass": false,
+          "n_trades": 49,
+          "net_sharpe": 2.328048949941484,
+          "net_dollars_per_year": 46658.899205465896,
+          "sharpe_pass": true,
           "n_trades_pass": false,
-          "dollars_pass": false,
+          "dollars_pass": true,
           "cell_pass": false
         },
         {
@@ -795,20 +797,20 @@
         {
           "ex_label": "EX_1_maxhold_60h",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 65,
-          "net_sharpe": 0.6393354807600299,
-          "net_dollars_per_year": 15061.181464779564,
-          "sharpe_pass": false,
+          "n_trades": 126,
+          "net_sharpe": 2.6352958061974308,
+          "net_dollars_per_year": 85830.7622935033,
+          "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
-          "cell_pass": false
+          "cell_pass": true
         },
         {
           "ex_label": "EX_1_maxhold_60h",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 143,
-          "net_sharpe": 3.3217530163846725,
-          "net_dollars_per_year": 114409.84810142845,
+          "n_trades": 82,
+          "net_sharpe": 1.4670943864093398,
+          "net_dollars_per_year": 38859.370279827446,
           "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
@@ -817,12 +819,12 @@
         {
           "ex_label": "EX_1_maxhold_60h",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 36,
-          "net_sharpe": 0.03545324991639481,
-          "net_dollars_per_year": 618.5899766146474,
-          "sharpe_pass": false,
+          "n_trades": 49,
+          "net_sharpe": 2.328048949941484,
+          "net_dollars_per_year": 46658.899205465896,
+          "sharpe_pass": true,
           "n_trades_pass": false,
-          "dollars_pass": false,
+          "dollars_pass": true,
           "cell_pass": false
         },
         {
@@ -839,20 +841,20 @@
         {
           "ex_label": "EX_2_TOD_1500ET",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 65,
-          "net_sharpe": 0.6597119181735294,
-          "net_dollars_per_year": 15315.20764951918,
-          "sharpe_pass": false,
+          "n_trades": 126,
+          "net_sharpe": 2.6352958061974308,
+          "net_dollars_per_year": 85830.7622935033,
+          "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
-          "cell_pass": false
+          "cell_pass": true
         },
         {
           "ex_label": "EX_2_TOD_1500ET",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 143,
-          "net_sharpe": 3.3217530163846725,
-          "net_dollars_per_year": 114409.84810142845,
+          "n_trades": 82,
+          "net_sharpe": 1.4939856528183664,
+          "net_dollars_per_year": 39113.396464567064,
           "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
@@ -861,12 +863,12 @@
         {
           "ex_label": "EX_2_TOD_1500ET",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 36,
-          "net_sharpe": -0.12939675534653927,
-          "net_dollars_per_year": -2212.1134861067862,
-          "sharpe_pass": false,
+          "n_trades": 49,
+          "net_sharpe": 2.328048949941484,
+          "net_dollars_per_year": 46658.899205465896,
+          "sharpe_pass": true,
           "n_trades_pass": false,
-          "dollars_pass": false,
+          "dollars_pass": true,
           "cell_pass": false
         },
         {
@@ -883,20 +885,20 @@
         {
           "ex_label": "EX_3_breakeven_after_1R",
           "ses_label": "SES_1_RTH_only",
-          "n_trades": 65,
-          "net_sharpe": 0.7805689394748592,
-          "net_dollars_per_year": 16340.067727614089,
-          "sharpe_pass": false,
+          "n_trades": 126,
+          "net_sharpe": 4.208693573082174,
+          "net_dollars_per_year": 121343.2592641793,
+          "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
-          "cell_pass": false
+          "cell_pass": true
         },
         {
           "ex_label": "EX_3_breakeven_after_1R",
           "ses_label": "SES_2_overnight_only",
-          "n_trades": 143,
-          "net_sharpe": 4.9447546107365365,
-          "net_dollars_per_year": 150178.1223246714,
+          "n_trades": 82,
+          "net_sharpe": 1.6685502062137347,
+          "net_dollars_per_year": 38970.919632647725,
           "sharpe_pass": true,
           "n_trades_pass": true,
           "dollars_pass": true,
@@ -905,10 +907,10 @@
         {
           "ex_label": "EX_3_breakeven_after_1R",
           "ses_label": "SES_3_RTH_excl_lunch",
-          "n_trades": 36,
-          "net_sharpe": 0.36511242777938896,
-          "net_dollars_per_year": 5911.041474625717,
-          "sharpe_pass": false,
+          "n_trades": 49,
+          "net_sharpe": 3.7445908056468618,
+          "net_dollars_per_year": 63447.81335694644,
+          "sharpe_pass": true,
           "n_trades_pass": false,
           "dollars_pass": true,
           "cell_pass": false
