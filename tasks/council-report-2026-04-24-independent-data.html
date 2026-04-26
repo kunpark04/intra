@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council — Independent-Data Question (2026-04-24)</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif; background: #fafafa; color: #1a1a1a; max-width: 980px; margin: 0 auto; padding: 36px 28px; line-height: 1.55; }
+  h1 { font-size: 1.65rem; border-bottom: 2px solid #222; padding-bottom: 10px; margin-top: 0; }
+  h2 { font-size: 1.15rem; margin-top: 32px; color: #2a2a2a; border-left: 4px solid #4a6fa5; padding-left: 12px; }
+  h3 { font-size: 1rem; color: #333; margin-top: 24px; }
+  .panel { background: #fff; border: 1px solid #e1e1e1; border-radius: 6px; padding: 20px 24px; margin-bottom: 20px; }
+  .question { background: #f0f4f8; border-left: 4px solid #4a6fa5; }
+  .verdict { background: #f5f9f1; border-left: 4px solid #4a7a42; }
+  .clash { background: #faf4ee; border-left: 4px solid #a57033; }
+  .agree { background: #f0f6f1; border-left: 4px solid #5a8a52; }
+  .blindspots { background: #faf0f0; border-left: 4px solid #a54242; }
+  .one-thing { background: #fff7dc; border-left: 4px solid #c49a2c; font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 0.92rem; }
+  th, td { border: 1px solid #d8d8d8; padding: 8px 12px; text-align: left; vertical-align: top; }
+  th { background: #f2f2f2; font-weight: 600; }
+  tr.agreement td { background: #f0f6f1; }
+  tr.clash-row td { background: #faf4ee; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 0.88rem; }
+  details { margin: 10px 0; background: #fff; border: 1px solid #d8d8d8; border-radius: 4px; padding: 10px 16px; }
+  details summary { cursor: pointer; font-weight: 600; color: #333; padding: 4px 0; }
+  details[open] summary { margin-bottom: 10px; border-bottom: 1px solid #eaeaea; padding-bottom: 8px; }
+  .advisor-label { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 0.82rem; font-weight: 600; margin-right: 8px; }
+  .a-contrarian { background: #d6e7f5; color: #1a4a7a; }
+  .a-first { background: #e1e7f5; color: #2a3a7a; }
+  .a-expansionist { background: #e7f5d6; color: #3a6a1a; }
+  .a-outsider { background: #f5e7d6; color: #7a4a1a; }
+  .a-executor { background: #f5d6e1; color: #7a1a4a; }
+  .footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #d8d8d8; color: #777; font-size: 0.85rem; }
+  ul { margin: 8px 0 8px 22px; padding: 0; }
+  li { margin: 4px 0; }
+  .lean { background: #fff0f0; border: 1px solid #e5b8b8; padding: 8px 14px; border-radius: 4px; font-size: 0.92rem; margin: 8px 0; }
+</style>
+</head>
+<body>
+
+<h1>LLM Council — The Independent-Data Question</h1>
+<div style="color:#666;font-size:0.9rem;margin-top:-8px;margin-bottom:24px;">2026-04-24 · post-TZ-cascade closure (commit <code>15f450d</code>) · gates Probe 5 preregistration</div>
+
+<div class="panel question">
+  <strong>The question:</strong> Post-TZ-cascade, Probe 5 signal-family preregistration is blocked on the independent-data question. Three options on the table:
+  <ul>
+    <li><strong>(a)</strong> Identify a held-out NQ 1h partition never read by Probes 1-4 + Scope D.</li>
+    <li><strong>(b)</strong> Preregister forward paper-bar accrual (~12 weeks / ~1200 bars) as the OOS source.</li>
+    <li><strong>(c)</strong> Accept NQ 1h bar data is exhausted; honest sunset of Probe-1-family work.</li>
+  </ul>
+  <div class="lean"><strong>User lean:</strong> (c). Council was asked to react — validate or challenge.</div>
+</div>
+
+<div class="panel verdict">
+  <h2 style="border-left:none;padding-left:0;margin-top:0;">Chairman Verdict: Hybrid — (c) at family + (b)-style for combo-865</h2>
+  <p><strong>User lean on (c) is VALIDATED at the family level. It is CHALLENGED on scope.</strong> Honest sunset does <em>not</em> require abandoning combo-865; it requires abandoning the Z-score bar-timeframe <em>family search</em>. Those are distinct.</p>
+  <ol>
+    <li><strong>Sunset the Probe-1 Z-score bar-timeframe family.</strong> Document in <code>tasks/sunset_probe1_family.md</code> as a corollary to (2).</li>
+    <li><strong>Combo-865 proceeds via (b)-style preregistered forward paper-bar accrual</strong> with binding §-gates. Reject C's immediate-ship proposal.</li>
+    <li><strong>Reject D's concurrent ML#1 generalization lane</strong> (peer review flagged as overreach).</li>
+    <li><strong>Defer Probe 5 signal-family swap</strong> until after 865 paper-trade window resolves.</li>
+    <li><strong>A's mechanism-first ask</strong> is acknowledged as concurrent research, not a blocking gate.</li>
+  </ol>
+</div>
+
+<h2>Advisor Alignment Grid</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Advisor</th>
+      <th>Sunset Z-score family</th>
+      <th>Preserve combo-865</th>
+      <th>865 paper-trade method</th>
+      <th>Add ML#1 lane</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="agreement">
+      <td><span class="advisor-label a-contrarian">Contrarian</span></td>
+      <td>YES</td>
+      <td>YES (preserved via forward accrual)</td>
+      <td>(b)-style prereg — "no hybrid" rhetoric, hybrid in substance</td>
+      <td>NO</td>
+    </tr>
+    <tr class="agreement">
+      <td><span class="advisor-label a-first">First Principles</span></td>
+      <td>YES (scope contraction)</td>
+      <td>CONDITIONAL (mechanism-first)</td>
+      <td>Shelve pending microstructural story</td>
+      <td>NO</td>
+    </tr>
+    <tr class="agreement">
+      <td><span class="advisor-label a-expansionist">Expansionist</span></td>
+      <td>YES (family-level only)</td>
+      <td>YES</td>
+      <td>(b)-style prereg with explicit §-gates</td>
+      <td>YES (rejected by chairman)</td>
+    </tr>
+    <tr class="agreement">
+      <td><span class="advisor-label a-outsider">Outsider</span></td>
+      <td>YES</td>
+      <td>YES</td>
+      <td>Implicit (b)-style ("three months paper-trading 865")</td>
+      <td>NO</td>
+    </tr>
+    <tr class="clash-row">
+      <td><span class="advisor-label a-executor">Executor</span></td>
+      <td>YES (Monday)</td>
+      <td>YES</td>
+      <td>Immediate ship, parallel council on scope</td>
+      <td>NO</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Consensus:</strong> 5/5 on family sunset. 4/5 on 865 preservation via forward accrual (A carves out as mechanism-first). The one clash is <strong>C's "immediate ship"</strong> vs. <strong>B/D/E's "preregistered forward accrual first"</strong> — chairman sides with B/D/E per peer review.</p>
+
+<div class="panel agree">
+  <h2 style="border-left:none;padding-left:0;margin-top:0;">Where the Council Agrees</h2>
+  <p><strong>Family-level sunset is unanimous.</strong> All 5 advisors independently converged on (c) applied to the Probe-1 Z-score bar-timeframe family. The mechanism is three-fold:</p>
+  <ul>
+    <li><strong>Probe 1 §7.6 already fired</strong> (N_1.3 = 1/9/4 vs gate=10 on 1m/15m/1h); 30m/2h/5m rescues blocked.</li>
+    <li><strong>1h test partition read 4×</strong> (Probes 2, 3, 4, Scope D); any further post-hoc session/ritual/decomposition probe on this partition is statistically indefensible.</li>
+    <li><strong>Gross Sharpe ceiling 1.108 / 13,814 combos</strong> under $5/contract RT — the family is binding at engine-cost level, not just statistical-power level.</li>
+  </ul>
+</div>
+
+<div class="panel clash">
+  <h2 style="border-left:none;padding-left:0;margin-top:0;">Where the Council Clashes</h2>
+  <h3>Scope of sunset — what does "sunset" foreclose?</h3>
+  <ul>
+    <li><strong>Minimal (C, D, E):</strong> Family-level only. Combo-865 preserved as single-combo carve-out. Probe 2 PASS (TZ-agnostic, signed <code>a49f370</code>) stands.</li>
+    <li><strong>Absolutist (B):</strong> "Foreclose 865 paper-trade absent forward accrual" — but this language is internally consistent with hybrid once parsed (B writes hybrid in substance while denying it in rhetoric).</li>
+    <li><strong>Mechanism-first (A):</strong> 865 shelved as hypothesis pending microstructural story. No paper-trade without mechanism.</li>
+  </ul>
+  <h3>Timing of 865 paper-trade</h3>
+  <ul>
+    <li><strong>Immediate (C):</strong> "Ship it small while you redesign signal family." No preregistered gates.</li>
+    <li><strong>Preregistered forward accrual (B, D, E implied):</strong> §-gates before bar 1 — ≥N bars, net Sharpe ≥ 1.3, ≥50 trades, t-stat ≥ 2.0, plus kill-switches.</li>
+    <li><strong>Not at all pending research (A):</strong> Find mechanism or shelve.</li>
+  </ul>
+  <h3>Concurrent streams</h3>
+  <ul>
+    <li><strong>D alone</strong> proposes a third parallel stream — ML#1 generalization on training partition with unseen combos forward-committed simultaneously. All 5 reviewers flagged as overreach given the project's retraction track record.</li>
+  </ul>
+</div>
+
+<div class="panel blindspots">
+  <h2 style="border-left:none;padding-left:0;margin-top:0;">Blind Spots the Peer Review Caught</h2>
+  <h3>1. Paper-trade gate must be preregistered before bar 1 (5/5 reviewers independently)</h3>
+  <p>Every reviewer flagged the same procedural defense — none of the 5 advisor responses pinned the kill-switch / abandonment criteria for the 865 forward accrual. Without preregistered <em>stopping</em> rules (drawdown cap, min-trade floor, time budget) signed before accrual begins, forward paper-trade becomes <strong>Probe 5 by another name</strong> — a 6th retraction risk on the same lesson. The TZ-cascade lesson is preregistration-discipline; the council nearly skipped it.</p>
+
+  <h3>2. Combo-865's Probe 2 PASS is itself multiplicity-contaminated (Reviewers 2, 3, 4)</h3>
+  <p>865 was <strong>selected from a 13,814-combo search</strong>. D's argument — "parameters frozen since <code>a49f370</code>, so reuse-burn doesn't apply" — is partially right (no further compounding from that point) but misses that the frozen rule was itself a selection event. The honest prior on 865 paper-trade success reflects 1/13,814 selection, not its standalone Sharpe 2.89. Reviewer 3: "paper-trading 865 isn't independent evidence; it's testing whether one lottery ticket keeps paying."</p>
+
+  <h3>3. 100%-combo-overlap leakage vector (Reviewer 2)</h3>
+  <p>865 has trades in V3/V4 training partitions per <code>project_combo_overlap_structural</code>. Its parameters may have been <em>implicitly</em> selected by ML#1 feature engineering even before Probe 2's explicit evaluation. Forward paper-accrual resolves this leakage, but any 865-prereg must name it alongside the 1/13,814 multiplicity prior.</p>
+</div>
+
+<div class="panel one-thing">
+  <h2 style="border-left:none;padding-left:0;margin-top:0;">The One Thing to Do First</h2>
+  <p><strong>Draft and sign <code>tasks/probe5_combo865_paper_trade_preregistration.md</code>.</strong> NOT <code>sunset_probe1_family.md</code> first. NOT <code>probe5_signal_family_preregistration.md</code> first. The prereg is the single binding deliverable that gates everything downstream.</p>
+  <p>The document must include:</p>
+  <ul>
+    <li>Accrual window (≥ 12 weeks, up to 16-week time budget)</li>
+    <li>PASS gates (conjunction): ≥N bars, net Sharpe ≥ 1.3, ≥50 trades, t-stat ≥ 2.0</li>
+    <li>KILL criteria (disjunction): max DD cap, n_trades floor by week 8, time budget</li>
+    <li>Multiplicity-adjusted prior acknowledging 1/13,814 selection + 100%-combo-overlap leakage</li>
+    <li>TZ contract: <code>src/tz_contract.py::assert_naive_ct</code> invoked at bar-ingest load</li>
+    <li>Signing protocol (commit hash + signed document, like <code>a49f370</code> / <code>d0ee506</code>)</li>
+  </ul>
+  <p style="margin-top:14px;"><strong>Graceful fallback to user's original lean:</strong> If this prereg can't be written — because the gates can't be pinned without A's mechanism, or because the multiplicity prior makes any PASS threshold unattainable — then the answer collapses to honest full-sunset including 865. Which is exactly what the user came in leaning toward.</p>
+</div>
+
+<h2>Full Advisor Responses</h2>
+
+<details>
+<summary><span class="advisor-label a-contrarian">The Contrarian</span> "The framing is the fatal flaw... no hybrid."</summary>
+<p><strong>The framing is the fatal flaw.</strong> You're treating "find OOS data" as the gating question, but the real gating question — which you keep dancing around — is: <em>why are you still hunting for an out for a falsified family?</em> Probe 1 §7.6 already fired. The bar-timeframe axis is closed. You're now asking the council to help you launder one combo (865, possibly 1298) past a partition that's been read four times. That's not a stats problem you can BF-inflate your way out of — that's motivated search.</p>
+<p><strong>Specifically attacking each option:</strong></p>
+<p><strong>(a) is a corpse.</strong> Pre-2019 data is a different microstructure regime (no overnight liquidity profile match, pre-CME Globex 23h, different tick economics). Training partition as OOS is <strong>leakage by construction</strong> — you sweep-tuned on it. 4h/daily evades §7.6 only by abandoning the 1h finding that motivated this; if 1h doesn't generalize to 4h, why are you here? Reviewers 4 & 5 were right. Stop relitigating.</p>
+<p><strong>(b) is a tax disguised as rigor.</strong> 12 weeks of bars adds ~50 fresh trades for combo-865 at its current frequency. That's underpowered for Sharpe ≥ 1.3 detection at any honest BF. You'd ship paper-trade on 50 trades after a 4× partition burn? The opportunity cost framing is wrong — the cost is <strong>another retraction in 3 months.</strong></p>
+<p><strong>(c) has a hidden problem too:</strong> "sunset" lets you walk away from combo-865's $124k/yr without a falsification of <em>combo-865 specifically</em>. Probe 2 stands. You haven't earned the sunset — you've earned an inability to extend.</p>
+<p><strong>Verdict: (c) with binding teeth.</strong> Sunset Probe-1-family bar-timeframe work. Foreclose 865 paper-trade absent forward accrual. Signal-family swap (Probe 5) requires fresh data partition declared <em>before</em> signal selection, not after. No hybrid. The hybrid is how you get retraction #3.</p>
+</details>
+
+<details>
+<summary><span class="advisor-label a-first">The First Principles Thinker</span> "Search-multiplicity problem dressed as a data problem. Find mechanism or shelve."</summary>
+<p><strong>What is the user actually trying to achieve?</strong></p>
+<p>Strip away "Probe 5 preregistration." Strip away the bar-timeframe axis. The user is trying to answer: <em>Does combo-865 (and its cousins) represent a real economic edge worth risking $50k on, or did the search procedure overfit to a 1.48-year window?</em></p>
+<p>That is the only question that matters. Everything else — the prereg ritual, the BF inflation accounting, the §7.6 clauses — is scaffolding around it.</p>
+<p><strong>The load-bearing assumption to challenge: that "fresh data" is the binding constraint.</strong></p>
+<p>It isn't. The binding constraint is that you ran a 13,814-combo search and one combo passed friction at gross Sharpe ≥ 1.0. That's <em>prima facie</em> multiplicity-driven. No amount of partition cleverness fixes a search that returned 1/13,814 hits — fresh data only tells you whether <em>that specific realization</em> persists, not whether the underlying generative process has edge.</p>
+<p><strong>The (a/b/c) framing is wrong</strong> because it treats this as a data-availability problem. It's a search-multiplicity problem dressed as a data problem.</p>
+<p><strong>Reframe:</strong> instead of "where do I get clean OOS bars," ask "what would falsify combo-865's edge <em>mechanistically</em> rather than statistically?" If combo-865's edge is real, it should have a <em>reason</em> — a microstructural story about why z-score reversal at those specific parameters captures something durable on 1h NQ. If you can't articulate that story before looking at more data, no amount of OOS will save you; you'll just keep p-hacking the priors.</p>
+<p><strong>Lean toward (c), but not as sunset — as honest scope contraction.</strong> Combo-865 is a hypothesis, not a strategy. Either find its mechanism or shelve it. Don't burn 12 weeks of paper-bars hoping statistics resolves what economics hasn't.</p>
+</details>
+
+<details>
+<summary><span class="advisor-label a-expansionist">The Expansionist</span> "(c) is leaving $124k/yr on the floor. Accrual window IS the signal."</summary>
+<p><strong>(c) is leaving $124k/yr on the floor.</strong> Sunset is methodological fatigue dressed as discipline.</p>
+<p><strong>Reframe:</strong> combo-865 already cleared a preregistered, mechanical, OOS gate (Probe 2, TZ-agnostic, signed). That is a <em>result</em>, not a hypothesis. The reuse-burn argument applies to <em>parameter discovery</em>; combo-865's parameters are frozen since <code>a49f370</code>. Re-running diagnostics on a frozen rule does not inflate selection bias the way a fresh sweep would. The 4× reuse penalty is real for Probes 3/4/Scope D's <em>new</em> claims (session, ritual, decomposition) — not for the dollars that were already booked at Probe 2.</p>
+<p><strong>The hidden asset in (b): the accrual window IS the signal.</strong> 12 weeks of forward 1h bars on a frozen rule is the cleanest inference instrument this project will ever produce — zero researcher degrees of freedom, zero look-ahead, zero TZ ambiguity (you control ingest). That's not opportunity cost; that's a Bayes-factor multiplier no historical partition can match. Each week of clean forward bars is worth ~3× a re-sliced historical week.</p>
+<p><strong>Hybrid I'd push the chairman toward (a-narrow + b + c-partial):</strong></p>
+<ol>
+<li><strong>Bind combo-865 to forward paper accrual at fixed parameters</strong> (no re-tuning, no session sub-rules, no EX swaps). Preregister §-gates: ≥X bars, net Sharpe ≥ 1.3, ≥50 trades, t-stat ≥ 2.0. This is (b) with combo-865 as the asset under test, not the family.</li>
+<li><strong>Honest sunset of the Z-score <em>family search</em> on 1h historical</strong> — accept (c) at the family level only. Stop spending probes on bar-timeframe rescue.</li>
+<li><strong>Open an adjacent-upside lane</strong>: ML#1-style generalization on the <em>training</em> partition (80%) ranking unseen combos, then commit them forward at paper-trade simultaneously. Two independent forward streams = 2× the signal for the same wallclock.</li>
+</ol>
+<p>Don't sunset a $124k/yr instrument because the methodology is tired.</p>
+</details>
+
+<details>
+<summary><span class="advisor-label a-outsider">The Outsider</span> "Idea is dead by your own scoring. But combo-865 survived. Paper-trade the survivor."</summary>
+<p>Let me strip this down to what I actually see.</p>
+<p>You spent four months trying to find a moneymaking pattern in one specific market on one specific timeframe. Your own pre-set rules said "if fewer than 10 setups beat this bar, the idea is dead." You found 1, 9, and 4. <strong>The idea is dead by your own scoring.</strong></p>
+<p>Then you found ONE specific configuration (combo-865) that looks great. You poked at it four separate times on the same 1.48 years of data. Each poke, you found new ways it might or might not work. Two of those pokes had to be thrown out because of a clock bug. <strong>The data has been read so many times it's basically memorized at this point.</strong></p>
+<p>Now you're asking: should I (a) find some clever way to test it again on the same exhausted dataset, (b) wait three months for fresh data, or (c) walk away?</p>
+<p>Here's what's weird from the outside. You already have ONE thing that survived everything: combo-865 makes ~$125k/year on a held-out backtest, and that number didn't move when the clock bug got fixed. <strong>That's the actual asset.</strong> Everything else — Probe 3, Probe 4, Scope D — is you trying to <em>understand why</em> it works, not whether it works.</p>
+<p>The economically sensible move and the emotionally sensible move diverge here. Emotionally, (c) feels clean — close the book. Economically, you have a candidate strategy with a real backtest number that <strong>you have not actually traded.</strong> Three months of paper trading (option b, but for combo-865, not for the family) costs nothing but time and tells you something no amount of re-slicing the same 2,400 bars ever will.</p>
+<p><strong>Sunset the family. Paper-trade the survivor. Stop re-reading the partition.</strong></p>
+</details>
+
+<details>
+<summary><span class="advisor-label a-executor">The Executor</span> "(c) wins on tractability. 3 deliverables tomorrow. Ship 865 or pivot signals."</summary>
+<p><strong>Monday-morning test, ranked by tractability:</strong></p>
+<p><strong>(c) WINS on tractability.</strong> First move tomorrow: <code>git tag probe1-family-sunset-2026-04-24</code>, write <code>tasks/sunset_probe1_family.md</code> with 3 sections (what's falsified, what stands, what's next). Done by lunch. Combo-865 is NOT foreclosed by sunset — it's a separate carve-out with TZ-agnostic Probe 2 PASS. Sunset Probe 1, paper-trade 865 in parallel.</p>
+<p><strong>(a) is dead-on-arrival.</strong> Pre-2019 NQ has different microstructure (pre-CME Globex consolidation regime change ~2020); 4h/daily are outside §7.6 but require fresh prereg + new sweep + new K-fold = 3-4 weeks of work to maybe discover the same friction floor. Training partition as OOS is leakage by definition. Deliverables: prereg, sweep relaunch, audit redesign, council convene = <strong>5 artifacts minimum, 2-3 weeks.</strong></p>
+<p><strong>(b) is opportunity-cost suicide.</strong> 12 weeks of waiting buys you ~1200 bars to confirm what Probe 1 already falsified at N=2400. You don't need more data to reject a falsified hypothesis — you need a different hypothesis. Deliverables: prereg, paper infra, weekly reconciliation = real work for negative information value.</p>
+<p><strong>Hybrid (c + paper-trade 865):</strong> Tightest path to cash. Sunset Probe 1 family, run a fresh council on 865-only paper-trade scope (broker, sizing, kill-switch, session filter post-TZ-fix). Combo-865 is your only validated edge; ship it small while you redesign signal family.</p>
+<p><strong>Tomorrow's deliverables (3, total):</strong></p>
+<ol>
+<li><code>sunset_probe1_family.md</code> (1hr)</li>
+<li>Council convene request: "865 paper-trade scope" (30min)</li>
+<li>Probe 5 prereg DRAFT on signal-family swap, not bar-timeframe (2hr)</li>
+</ol>
+<p>Validate the lean. Stop digging the bar-timeframe hole. Ship 865 or pivot signals.</p>
+</details>
+
+<h2>Peer Review Highlights</h2>
+<p style="font-size:0.9rem;color:#555;">Anonymization map (revealed): A=First Principles, B=Contrarian, C=Executor, D=Expansionist, E=Outsider. Five reviewers saw the anonymized A-E responses and answered three questions each.</p>
+
+<details>
+<summary>Reviewer 1 — Strongest: D. Biggest blind spot: B. Load-bearing catch: kill-switch preregistration.</summary>
+<p><strong>1. Strongest: D.</strong> D is the only response that distinguishes parameter-discovery reuse-burn (real, applies to Probes 3/4/Scope D) from frozen-rule diagnostic reuse (not the same multiplicity tax). It correctly identifies that forward accrual on a frozen <code>a49f370</code> rule has <em>zero</em> researcher DoF — the cleanest inference instrument available — and proposes a concrete hybrid that sunsets the family search while preserving the only TZ-agnostic asset. C is operationally tight but conflates "ship 865" with the gating question. E is correct but folksy.</p>
+<p><strong>2. Biggest blind spot: B.</strong> B treats combo-865 as a laundering target and demands "no hybrid," but never engages with the asymmetry D names: Probe 2 was preregistered, mechanical, and TZ-agnostic. Calling forward accrual a "tax disguised as rigor" while accepting sunset is internally incoherent — sunset <em>also</em> doesn't falsify 865. B's "retraction #3" framing is fear-based, not Bayesian.</p>
+<p><strong>3. What all five missed:</strong> None addressed the <strong>paper-trade-vs-live decision boundary</strong>. Forward paper accrual on a frozen rule still has selection bias if the kill-switch is discretionary — preregister the <em>abandonment</em> criteria (max DD, n_trades floor, time budget) at the same time as the success gates, or paper-trade becomes another partition to overfit.</p>
+</details>
+
+<details>
+<summary>Reviewer 2 — Strongest: D. Biggest blind spot: B. Load-bearing catch: 100%-combo-overlap leakage.</summary>
+<p><strong>1. Strongest: D.</strong> It's the only response that mechanically separates two distinct claims — (i) combo-865's Probe 2 result is a signed mechanical PASS that doesn't decay from family-level reuse, (ii) the 1h family search is exhausted. The 4× partition-burn penalty applies to <em>new</em> claims drawn from those reads, not to dollars already booked behind a frozen preregistration. D also identifies the only true zero-DoF inference instrument available: forward bars on frozen parameters. C reaches similar hybrid but skips the rigor on why 865 is exempt.</p>
+<p><strong>2. Biggest blind spot: B.</strong> B conflates "family falsified" with "every artifact of the search is contaminated." Combo-865 was signed at commit <code>a49f370</code> <em>before</em> Probes 3/4 reads. B's "you haven't earned sunset" framing punishes a clean Probe 2 PASS for sins committed downstream. Foreclosing 865 absent forward accrual is exactly the trap D names.</p>
+<p><strong>3. All five missed:</strong> none stress-tested combo-865 against the 100% combo-overlap finding (<code>project_combo_overlap_structural</code>). 865 has trades in V3/V4 training partitions; its parameters may have been <em>implicitly</em> selected by ML#1's feature engineering even before Probe 2. That's a leakage vector orthogonal to the 4× read. Forward paper-accrual still resolves it — but the council should name it.</p>
+</details>
+
+<details>
+<summary>Reviewer 3 — Strongest: B. Biggest blind spot: D. Load-bearing catch: 865 PASS is itself 1/13,814 selection.</summary>
+<p><strong>1. Strongest: B.</strong> B is the only one that names the actual failure mode: "find OOS data" is motivated search post-falsification. It diagnoses each option's specific pathology (a=corpse, b=tax, c=hidden 865 problem) and lands on binding teeth — Probe 5 partition declared <em>before</em> signal selection, no hybrid. The "hybrid is how you get retraction #3" line is load-bearing given the project's actual track record (Probes 3, 4 both retracted).</p>
+<p><strong>2. Biggest blind spot: D.</strong> D treats "12 weeks of forward bars on a frozen rule is the cleanest inference this project will ever make" as if power weren't an issue. ~50 trades cannot detect Sharpe 1.3 vs 0 at any reasonable α — B names this explicitly, D hand-waves it. D also adds a third concurrent stream (ML#1 generalization) to a project already drowning in retracted probes.</p>
+<p><strong>3. What ALL missed:</strong> None addressed that combo-865's Probe 2 PASS itself was selected from a 13,814-combo search where the family failed — so 865's "OOS" was already conditional on family-level multiplicity. Paper-trading 865 isn't independent evidence; it's testing whether one lottery ticket keeps paying. The honest prior on 865 should reflect 1/13,814 selection, not its standalone Sharpe 2.89.</p>
+</details>
+
+<details>
+<summary>Reviewer 4 — Strongest: A. Biggest blind spot: D. Load-bearing catch: stopping rule must be preregistered.</summary>
+<p><strong>1. Strongest: A.</strong> A is the only response that names the actual epistemic problem: 1/13,814 is a multiplicity artifact, and <em>no quantity of fresh data</em> answers the family-level question without a mechanism. B/C/D/E debate logistics inside a frame A correctly rejects. A's "find mechanism or shelve" is the only test that distinguishes durable edge from a survivor.</p>
+<p><strong>2. Biggest blind spot: D.</strong> D treats $124k/yr as "booked" when it's a backtest number on a 4×-read partition with no forward fills. The "4× reuse penalty doesn't apply to Probe 2 dollars" claim is wrong — Probe 2 was selected <em>because</em> combo-865 survived an exhaustive 13,814-combo search; selection bias contaminates the dollar figure exactly as it contaminates Probes 3/4. D mistakes a frozen rule for unconditional inference.</p>
+<p><strong>3. What all five missed:</strong> None addressed the <strong>stopping rule for paper-trading 865</strong>. C/D/E all propose forward accrual without preregistering the kill criterion: drawdown threshold, Sharpe floor, trade-count window, false-discovery posterior under H0. Without a signed §-gate before bar 1, paper-trade becomes Probe 5 by another name — another retraction risk. The council's next deliverable should be the 865 paper-trade preregistration, not the OOS framing debate.</p>
+</details>
+
+<details>
+<summary>Reviewer 5 — Strongest: A. Biggest blind spot: C. Load-bearing catch: paper-trade decision rule missing.</summary>
+<p><strong>1. Strongest: Response A.</strong> It correctly reframes the problem. (a)/(b)/(c) all assume the question is "where do we get clean data" when the actual question is "what is the posterior on 865's edge given a 1/13,814 search hit." Without a mechanistic falsifier, fresh data just rolls the dice again — A is the only response that names this. B gets close but stops at "motivated search" without specifying the mechanism test.</p>
+<p><strong>2. Biggest blind spot: Response C.</strong> Treats this as a logistics problem ("done by lunch, 3 deliverables tomorrow") and asserts 865 paper-trade is "tightest path to cash" without engaging the multiplicity prior at all. C also contradicts itself — claims (a) is dead-on-arrival and (b) is "suicide," then prescribes paper-trading (which IS option b for the combo). Misses that paper-trading without a pre-specified falsification gate just adds a 5th retraction risk.</p>
+<p><strong>3. What all five missed:</strong> None specified the <strong>decision rule for the paper-trade itself</strong>. If 865 paper-trades for 12 weeks and returns Sharpe 1.5 on 50 trades, does that PASS or FAIL? Without a preregistered gate (n_trades floor, Sharpe threshold, drawdown kill-switch) signed <em>before</em> accrual starts, the council is setting up retraction #3. The TZ-bug lesson was preregistration-discipline; the council just skipped it.</p>
+</details>
+
+<div class="footer">
+  <p>Council fired 2026-04-24 on the post-TZ-cascade independent-data question.</p>
+  <p>5 advisors (Contrarian, First Principles, Expansionist, Outsider, Executor) → 5 anonymized peer reviewers → chairman synthesis. Method: Karpathy-style LLM Council.</p>
+  <p>Context loaded: <code>tasks/tz_cascade_closure.md</code> (signed 2026-04-24), <code>tasks/council-transcript-2026-04-24-post-tz-cascade.md</code> (previous council handoff), <code>CLAUDE.md</code> project constraints.</p>
+  <p>Full transcript: <code>tasks/council-transcript-2026-04-24-independent-data.md</code></p>
+</div>
+
+</body>
+</html>

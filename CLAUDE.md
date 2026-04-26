@@ -120,6 +120,40 @@ The strategy rules themselves are defined in [`STRATEGY.md`](STRATEGY.md). The e
   `data/ml/probe3/readout.json`. Family-level Probe 1 sunset and Probe 2
   single-TF pass both stand unchanged; Probe 3 does not generalize
   outside combo-865 at 1h on NQ.
+- **Combo-865 paper-trade backfill — small-account OOS replay 2026-04-26 UTC.**
+  User-authorized OOS-scoped sizing override applied to
+  `scripts/paper_trade/backfill_combo865.py:115-122`:
+  `STARTING_EQUITY = $2,000`, `FIXED_RISK_DOLLARS = $50` (replacing the
+  project-wide CLAUDE.md $50k/$500 defaults for the **backfill scope only**).
+  At combo-865's 17.018pt stop on MNQ, integer-floor sizing yields
+  **1 contract/trade** with $34.04 realized risk (the $15.96 residual is
+  intentionally unallocated — rounding up to 2 contracts would put 3.4%
+  of a $2k account at risk per trade, a different risk regime). Full
+  backfill on the 1h test partition (8,651 bars, 2024-10-30 21:00 →
+  2026-04-24 15:00, identical window to prior run) reproduces 226 trades,
+  53.5% WR, and Sharpe-invariant per-trade economics, scaled to **+$2,679 /
+  +133.97% return on $2k** with realized peak DD ~26%. Monte Carlo
+  (10k IID bootstrap) ruin probability **0.04%** (4 / 10k sims),
+  worst-case DD **$1,098 = 54.9% of $2k start** (single-worst sim crosses
+  the 50%-ruin definition). Artifacts at `evaluation/probe5_combo865_backfill/`,
+  re-executed via `jupyter nbconvert --execute` (the in-repo
+  `scripts/exec_analysis.py` `nbclient` path was confirmed broken on
+  Windows + Python 3.13 this session — see `lessons.md`
+  `2026-04-26 nbclient_kernel_startup_timeout_on_windows_py313`).
+  **This is a continuity-bridge replay, NOT a forward paper-trade or
+  live-deployment authorization.** The Probe 3 PAPER_TRADE retraction
+  banner above and the Probe 5 prereg unsigned status both still apply.
+  Pre-sign analyst assessment recorded in
+  `tasks/probe5_combo865_paper_trade_preregistration.md` §1.A:
+  **NOT READY for live deployment** at any sizing as of 2026-04-26
+  (6 enumerated blockers; the $2k sizing makes §A.3.1 KILL gate
+  near-tripped on historical DD, which is a structural-unsignability
+  finding for the prereg in its current form). User directive
+  2026-04-26 authorizes the backfill execution at this sizing only,
+  with the AI counterfactual recorded for audit. Project-wide
+  $50,000 / $500 / 5%-of-equity defaults remain non-negotiable for
+  sweep generation, evaluation notebooks, and ML pipelines. Memory:
+  `memory/project_oos_sizing_2k_50.md`.
 - **Backtest mode first**: use CSV input; no live broker integration yet.
 - **Notebooks run in-place**: notebooks must run from repo root and write artifacts to the correct folders without manual path edits.
 
