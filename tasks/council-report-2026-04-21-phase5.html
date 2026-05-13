@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LLM Council Report — Phase 5 Redesign Fork (2026-04-21)</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --rule: #e5e5e5;
+    --chairman: #0f3057;
+    --chairman-tint: #f1f5fa;
+    --agree: #2f7d4f;
+    --clash: #a8471e;
+    --blind: #7a4ba8;
+    --contrarian: #b83a32;
+    --principles: #2b6aa3;
+    --expansionist: #d4862a;
+    --outsider: #4a6a7c;
+    --executor: #2f7d4f;
+    --warn-bg: #fff8e1;
+    --warn-border: #f0c34a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  header .kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 11px;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+  header h1 {
+    font-size: 26px;
+    margin: 0 0 8px;
+    font-weight: 650;
+  }
+  header .sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0;
+  }
+  h2 {
+    font-size: 17px;
+    margin: 36px 0 14px;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+  }
+  h3 { font-size: 14px; margin: 20px 0 8px; font-weight: 650; }
+  .question {
+    background: #fafafa;
+    border-left: 3px solid var(--rule);
+    padding: 14px 18px;
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: #2a2a2a;
+  }
+  .verdict {
+    background: var(--chairman-tint);
+    border: 1px solid #d6e0ec;
+    border-left: 4px solid var(--chairman);
+    padding: 20px 22px;
+    margin: 28px 0 0;
+    border-radius: 2px;
+  }
+  .verdict h2 { margin-top: 0; color: var(--chairman); }
+  .verdict h3 { color: var(--chairman); }
+  .verdict p, .verdict li { font-size: 14px; }
+  .verdict .kill {
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-border);
+    padding: 12px 14px;
+    margin: 12px 0;
+    border-radius: 2px;
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+  .verdict code.cmd {
+    display: block;
+    background: #1e1e1e;
+    color: #f2f2f2;
+    padding: 12px 14px;
+    margin: 10px 0;
+    border-radius: 3px;
+    font-family: "SF Mono", Monaco, Consolas, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+  }
+  table.grid {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12.5px;
+    margin: 12px 0 0;
+  }
+  table.grid th, table.grid td {
+    border: 1px solid var(--rule);
+    padding: 8px 10px;
+    text-align: center;
+    vertical-align: middle;
+  }
+  table.grid th {
+    background: #fafafa;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  table.grid td.opt { text-align: left; font-weight: 600; background: #fafafa; }
+  .yes { color: var(--agree); font-weight: 650; }
+  .no { color: var(--contrarian); font-weight: 650; }
+  .mid { color: var(--expansionist); font-weight: 650; }
+  .dash { color: #bbbbbb; }
+  details {
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    background: #fdfdfd;
+  }
+  details summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 2px 0;
+    outline: none;
+  }
+  details[open] summary { margin-bottom: 10px; }
+  details .body {
+    font-size: 13.5px;
+    color: #2a2a2a;
+    border-top: 1px solid var(--rule);
+    padding-top: 10px;
+  }
+  details .body p { margin: 0 0 8px; }
+  details.contrarian summary::before { content: "The Contrarian"; color: var(--contrarian); font-weight: 650; margin-right: 10px; }
+  details.principles summary::before { content: "The First Principles Thinker"; color: var(--principles); font-weight: 650; margin-right: 10px; }
+  details.expansionist summary::before { content: "The Expansionist"; color: var(--expansionist); font-weight: 650; margin-right: 10px; }
+  details.outsider summary summary::before { content: "The Outsider"; color: var(--outsider); font-weight: 650; margin-right: 10px; }
+  details summary span.label { display: inline-block; min-width: 210px; font-weight: 650; }
+  details.contrarian summary span.label { color: var(--contrarian); }
+  details.principles summary span.label { color: var(--principles); }
+  details.expansionist summary span.label { color: var(--expansionist); }
+  details.outsider summary span.label { color: var(--outsider); }
+  details.executor summary span.label { color: var(--executor); }
+  details summary span.tag {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-left: 12px;
+  }
+  ul { margin: 8px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+  .legend span { margin-right: 14px; }
+  .agree-block { border-left: 3px solid var(--agree); padding: 2px 0 2px 14px; margin: 10px 0; }
+  .clash-block { border-left: 3px solid var(--clash); padding: 2px 0 2px 14px; margin: 10px 0; }
+  .blind-block { border-left: 3px solid var(--blind); padding: 2px 0 2px 14px; margin: 10px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="kicker">LLM Council Report &middot; Intra Project</p>
+    <h1>Phase 5 Redesign Fork &mdash; Post V3+V4 Audit Double-FAIL</h1>
+    <p class="sub">Convened 2026-04-21 UTC &middot; 5 advisors + peer review + chairman synthesis</p>
+  </header>
+
+  <h2>The Question</h2>
+  <div class="question">
+    Both V3 and V4 LightGBM ML#2 stacks failed combo-agnostic ship-blocker audits; the <code>global_combo_id</code> categorical feature was a per-combo memorization channel. Shipped V4 Sharpe +2.13 &rarr; V4-no-ID &minus;0.42 (ruin 56%); shipped V3 Sharpe +1.78 &rarr; V3-no-ID +0.31 (ruin 54%). OOF AUC preserved (0.8293). 100% combo overlap between training and Pool B top-50. Paper-trading halted. No ML#2 stack passes ship criteria.
+    <br><br>
+    <strong>Which of 4 redesign paths should be prioritized?</strong> Option A (combo-level K-fold, ~10h), B (accept Sharpe 0.31 ceiling), C (5-min diagnostic: check unfiltered Pool B MC), or D (learning-to-rank rebuild, multi-day).
+  </div>
+
+  <div class="verdict">
+    <h2>Chairman's Verdict</h2>
+
+    <h3>The Recommendation</h3>
+    <p><strong>Run Option C today. Pre-register a kill-criterion before you read the result. Then, regardless of outcome, run a ranker-layer combo-agnostic audit before any further ML#2 work.</strong></p>
+    <ul>
+      <li><strong>Today (5 min):</strong> Run C. Pre-commit in writing the kill-criterion below. Do not read the number before writing the criterion.</li>
+      <li><strong>Tomorrow (independent of C's result):</strong> Audit the Pool B ranker itself &mdash; does <code>audit_full_net_sharpe</code> top-50 survive when recomputed on a pre-2024 / walk-forward slice that excludes V3/V4's training window?</li>
+      <li><strong>Only after both audits:</strong> Decide A vs B. Not before.</li>
+      <li><strong>Reject Option D</strong> (multi-day learn-to-rank rebuild) and <strong>reject per-combo meta-models</strong>. Both are sophisticated-sounding versions of the revoked leak.</li>
+    </ul>
+
+    <h3>The One Thing to Do First</h3>
+    <p>Before opening a terminal, open <code>tasks/phase5_kill_criterion.md</code> and write this line, dated and timestamped:</p>
+    <div class="kill">"If unfiltered Pool B s6_net Sharpe p50 &ge; 0.31 with ruin &le; V3-no-ID's 54%, I will deprecate ML#2 filtering from the production pipeline and will not train another trade-grain filter without first auditing the ranker layer for per-combo memorization. Signed, 2026-04-21."</div>
+    <p>Then, and only then, run the literal command:</p>
+    <code class="cmd">scp sweep-runner-1:evaluation/v12_topk_top50_raw_sharpe_net_v3_no_gcid/s3_mc_combined_net.ipynb . \
+  &amp;&amp; jupyter nbconvert --to script s3_mc_combined_net.ipynb \
+  &amp;&amp; grep -A2 "sharpe_p50\|ruin_pct" s3_mc_combined_net.py</code>
+    <p>The criterion has to be written down before the number is read. That is the one discipline that would have prevented both revocations, and it costs nothing.</p>
+  </div>
+
+  <h2>Advisor Positions Grid</h2>
+  <table class="grid">
+    <thead>
+      <tr>
+        <th style="text-align:left">Option</th>
+        <th>Contrarian</th>
+        <th>First Principles</th>
+        <th>Expansionist</th>
+        <th>Outsider</th>
+        <th>Executor</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="opt">C first (5-min diagnostic)</td>
+        <td class="yes">YES</td>
+        <td class="yes">YES</td>
+        <td class="mid">implicit</td>
+        <td class="yes">YES</td>
+        <td class="yes">YES</td>
+      </tr>
+      <tr>
+        <td class="opt">A (K-fold, ~10h)</td>
+        <td class="mid">only with pre-committed kill-criterion</td>
+        <td class="mid">conditional on C</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+        <td class="yes">auto if C &lt; 0.31</td>
+      </tr>
+      <tr>
+        <td class="opt">B (accept ceiling)</td>
+        <td class="mid">accept if C passes</td>
+        <td class="no">premature</td>
+        <td class="no">go up the stack</td>
+        <td class="mid">honest</td>
+        <td class="mid">not an action</td>
+      </tr>
+      <tr>
+        <td class="opt">D (learn-to-rank rebuild)</td>
+        <td class="no">never &mdash; "cope"</td>
+        <td class="no">premature</td>
+        <td class="mid">Option F variant</td>
+        <td class="no">avoidance</td>
+        <td class="no">2-day scoping</td>
+      </tr>
+      <tr>
+        <td class="opt">Per-combo meta-models (E)</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+        <td class="yes">proposes</td>
+        <td class="dash">&mdash;</td>
+        <td class="dash">&mdash;</td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="legend">
+    <span style="color:var(--agree)">YES = endorses</span>
+    <span style="color:var(--contrarian)">NO = rejects</span>
+    <span style="color:var(--expansionist)">amber = conditional / partial</span>
+    <span style="color:#bbb">&mdash; = not addressed</span>
+  </p>
+
+  <div class="agree-block">
+    <h2>Where the Council Agrees</h2>
+    <p><strong>Option C first, today, 5 minutes.</strong> All five advisors &mdash; across different reasoning frames &mdash; converge on running the unfiltered Pool B MC as the only cheap falsifiable experiment. No advisor defends skipping C.</p>
+    <p><strong>Option D is disqualified.</strong> Four of five explicitly reject it as cope, premature, elaborate avoidance, or 2 days of scoping before a line of code.</p>
+    <p><strong>The ML#2 layer is on trial, not under repair.</strong> AUC 0.83 with Sharpe 0.31 means the ranking signal is real but economic magnitude per ranked unit is trivial once combo priors are gone. The question stopped being "which redesign?" and became "does this layer earn its existence?"</p>
+    <p><strong>Per-combo meta-models got hammered in peer review.</strong> Every single reviewer independently flagged Expansionist's "Option E" as the biggest blind spot &mdash; training on each of the 50 combos' 500-trade histories when those 50 combos were selected from the same universe as training is <code>global_combo_id</code> memorization formalized and dressed in prop-desk language. Phase 5D already killed per-combo calibrators (91% DD, failed B16 gate).</p>
+  </div>
+
+  <div class="clash-block">
+    <h2>Where the Council Clashes</h2>
+    <p><strong>"If C passes (unfiltered &ge; 0.31), what next?"</strong> Contrarian/Outsider/First-Principles: accept it, ML#2 was ornamental, move to Option B but operationalize it. Expansionist: go up the stack (learn-to-rank on combo features). Executor: launch Option A Monday PM if C &lt; 0.31.</p>
+    <p><strong>Does Option A survive the 100%-overlap critique?</strong> Contrarian and four of five reviewers say A produces a structurally ambiguous result &mdash; combo-level K-fold with 100% overlap means every fold's OOS combos are parameter-space neighbors of training combos, reproducing exactly the AUC-parity false-pass pattern that burned the project twice. Executor still wants A as fallback. This is a real unresolved disagreement: A may be uninterpretable even if run correctly.</p>
+    <p><strong>Expansionist vs. everyone else on "combo identity is a feature."</strong> Expansionist reads V4's +2.55 Sharpe leak delta as "labeled data on what combo-memorization is worth" and wants to productize it. Every reviewer and the contrarian/first-principles flank reject this outright &mdash; the measured evidence is that combo-identity signal collapses to 56% ruin when forced to generalize.</p>
+  </div>
+
+  <div class="blind-block">
+    <h2>Blind Spots the Council Caught (Peer Review Only)</h2>
+    <p><strong>The Pool B ranker layer itself may be leaky.</strong> Four of five reviewers independently raised the same concern no advisor touched. The 50-combo basket was selected by <code>audit_full_net_sharpe</code> &mdash; a ranker computed over the full 13,814-combo pool <em>including</em> V3/V4 training windows. If C shows unfiltered Sharpe &ge; 0.31, the honest next question is not "ML#2 is overhead" &mdash; it's "is Pool B's 2.13 also per-combo memorization, one layer up?"</p>
+    <p><strong>The ship gate itself failed twice and no one priced that in.</strong> Reviewers 2 and 5: two consecutive stacks shipped on AUC parity + tight-CI Sharpe point estimates while the underlying signal was memorization. No advisor proposed a pre-ship combo-agnostic refit audit as a mandatory gate for Phase 6.</p>
+    <p><strong>The 0.31 baseline itself is unaudited.</strong> Reviewer 4: V3-no-ID was produced on Pool B combos 100% overlapping training. Even the "honest ceiling" may be inflated.</p>
+    <p><strong>No advisor considered "do nothing" as a priced option.</strong> Paper trading is halted. There's an ongoing cost of <em>not</em> deciding &mdash; capital idle, conviction decaying &mdash; that none of A/B/C/D explicitly accounts for.</p>
+    <p><strong>Outsider alone flagged the meta-question:</strong> what property of the workflow let a memorization channel survive to ship? Whatever the next stack is, if that question isn't answered, the next leak is already in the pipeline.</p>
+  </div>
+
+  <h2>Full Advisor Responses</h2>
+
+  <details class="contrarian">
+    <summary><span class="label">The Contrarian</span><span class="tag">finds what will fail</span></summary>
+    <div class="body">
+      <p>Run Option C in the next 5 minutes. Non-negotiable.</p>
+      <p>Here's what you're avoiding: if unfiltered Pool B on V3-no-ID training data hits Sharpe &ge; 0.31, <strong>the ML#2 layer has been ornamental the entire time</strong>. Every week you spent on V1/V2/V3/V4 boosters, isotonic calibration, per-combo calibrators, Kelly variants, the whole Phase 5D postmortem &mdash; weeks of work whose apparent Sharpe uplift came from combo memorization. Selection from the top-50 raw-Sharpe basket (the real source of edge per the v12 ablation) may be doing 100% of the work already. You cannot rationally commit 10h of compute to Option A without this number.</p>
+      <p>Hidden failure mode in Option A: you're assuming the feature is salvageable. But combo-level K-fold with 588,235 combos and 100% overlap with Pool B means every fold's OOS combos are still statistically neighbors of training combos (same parameter neighborhoods, same sweep distribution). You'll likely get OOS Sharpe somewhere between 0.31 and 2.13 &mdash; an ambiguous result you'll have to interpret, and you'll be tempted to ship. AUC parity already fooled you once; don't let "K-fold matches unfolded" fool you again. Define the kill-criterion before you run it: what K-fold Sharpe number makes you abandon <code>global_combo_id</code> permanently? Write it down now.</p>
+      <p>Option D is a cope. You don't have a ranking problem &mdash; v12 raw-Sharpe top-50 already ranks fine (Sharpe 2.13 baseline). You have a <strong>trade filtering</strong> problem, and trade filtering may simply not be tractable on this data.</p>
+      <p>Order: C (tonight) &rarr; B (accept) OR A (with pre-committed kill-criterion). Never D.</p>
+    </div>
+  </details>
+
+  <details class="principles">
+    <summary><span class="label">The First Principles Thinker</span><span class="tag">asks what we're actually solving</span></summary>
+    <div class="body">
+      <p>You're asking which redesign path to pick. That's the wrong question.</p>
+      <p>The actual problem: <strong>you have no evidence that a predictable edge exists at the trade-grain on this strategy family.</strong> V3 and V4 both "worked" because they memorized combo identity. When you remove the leak, trade-level AUC stays at 0.83 but the Sharpe collapses from +1.78 to +0.31. That's not a calibration bug. That's the signal telling you the win/loss distribution conditional on features-minus-combo-ID is nearly indistinguishable from the unconditional base rate <em>at the per-trade level</em>.</p>
+      <p>AUC 0.83 with Sharpe 0.31 means the ranking is real but the economic magnitude per ranked unit is trivial once you can't cheat with per-combo priors. A filter that admits +18% more trades and drops Sharpe 5.7x is a filter doing almost nothing useful.</p>
+      <p>So reframe. The real question is: <strong>where does the edge actually live?</strong> The Pool B top-50 raw-Sharpe portfolio (no ML#2) already delivers Sharpe 2.13. The edge is in <strong>combo selection</strong>, not trade selection. Every week you've spent on ML#2 has been trying to squeeze juice from a layer that, stripped of leakage, contributes ~nothing.</p>
+      <p>Prioritization: (1) Option C first, today, 5 minutes. Only cheap falsifiable experiment. If unfiltered Pool B &ge; filtered, ML#2 is dead and you've saved yourself Option A's 10 hours. (2) Only if C shows a real gap: run A. K-fold isn't a redesign, it's a validation of whether the leak <em>was</em> the edge or merely rode alongside one. (3) B and D are premature.</p>
+      <p><strong>Stop defending the pipeline. Measure it.</strong></p>
+    </div>
+  </details>
+
+  <details class="expansionist">
+    <summary><span class="label">The Expansionist</span><span class="tag">hunts upside &mdash; flagged as biggest blind spot by all 5 reviewers</span></summary>
+    <div class="body">
+      <p>The leak isn't a catastrophe. It's a <strong>free labeled dataset on what combo-memorization is worth</strong> &mdash; and you're about to throw it away.</p>
+      <p>Shipped V4 Sharpe +2.13 minus combo-agnostic &minus;0.42 = <strong>a clean 2.55 Sharpe delta that is pure combo-identity value</strong>. That number is gold. It tells you the market for "knowing which combo you're trading" is massive. The question isn't "how do I remove the leak" &mdash; it's <strong>"how do I legitimately productize combo identity?"</strong></p>
+      <p><strong>Option E the council is missing: Combo-specific meta-models.</strong> Don't predict P(win | features) across all 13,814 combos with one global model. Train a <strong>lightweight per-combo calibrator</strong> on each top-50 combo's own historical trades. This is not leakage &mdash; it's the entire premise of production trading. Every prop desk runs strategy-specific models. You have 500+ trades per combo post-gate; that's enough for a logistic regression or shallow GBM per combo. The "combo overlap is 100%" problem becomes a <strong>feature</strong>, not a bug &mdash; you're not trying to generalize to unseen combos, you only ever trade the 50.</p>
+      <p><strong>Option F &mdash; learn-to-rank is the adjacent upside.</strong> You're currently raw-Sharpe-ranking 13,814 combos and it beats ML#1 v12. That's a scream that the ranking layer is where value lives, not the trade-level filter. A proper LambdaRank on combo features predicting robust walk-forward Sharpe could <strong>lift the entire top-50 pool quality</strong>, which compounds more than any ML#2 filter ever will.</p>
+      <p><strong>Biggest hidden win</strong>: You've been optimizing the wrong layer. ML#2 filters 20% of trades; ML#1/ranking chooses the 50 combos you trade at all. A 0.1 Sharpe improvement at the ranking layer beats a 0.3 Sharpe improvement at the filter layer because it multiplies across every trade. <strong>Go up the stack.</strong></p>
+      <p style="color:var(--muted); font-size:12px; margin-top:12px; border-top: 1px dashed var(--rule); padding-top:10px;"><em>Peer review note: Every reviewer independently flagged Option E as the biggest blind spot &mdash; per-combo calibrators on 500+ trades reopens the memorization channel that V3/V4 audits just revoked. Phase 5D already deprecated this approach (91% DD, B16 fail).</em></p>
+    </div>
+  </details>
+
+  <details class="outsider">
+    <summary><span class="label">The Outsider</span><span class="tag">reads the story without domain context</span></summary>
+    <div class="body">
+      <p>From the outside, this looks less like a modeling problem and more like a story about a person who built something that felt like it was working, discovered it wasn't, and is now asking "which tool should I use to fix the thing?" The tool question is downstream of a much bigger one.</p>
+      <p>Here's what jumps out: the gap between "Sharpe 2.13" and "Sharpe &minus;0.42" isn't a bug. It's a measurement of how much you were fooling yourself. That's not a small delta. That's the model telling you it had no predictive power on the thing you actually care about. A domain expert sees "we found the leak, now we fix it." An outsider sees "you spent weeks not knowing your model didn't work, and your validation process didn't catch it until now."</p>
+      <p>The question you're not asking: <strong>why did it take weeks to find this?</strong> What property of your workflow let a memorization channel survive all the way to "ship"? Whatever answer you give for Option A, B, C, or D &mdash; if you don't fix that, the next stack will have a different leak, and you'll find it in another several weeks.</p>
+      <p>Second thing: "user has invested weeks" shows up in your framing. That's sunk cost talking. The four options are ordered in a way that protects the investment (A = keep going, B = accept a tiny win, C = admit defeat, D = start over). An outsider reads C as the cheapest and most honest: spend 5 minutes checking whether the filter adds anything over no filter. If it doesn't &mdash; and the fact that you're asking suggests you already suspect &mdash; then A and D are elaborate ways of avoiding that answer.</p>
+      <p>Run C first. Today. Before choosing anything.</p>
+    </div>
+  </details>
+
+  <details class="executor">
+    <summary><span class="label">The Executor</span><span class="tag">Monday morning commands</span></summary>
+    <div class="body">
+      <p><strong>Monday morning, literal first command:</strong></p>
+      <code class="cmd">cd C:\Users\kunpa\Downloads\Projects\intra &amp;&amp; scp runner:evaluation/v12_topk_net_v3_no_gcid/s3_mc_combined.ipynb ./evaluation/v12_topk_net_v3_no_gcid/ &amp;&amp; jupyter nbconvert --to script s3_mc_combined.ipynb | grep -A2 "sharpe_p50\|ruin_pct"</code>
+      <p>That's <strong>Option C's diagnostic pull</strong>. 5 minutes. Before any redesign, you need the unfiltered Pool B number. If s3_net (no ML#2 at all) already beats V3-no-ID's 0.31 Sharpe, ML#2 is net-negative and Options A/D are dead on arrival.</p>
+      <p><strong>Sequencing:</strong></p>
+      <ol>
+        <li><strong>Mon AM (5 min)</strong>: Pull s3. Decide if ML#2 is even additive.</li>
+        <li><strong>Mon PM (if s3 &lt; 0.31)</strong>: Launch Option A with literal kfold command, attach 10-min Monitor poll.</li>
+        <li><strong>Tue EOD</strong>: Read OOF Sharpe on held-out fold. Ship-or-kill.</li>
+      </ol>
+      <p><strong>Hidden ambiguity &mdash; Option B is not an action.</strong> "Accept honest ceiling and pivot to combo-scouring" has no Monday command. What script? What sweep? What ranker? It's a mood, not a task. If the user picks B, force them to name the literal next .py file they'll write before EOD Monday, or B collapses into procrastination.</p>
+      <p><strong>Option D is also ambiguous</strong>: "learning-to-rank" &mdash; LambdaMART? XGBoost rank:pairwise? Which library, which target, which eval metric? 2 days of scoping before a single line of code.</p>
+      <p>A and C have real commands. B and D don't. Run C today, A tomorrow.</p>
+    </div>
+  </details>
+
+  <h2>Peer Review Highlights</h2>
+  <details>
+    <summary>Strongest &middot; Biggest blind spot &middot; What all 5 missed</summary>
+    <div class="body">
+      <p><strong>Strongest response (by vote):</strong> Contrarian (3 votes), First Principles (2 votes). Contrarian cited for naming Option A's unresolved failure mode (neighbor-combo contamination) and demanding a pre-registered kill-criterion. First Principles cited for correctly diagnosing AUC 0.83 + Sharpe 0.31 as a structural statement, not a bug report.</p>
+      <p><strong>Biggest blind spot (unanimous 5/5):</strong> Expansionist. Per-combo meta-models on 500+ trades where the 50 combos were selected from the same universe as training IS the <code>global_combo_id</code> memorization channel just revoked &mdash; dressed in prop-desk language. Phase 5D already killed per-combo calibrators.</p>
+      <p><strong>What all 5 missed (surfaced only in peer review):</strong></p>
+      <ul>
+        <li><strong>The Pool B ranker layer itself may be leaky.</strong> 4 of 5 reviewers: <code>audit_full_net_sharpe</code> that selected the top-50 was computed on the same 13,814-combo pool V3/V4 trained on. If the ranker leaks, C's result is still uninterpretable &mdash; could mean "ranker leaks" not "ML#2 is overhead."</li>
+        <li><strong>The ship gate itself failed twice and no one priced it.</strong> What audit becomes mandatory <em>before</em> any future ML#2 ships? Without a combo-agnostic refit as pre-ship gate, Phase 6 will leak differently.</li>
+        <li><strong>The 0.31 baseline is unaudited.</strong> V3-no-ID was produced on Pool B combos 100% overlapping training. Even the "honest ceiling" may be inflated.</li>
+        <li><strong>"Do nothing" is not priced as an option.</strong> Paper trading is halted; capital idle has a cost none of A/B/C/D accounts for.</li>
+      </ul>
+    </div>
+  </details>
+
+  <footer>
+    <p>
+      Generated 2026-04-21 UTC &middot; intra project &middot; Phase 5 redesign fork<br>
+      5 advisors (Contrarian &middot; First Principles &middot; Expansionist &middot; Outsider &middot; Executor) &middot; 5 anonymized peer reviews &middot; chairman synthesis<br>
+      Transcript: <code>tasks/council-transcript-2026-04-21-phase5.md</code>
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>

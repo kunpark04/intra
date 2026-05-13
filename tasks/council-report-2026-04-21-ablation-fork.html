@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council Verdict — Root Ablation Fork (2026-04-21)</title>
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --card: #ffffff;
+    --ink: #1b1b1b;
+    --muted: #5a5a5a;
+    --border: #e2e2df;
+    --accent: #2b5f9e;
+    --warn: #a0522d;
+    --ok: #2f6e4f;
+    --danger: #9e2b2b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 32px 20px 80px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 28px;
+  }
+  header .eyebrow {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  header h1 {
+    font-size: 1.65rem;
+    margin: 4px 0 8px;
+    font-weight: 700;
+  }
+  header .meta {
+    font-size: 0.88rem;
+    color: var(--muted);
+  }
+  .question-block {
+    background: #fff7e8;
+    border-left: 4px solid var(--warn);
+    padding: 16px 20px;
+    margin-bottom: 28px;
+    border-radius: 2px;
+  }
+  .question-block h2 {
+    margin: 0 0 6px;
+    font-size: 0.92rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--warn);
+  }
+  .question-block p { margin: 4px 0; font-size: 0.94rem; }
+  .question-block .fork {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed #e3c593;
+    font-size: 0.92rem;
+  }
+  .question-block .fork b { color: var(--warn); }
+  .verdict {
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    padding: 24px 26px;
+    margin-bottom: 32px;
+  }
+  .verdict h2 {
+    margin: 0 0 14px;
+    font-size: 1.2rem;
+  }
+  .verdict h3 {
+    font-size: 0.92rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin: 18px 0 6px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 3px;
+  }
+  .verdict h3:first-of-type { margin-top: 8px; }
+  .verdict p { margin: 6px 0; font-size: 0.95rem; }
+  .verdict .final-rec {
+    background: #eef4ff;
+    border-left: 4px solid var(--accent);
+    padding: 12px 16px;
+    margin-top: 8px;
+  }
+  .verdict .one-thing {
+    background: #ecf6ef;
+    border-left: 4px solid var(--ok);
+    padding: 12px 16px;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+  .grid {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 20px 22px;
+    margin-bottom: 28px;
+  }
+  .grid h2 {
+    margin: 0 0 14px;
+    font-size: 1.05rem;
+  }
+  .grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  .grid-table th, .grid-table td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .grid-table th {
+    font-weight: 600;
+    background: #f3f3f1;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .pill.cancel { background: #f5d9d9; color: var(--danger); }
+  .pill.pivot { background: #fde4c6; color: var(--warn); }
+  .pill.run { background: #e2e2df; color: var(--muted); }
+  .pill.mixed { background: #d9dff5; color: var(--accent); }
+  details {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  details[open] { border-color: var(--accent); }
+  summary {
+    cursor: pointer;
+    padding: 12px 18px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f6f6f4;
+    user-select: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: "+";
+    font-size: 1.2rem;
+    color: var(--muted);
+    font-weight: 300;
+  }
+  details[open] summary::after { content: "−"; }
+  .content {
+    padding: 14px 20px 18px;
+    font-size: 0.93rem;
+  }
+  .advisor-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .sectionhead {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 32px 0 12px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .review {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+  }
+  .review h4 {
+    margin: 0 0 6px;
+    font-size: 0.88rem;
+    color: var(--accent);
+  }
+  .review ol { margin: 4px 0 0 18px; padding: 0; }
+  .review li { margin: 3px 0; }
+  footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  code {
+    background: #f0efec;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">LLM Council Verdict</div>
+  <h1>Root Ablation Fork — Cancel / Run / Pivot?</h1>
+  <div class="meta">2026-04-21 UTC · intra repository · Phase 5 decision fork</div>
+</header>
+
+<div class="question-block">
+  <h2>The Question</h2>
+  <p><b>Situation:</b> MNQ 1-min mean-reversion strategy. V3 + V4 ML#2 filters revoked today after <code>global_combo_id</code> memorization leak. Shipped Sharpes 1.78 / 2.13 collapsed to 0.31 / -0.42 on clean refit.</p>
+  <p><b>Surfaced just before sign-off:</b> zero combos in the full 13,814-combo v12 universe have net Sharpe ≥ 1.0. Max = <b>0.736</b>. User's bar: "Sharpe &lt; 1 is not tradeable."</p>
+  <div class="fork">
+    <b>(a)</b> cancel the ablation &nbsp;·&nbsp;
+    <b>(b)</b> run it for completeness (~2h compute) &nbsp;·&nbsp;
+    <b>(c)</b> pivot the project (instrument / timeframe / strategy / friction)
+  </div>
+</div>
+
+<div class="verdict">
+  <h2>Chairman's Verdict</h2>
+
+  <h3>Where the Council Agrees</h3>
+  <p>All five advisors reject <b>option (b)</b> — running the 2h ablation is tuition on a question the census already answered. A selection operator cannot exceed the max of its input distribution.</p>
+  <p>Four of five converge on the same highest-leverage unchecked variable: the <b>$5/contract RT friction</b> assumption is ~4× retail MNQ reality (~$1.20). Every ceiling number downstream is downstream of a constant that was never validated.</p>
+  <p>Peer review is unanimous: <b>the Executor's response is strongest</b> — the only one that converts the fork into a same-day falsification with a concrete kill-gate.</p>
+
+  <h3>Where the Council Clashes</h3>
+  <p><b>First Principles vs Expansionist</b> on what 0.736 means. First Principles reads it as falsification of the strategy family and wants a cross-instrument hand-tuned probe. Expansionist reads it as a lens problem and wants to port the whole factory to ES/CL/GC/BTC/crypto perps. Peer reviewers sided decisively against the Expansionist — porting an unaudited pipeline that caught itself leaking twice multiplies contamination across more instruments.</p>
+  <p><b>Outsider vs everyone</b>: asks whether this class of strategy works after friction for anyone, anywhere. Nobody else treated that as a prerequisite question. Uncomfortable but logically prior to any pivot.</p>
+
+  <h3>Blind Spots the Council Caught</h3>
+  <p><b>Three load-bearing issues</b> surfaced only in peer review, not in any primary response:</p>
+  <p>1. <b>The ceiling itself may be contaminated.</b> The v11 sweep's <code>audit_full_net_sharpe</code> was produced by the same pipeline that shipped V3 and V4 with combo-ID leaks. It has never been audited for the same pathology.</p>
+  <p>2. <b>The 13,814 pool is a filtered sample, not a population.</b> <code>MIN_TRADES_GATE = 500</code> truncates the right tail of the Sharpe distribution before ranking.</p>
+  <p>3. <b>100% combo-overlap caps the ablation.</b> The <code>project_combo_overlap_structural</code> finding means any clean refit inherits the same 13,814-combo ceiling — the ablation can at best reproduce 0.736, not exceed it. This is the strongest argument for (a) on pure information grounds.</p>
+
+  <h3>The Recommendation</h3>
+  <div class="final-rec">
+    <p style="margin-top:0;"><b>Cancel the ablation. Execute the Executor's three-step friction re-score today.</b></p>
+    <p>Do <i>not</i> pivot instruments. Do <i>not</i> run the ablation "for completeness." The ablation is dead weight; (a) is defensible on pure information grounds but alone leaves three unverified assumptions in place. The Executor's path is cheaper than (a) and tests the single most load-bearing assumption: is $5/contract RT real?</p>
+    <p>Chairman modification the council didn't make explicit: <b>before multiplying the column, verify $5 is what the sweep engine actually used and where <code>COST_PER_CONTRACT_RT</code> came from in <code>scripts/param_sweep.py</code>.</b> If the constant is wrong, fix it at source. Don't patch at the output layer.</p>
+    <p>Kill-gate: if net-Sharpe distribution at $1.20 RT still tops out below 1.0, the strategy family is falsified <i>on a clean ceiling</i>, and First Principles' hand-tuned cross-instrument probe becomes the next move — not the Expansionist's "port the whole factory."</p>
+    <p style="margin-bottom:0;"><b>Explicit reject:</b> Expansionist's crypto-perps pivot. Porting a pipeline that just confessed two memorization leaks and uses an unvalidated friction constant to four new instruments turns a clean kill into a four-instrument mess.</p>
+  </div>
+
+  <h3>The One Thing to Do First</h3>
+  <div class="one-thing">
+    Open <code>scripts/param_sweep.py</code>. Find where <code>COST_PER_CONTRACT_RT = 5</code> is set. Confirm it was applied to <code>friction_dollars</code> and <code>audit_full_net_sharpe</code>. Find any documented source (commit, comment, <code>CLAUDE.md</code> line) justifying $5 over retail ~$1.20. That one file read decides whether the 0.736 ceiling is even the number this decision should hinge on.
+  </div>
+</div>
+
+<div class="grid">
+  <h2>Advisor Position Matrix</h2>
+  <table class="grid-table">
+    <thead>
+      <tr><th>Advisor</th><th>Stance on Ablation</th><th>Stance on Pivot</th><th>Cheapest Probe Proposed</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Contrarian</b></td>
+        <td><span class="pill cancel">Cancel</span></td>
+        <td><span class="pill mixed">Not yet — verify premises first</span></td>
+        <td>Re-verify friction ($30), then 5k-combo wide sweep at 5-min</td>
+      </tr>
+      <tr>
+        <td><b>First Principles</b></td>
+        <td><span class="pill cancel">Cancel — (a)=(b) in effect</span></td>
+        <td><span class="pill pivot">Yes, but not "change instrument"</span></td>
+        <td>Hand-tune a dozen Z-score combos across ES/NQ/YM/RTY</td>
+      </tr>
+      <tr>
+        <td><b>Expansionist</b></td>
+        <td><span class="pill cancel">Don't re-ablate</span></td>
+        <td><span class="pill pivot">Port the factory — ES/CL/GC/BTC</span></td>
+        <td>Swap data file, rerun sweeps in parallel (~6h)</td>
+      </tr>
+      <tr>
+        <td><b>Outsider</b></td>
+        <td><span class="pill cancel">Cancel</span></td>
+        <td><span class="pill pivot">Yes, but diagnose <i>why</i> first</span></td>
+        <td>Literature check: does anyone publish this family working after friction?</td>
+      </tr>
+      <tr>
+        <td><b>Executor</b></td>
+        <td><span class="pill cancel">Cancel</span></td>
+        <td><span class="pill pivot">Friction re-score, Monday noon</span></td>
+        <td>One column multiply on v11 Parquet at $1.50 RT</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:0.82rem; color:var(--muted); margin-top:12px;">
+    <b>Convergence:</b> 5/5 reject (b). 4/5 say friction is the binding variable to test first. Peer review unanimous: Executor's response strongest (concrete, same-day, falsifiable). Expansionist's response flagged as biggest blind spot by all 5 reviewers — "port the factory" assumes the factory is sound, but the factory just confessed two leaks.
+  </p>
+</div>
+
+<div class="sectionhead">Advisor Responses (collapsed)</div>
+
+<details>
+  <summary><span class="advisor-label">Advisor</span>The Contrarian</summary>
+  <div class="content">
+    <p>The ablation is dead weight. Run it and you get a formally-signed "we confirmed the leak was real" stamp on a pool that can't trade regardless. That's not closure, that's ceremony. Cancel (a).</p>
+    <p>But don't pivot yet either. You're about to make the same mistake in reverse: declaring the surface dead based on a filtered, already-degenerate universe. The 13,814 combos in v12 were <b>selected by a training-data generator tuned for ML signal diversity</b>, not by a search for tradeable Sharpe. A 0.736 ceiling in a diversity-biased pool tells you almost nothing about whether a Sharpe-seeking search over the same economics would clear 1.0.</p>
+    <p>Questions you're avoiding:</p>
+    <ol>
+      <li><b>What does the v12 ceiling look like at N=50,000 random combos drawn from wider ranges?</b> You've explored a narrow slice. The "ceiling" is a sampling artifact until proven otherwise.</li>
+      <li><b>Is $5 RT friction real for you, or a conservative placeholder?</b> MNQ at a real retail broker is ~$1.20 RT. If you're gating on inflated friction, you may have killed the strategy on paper that trades fine in reality.</li>
+      <li><b>Is 1-minute the problem or the z-score family the problem?</b> A 5-min z-score sweep is cheap.</li>
+      <li><b>"Sharpe &lt; 1 is not tradeable" — whose rule?</b> Sharpe 0.7 with 50% DD is untradeable. Sharpe 0.7 with 8% DD and monthly payout is a lifestyle business. The binding constraint is ruin probability and DD, not the Sharpe integer.</li>
+    </ol>
+    <p>Cheapest probe: re-verify friction ($30), then 5k-combo wide sweep at 5-min with real friction (~4h compute). If <b>that</b> ceiling is also &lt;1.0, pivot. Until then, you're pivoting on one data point.</p>
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-label">Advisor</span>The First Principles Thinker</summary>
+  <div class="content">
+    <p>You're asking the wrong question entirely.</p>
+    <p>The question isn't "V3 or pivot?" It's: <b>what problem were you actually trying to solve, and does the evidence say it's solvable at all?</b></p>
+    <p>Strip it down. The core claim of this entire project is: <i>there exists a parameterization of Z-score mean reversion on MNQ 1-min that, net of friction, earns Sharpe ≥ 1.0 — and ML can find it.</i> That's the load-bearing assumption. Everything else (ML#1 ranker, ML#2 filter, calibration, sizing) is machinery built on top of it.</p>
+    <p>You just falsified the assumption. Not with a model's output — with a <b>census</b> of 13,814 combos. Max = 0.736. No filter fixes that, because a filter is a <i>selection operator on an existing distribution</i>. You cannot select your way to a ceiling above the max. This is arithmetic, not statistics.</p>
+    <p>So (a) and (b) are the same answer dressed differently. The ablation's output is <b>already determined</b>: even a perfect leak-free V3 cannot produce a portfolio whose unfiltered constituent Sharpes exceed 0.736. Running it to "complete the record" is paying 2h compute to confirm what a census already proved. Don't.</p>
+    <p>Pick (c). But the cheapest probe is not "change instrument." It's this: <b>does a Sharpe ≥ 1.0 exist at all for 1-min mean-reversion on liquid US index futures net of realistic friction?</b> Three days, no ML, no sweep. Pull ES, NQ, YM, RTY 1-min. Run a dozen hand-tuned Z-score/EMA combos at current friction. If the best gross Sharpe across <i>all</i> of them is still sub-1.0 net, the strategy family is the binding constraint and you've been filtering noise for six months.</p>
+    <p>Falsify the family before rebuilding the stack.</p>
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-label">Advisor</span>The Expansionist</summary>
+  <div class="content">
+    <p>The raw-Sharpe ceiling of 0.736 isn't a failure signal — it's a <b>lens problem</b>. You've been looking through MNQ-1min-meanreversion glasses at a universe that's vastly bigger than that.</p>
+    <p><b>Pivot to (c), but reframe what "pivot" means.</b> You haven't built a trading strategy. You've built a <b>combinatorial alpha-discovery factory</b>: 13,814-combo sweep engine, parameter-KNN ranker, Monte Carlo, held-out evaluator, remote trainer, Council workflow. That stack is instrument-agnostic and strategy-family-agnostic. The hidden asset isn't the MNQ edge — it's the infrastructure's ability to chew through parameter spaces on ANY 1-min OHLCV series with friction.</p>
+    <p><b>The cheapest probe</b>: Swap the data file. <code>data/NQ_1min.csv</code> → <code>ES_1min.csv</code>, <code>CL_1min.csv</code>, <code>GC_1min.csv</code>, <code>BTC_1min.csv</code>. Keep the entire sweep engine frozen. Rerun v11 ranges against 3-5 instruments in parallel on sweep-runner-1. Cost: ~6 hours. If ANY instrument shows pre-ML Sharpe &gt;1.0 in the raw sweep, you've found the universe where your machinery has edge — and you can THEN apply the ML#2 filter work as a multiplier.</p>
+    <p><b>Bigger upside nobody's pricing in</b>: Your v12 parameter-only KNN ranker is a <b>meta-model</b>. It doesn't care what the underlying instrument is. Train it cross-instrument and you get a parameter-space prior that transfers. That's a genuinely novel asset — most quant shops tune per-instrument from scratch.</p>
+    <p><b>And this</b>: mean-reversion on 1-min MNQ failing at $5 RT friction is the <b>expected</b> outcome for retail friction on a liquid e-mini. Move to crypto perps (2-3bps friction, 24/7, higher vol-of-vol) and the same engine may light up. That's not a pivot — that's the engine finally meeting its natural substrate.</p>
+    <p>Don't cancel. Don't re-ablate a dead horse. <b>Port the factory.</b></p>
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-label">Advisor</span>The Outsider</summary>
+  <div class="content">
+    <p>Stop. I'm going to say what someone deep in this probably can't hear anymore.</p>
+    <p>You just told me the best result out of <b>13,814 attempts</b> is 0.736. You told me the average is -9.8, which I had to look up because I wasn't sure a Sharpe ratio could even go that negative in a coherent way. You told me you caught yourself cheating — twice — and only because you went looking.</p>
+    <p>A normal person hearing this would ask: how do you know the thing you're trying to do is possible at all?</p>
+    <p>Not "possible with better features." Not "possible with a smarter filter." Possible, period. You searched 13,814 configurations of a specific idea (mean-reversion on 1-minute bars of one instrument) and the entire surface is underwater. That's not a tuning problem. That's the search telling you the signal isn't there, or isn't there in the form you're looking for it.</p>
+    <p>The ablation is a 2-hour experiment to confirm something the data already screamed at you. You're not running it for information — you're running it because stopping feels like admitting six months went sideways. Those are different motivations and you should be honest about which one is driving.</p>
+    <p>My vote: <b>(c), but not the version you wrote.</b> Don't pivot to "different contract, different timeframe." That's just re-rolling the same dice. Pivot to figuring out <i>why</i> your entire search space is a loss-generator. Is it transaction costs eating everything? Is 1-minute mean-reversion on index futures just a solved/crowded edge? Does anyone — anywhere — publish evidence this class of strategy works after friction?</p>
+    <p>If you can't answer that, a new contract won't save you. Neither will a new model.</p>
+  </div>
+</details>
+
+<details>
+  <summary><span class="advisor-label">Advisor</span>The Executor</summary>
+  <div class="content">
+    <p>Cancel the ablation. Run option (c), specifically the friction re-score, today. Here's why: you already know the ceiling is 0.736 Sharpe at $5/contract RT. Two hours of GPU compute to confirm a revoked model still can't pass a bar it can't structurally reach is tuition you don't need to pay twice.</p>
+    <p>The friction re-score is the only probe that costs essentially nothing and tests a specific, plausible hypothesis: retail MNQ quotes are $0.50-$1.25/contract RT, not $5. You have every trade's gross PnL already in the v11 Parquet. You're multiplying one column by a scalar. That's it.</p>
+    <p><b>Monday morning, three commands:</b></p>
+    <ol>
+      <li><code>python -c "import pandas as pd; df = pd.read_parquet('data/ml/originals/ml_dataset_v11.parquet'); ..."</code> — quick-and-dirty net-Sharpe distribution at $1.50/contract to see if the ceiling moves above 1.0.</li>
+      <li>If step 1 clears 1.0: <code>python scripts/analysis/extract_top_combos_by_raw_sharpe_v12.py --cost-per-contract 1.50 --output evaluation/top_strategies_v12_lowcost.json</code> — re-rank with corrected friction.</li>
+      <li><code>python scripts/evaluation/final_holdout_eval_v3.py --combos evaluation/top_strategies_v12_lowcost.json --no-ml2</code> — run the shipped pipeline minus the revoked ML#2 on the held-out partition.</li>
+    </ol>
+    <p>If step 1 ceiling stays &lt;1.0, kill the project on this strategy family by Monday noon. Don't pivot instruments; pivot the strategy. You're not running the ablation either way.</p>
+  </div>
+</details>
+
+<div class="sectionhead">Peer Review Highlights (anonymized)</div>
+
+<details open>
+  <summary><span class="advisor-label">Convergence</span>Reviewer summary across all 5</summary>
+  <div class="content">
+    <p><b>Strongest response (unanimous 5/5):</b> Response D — <i>The Executor.</i> Only response that converts diagnosis into a same-day falsification with a concrete kill-gate.</p>
+    <p><b>Biggest blind spot (unanimous 5/5):</b> Response A — <i>The Expansionist.</i> "Port the factory" assumes the factory is sound, but the factory just produced two leak-contaminated models the author only caught by accident. Porting an unaudited leak surface to more instruments multiplies the contamination.</p>
+    <p><b>Collective miss (all 5 reviewers, distributed across five distinct reasons):</b> nobody questioned whether <b>0.736 is even a trustworthy ceiling</b>. Reasons surfaced:</p>
+    <ul>
+      <li><code>MIN_TRADES_GATE = 500</code> truncates the right tail of the Sharpe distribution — filtered sample, not population (R1)</li>
+      <li>The $5/contract RT assumption itself was never validated against actual retail MNQ costs (~$1.20 RT) (R2)</li>
+      <li><code>audit_full_net_sharpe</code> may share the same partition-memorization pattern that took down V3/V4 (R3)</li>
+      <li>The 100%-combo-overlap structural finding means any clean refit inherits the same ceiling — ablation capped at 0.736 by construction (R4)</li>
+      <li>Measurements from a system that just failed two integrity checks need re-verification before being treated as ground truth (R5)</li>
+    </ul>
+  </div>
+</details>
+
+<details>
+  <summary>Reviewer 1</summary>
+  <div class="content">
+    <div class="review">
+      <h4>1. Strongest: D</h4>
+      Only response that converts diagnosis into hour-scale experiment with kill-switch. Names exact file/flag (<code>extract_top_combos_by_raw_sharpe_v12.py --cost-per-contract 1.50</code>), Monday-noon decision. A/C/E argue philosophy; D ships. E raises the same friction point but dilutes it across four questions instead of forcing the test.
+    </div>
+    <div class="review">
+      <h4>2. Blind spot: A</h4>
+      "Port the factory" assumes the factory is sound. But the factory just produced two leak-contaminated models the author only caught by accident. Porting machinery with an unaudited leak surface to ES/CL/BTC replicates the <code>global_combo_id</code> failure mode across more instruments. A should have said: fix the audit protocol <i>before</i> scaling the search universe.
+    </div>
+    <div class="review">
+      <h4>3. Missed</h4>
+      None questioned whether <b>0.736 is even the true ceiling</b>. The v12 pool was gated at <code>MIN_TRADES_GATE=500</code> — a selection filter that truncates the right tail (high-Sharpe combos often have fewer trades). The "census" framing in B and C is wrong: 13,814 is a <i>filtered</i> sample, not a population. Before pivoting or ablating, re-run the ceiling calculation without the trade-count gate.
+    </div>
+  </div>
+</details>
+
+<details>
+  <summary>Reviewer 2</summary>
+  <div class="content">
+    <div class="review">
+      <h4>1. Strongest: D</h4>
+      Only response with a concrete, same-day, near-zero-cost test that falsifies the binding question. Three commands, one column multiply against existing v11 Parquet. Pre-commits to a kill decision by Monday noon. D converts the debate into a 2-hour experiment cheaper than the ablation it's replacing.
+    </div>
+    <div class="review">
+      <h4>2. Blind spot: A</h4>
+      "Port the factory" assumes the factory works. The factory just produced a 13,814-combo census with max 0.736 and caught itself leaking twice. Porting a leak-prone, selection-biased pipeline to 5 new instruments multiplies the leakage surface and the multiple-testing problem — not the alpha.
+    </div>
+    <div class="review">
+      <h4>3. Missed</h4>
+      None questioned whether the <b>$5/contract RT assumption itself</b> (baked into v11 and all downstream net-Sharpe claims) was ever validated against actual retail MNQ costs (~$1.20 RT). D gestures at it but treats it as a pivot option, not a pre-existing bug. If friction was mis-specified by 4x, every "ceiling" number — including the 0.736 driving the kill decision — is wrong. Validating the cost constant is logically prior.
+    </div>
+  </div>
+</details>
+
+<details>
+  <summary>Reviewer 3</summary>
+  <div class="content">
+    <div class="review">
+      <h4>1. Strongest: D</h4>
+      D treats the user's actual constraint (Sharpe &lt; 1 is a hard gate) as a <i>falsifiable one-day test</i> rather than a philosophical pivot. It identifies the load-bearing assumption everyone else glossed: $5/contract RT is ~4x retail MNQ. That single parameter could move the ceiling from 0.736 to &gt;1.0 without any new data, model, or instrument.
+    </div>
+    <div class="review">
+      <h4>2. Blind spot: A</h4>
+      A wants to "port the factory" to ES/CL/GC/BTC but ignores that the factory itself encodes a revoked leak pattern (global_combo_id memorization), a diversity-biased combo pool, and potentially wrong friction. Porting a contaminated pipeline to four new instruments multiplies the contamination, not the evidence. Also: BTC 1-min mean-reversion has radically different microstructure — the sweep ranges won't transfer.
+    </div>
+    <div class="review">
+      <h4>3. Missed</h4>
+      None questioned whether 0.736 is even a <i>clean</i> ceiling. Given V3/V4 both had combo-ID leaks, the v11 sweep's <code>audit_full_net_sharpe</code> may itself be contaminated by the same partition-memorization pattern the refits exposed. Before cancelling, pivoting, or re-friction-scoring, verify 0.736 survives a walk-forward recomputation.
+    </div>
+  </div>
+</details>
+
+<details>
+  <summary>Reviewer 4</summary>
+  <div class="content">
+    <div class="review">
+      <h4>1. Strongest: D</h4>
+      The only response that converts diagnosis into a same-day falsification with a concrete dollar assumption ($1.50 RT vs baked-in $5), a known artifact (v11 parquet has <code>gross_pnl_dollars</code> and <code>friction_dollars</code>), and a Monday-noon kill gate. A/C/E gesture at the right moves; D executes one.
+    </div>
+    <div class="review">
+      <h4>2. Blind spot: A</h4>
+      Proposing NQ→ES/CL/GC/BTC with the "frozen sweep engine" ignores that the engine hardcodes MNQ economics ($2/pt, $5 RT) and the z-score/EMA parameterization was tuned on NQ 1-min distributions. Porting isn't a data swap — it's re-validating the factory. "Crypto perps" reframes a failed equity-index strategy as a different asset class entirely. Not a probe — abandoning the project while calling it a pivot.
+    </div>
+    <div class="review">
+      <h4>3. Missed</h4>
+      The V3/V4 leak itself constrains the ablation's upside. The 100%-combo-overlap finding means any clean refit inherits the same 13,814-combo ceiling — the ablation can <i>at best</i> reproduce 0.736, not exceed it. That makes (a) the correct answer on pure information grounds, independent of friction or instrument.
+    </div>
+  </div>
+</details>
+
+<details>
+  <summary>Reviewer 5</summary>
+  <div class="content">
+    <div class="review">
+      <h4>1. Strongest: D</h4>
+      Cheapest falsification path with concrete commands. Friction assumption ($5 vs retail ~$1.20) is the single highest-leverage unchecked variable — if wrong, it rewrites the entire 0.736 ceiling. D is the only response that names a specific column operation, a deadline, and a kill criterion.
+    </div>
+    <div class="review">
+      <h4>2. Blind spot: A</h4>
+      Proposes porting the factory to new instruments without first validating the factory itself produces tradeable signal <i>anywhere</i>. The same combo-ID leak pathology and friction-assumption error would port straight to ES/CL/BTC. "Instrument-agnostic" is a feature only if the methodology is sound — which the last two revocations suggest it isn't. A is solving for novelty when the binding constraint is epistemic hygiene.
+    </div>
+    <div class="review">
+      <h4>3. Missed</h4>
+      None asked whether the <b>0.736 itself is trustworthy</b>. Given two confirmed memorization leaks in the ML#2 stack, the ML#1 feature pipeline and sweep-engine friction accounting deserve the same audit before any decision. The census max is a measurement — and measurements from a system that just failed two integrity checks need re-verification before being treated as ground truth for a project-killing pivot.
+    </div>
+  </div>
+</details>
+
+<footer>
+  Generated 2026-04-21 UTC · LLM Council skill · 5 advisors × 5 anonymous peer reviews · Chairman synthesis<br>
+  Full markdown transcript: <code>tasks/council-transcript-2026-04-21-ablation-fork.md</code>
+</footer>
+
+</div>
+</body>
+</html>

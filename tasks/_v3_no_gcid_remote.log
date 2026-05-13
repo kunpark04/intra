@@ -1,0 +1,71 @@
+Running as unit: run-re475e7f2b3984d819c18c48c8c8c6212.scope; invocation ID: 27a3d784f41045419549b52673aed7c2
+[v3_no_gcid] git pull @ Tue Apr 21 01:24:56 AM UTC 2026
+From https://github.com/kunpark04/intra
+   930bace..b141e74  master     -> origin/master
+HEAD is now at b141e74 Phase 2: V3 combo-agnostic remote refit scaffolding
+[v3_no_gcid] training V3 with --no-combo-id on MFE v2..v10 (V3 default versions)
+[v3] combo-agnostic mode: global_combo_id DROPPED from features + categoricals
+[v3] output_dir = data/ml/adaptive_rr_v3_no_gcid
+[v3] Loading v[2, 3, 4, 5, 6, 7, 8, 9, 10], target 1,200,000 base trades...
+  Per-version load budgets (target=1,200,000):
+    v2:  151,076  (1.09% sample of   13,877,398 rows)
+    v3:  300,000  (0.53% sample of   56,550,362 rows)
+    v4:   40,966  (3.47% sample of    1,180,187 rows)
+    v5:   36,886  (5.20% sample of      709,761 rows)
+    v6:   48,742  (2.35% sample of    2,076,949 rows)
+    v7:   35,466  (6.50% sample of      546,027 rows)
+    v8:  127,815  (1.14% sample of   11,195,086 rows)
+    v9:  159,049  (1.07% sample of   14,796,795 rows)
+    v10:  300,000  (0.80% sample of   37,444,146 rows)
+  Streaming v2 (p_keep=0.0109)... 151,061 trades, 2512 combos
+  Streaming v3 (p_keep=0.0053)... 300,162 trades, 2262 combos
+  Streaming v4 (p_keep=0.0347)... 40,995 trades, 2643 combos
+  Streaming v5 (p_keep=0.0520)... 36,951 trades, 2580 combos
+  Streaming v6 (p_keep=0.0235)... 48,494 trades, 2984 combos
+  Streaming v7 (p_keep=0.0650)... 35,908 trades, 3000 combos
+  Streaming v8 (p_keep=0.0114)... 127,540 trades, 1830 combos
+  Streaming v9 (p_keep=0.0107)... 158,692 trades, 3351 combos
+  Streaming v10 (p_keep=0.0080)... 299,132 trades, 6167 combos
+  Total after stream-subsample: 1,198,935 trades, 27329 combos
+  Filtered combos: 27329 -> 7711 (removed 19618 with <30 trades)
+  Filtered trades: 1,027,946
+
+[v3] Computing Family A features...
+  Family A computed: prior_wr_10 mean=0.315, prior_wr_50 mean=0.327, has_history_50 rate=0.812
+
+[expand] 1,027,946 base trades × 17 R:R...
+  Subsampling stratified by sweep_version: 1,027,946 -> 588,235 base trades
+  Expanded: 9,999,995 rows, 1.01 GB in-memory
+
+[train] Training V3 on 9,999,995 rows, 5-fold CV...
+  Features (24): ['zscore_entry', 'zscore_prev', 'zscore_delta', 'volume_zscore', 'ema_spread', 'bar_body_points', 'bar_range_points', 'atr_points', 'parkinson_vol_pct', 'parkinson_vs_atr', 'time_of_day_hhmm', 'day_of_week', 'distance_to_ema_fast_points', 'distance_to_ema_slow_points', 'side', 'stop_method', 'exit_on_opposite_signal', 'candidate_rr', 'abs_zscore_entry', 'rr_x_atr', 'prior_wr_10', 'prior_wr_50', 'prior_r_ma10', 'has_history_50']
+  fold 0: AUC=0.8288 LL=0.3253 Brier=0.1017 best_iter=2000 t=1195s
+  fold 1: AUC=0.8284 LL=0.3256 Brier=0.1018 best_iter=2000 t=1189s
+  fold 2: AUC=0.8276 LL=0.3260 Brier=0.1019 best_iter=2000 t=1155s
+  fold 3: AUC=0.8290 LL=0.3251 Brier=0.1016 best_iter=2000 t=1194s
+  fold 4: AUC=0.8329 LL=0.3226 Brier=0.1010 best_iter=2000 t=1164s
+
+[v3] OOF raw: AUC=0.8293 LL=0.3249 Brier=0.1016 ECE=0.0043
+[v3] OOF calibrated: Brier=0.1012 ECE=0.0000
+
+[v3] Training final booster on full data...
+  Using best_iter=2000 (mean across folds)
+  Saved data/ml/adaptive_rr_v3_no_gcid/booster_v3.txt
+  Saved data/ml/adaptive_rr_v3_no_gcid/metrics_v3.json
+  Saved data/ml/adaptive_rr_v3_no_gcid/isotonic_calibrators_v3.json
+
+[v3] Done in 117.2 min. AUC=0.8293 vs V2 baseline 0.806 (Δ=+0.0233)
+[v3] ECE cal=0.0000 vs V2 0.004
+
+[v3] Top 10 features by gain:
+  candidate_rr                        19666180
+  atr_points                           4363725
+  prior_wr_50                          3396473
+  prior_r_ma10                         2173239
+  stop_method                          2025335
+  rr_x_atr                             1819381
+  bar_range_points                     1807392
+  parkinson_vol_pct                    1783715
+  prior_wr_10                          1392711
+  time_of_day_hhmm                     1216299
+[v3_no_gcid] ALL DONE Tue Apr 21 03:22:09 AM UTC 2026

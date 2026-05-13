@@ -1,0 +1,111 @@
+Connecting to 195.88.25.157...
+
+-- stash remote edits --
+$ cd /root/intra && git stash push -u -m 'pre-probe2-'$(date +%s) 2>&1 | head -3 || true
+Saved working directory and index state On master: pre-probe2-1776803576
+
+-- git fetch --
+$ cd /root/intra && git fetch origin master 2>&1 | tail -5
+From https://github.com/kunpark04/intra
+ * branch            master     -> FETCH_HEAD
+   dc5e19d..a49f370  master     -> origin/master
+
+-- checkout signed commit --
+$ cd /root/intra && git checkout a49f370 2>&1 | head -5
+Note: switching to 'a49f370'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+-- remote HEAD after checkout --
+$ cd /root/intra && git rev-parse HEAD
+a49f370d84e1ac327254b1a99bcd9cddee2bbc5b
+
+-- clear Cython .so --
+$ rm -f /root/intra/src/cython_ext/*.so /root/intra/src/cython_ext/*.c && echo ok
+ok
+
+-- verify bar caches present --
+$ ls -la /root/intra/data/NQ_15min.parquet /root/intra/data/NQ_1h.parquet 2>&1
+-rw-r--r-- 1 root root 4112060 Apr 21 19:31 /root/intra/data/NQ_15min.parquet
+-rw-r--r-- 1 root root 1398350 Apr 21 19:31 /root/intra/data/NQ_1h.parquet
+
+-- write wrapper --
+[ok] wrote /root/intra/run_probe2_combo865.sh
+
+-- launch screen(probe2_combo865) --
+$ cd /root/intra && mkdir -p logs && rm -f /root/intra/logs/probe2_combo865.log && screen -dmS probe2_combo865 bash -c '/root/intra/run_probe2_combo865.sh > /root/intra/logs/probe2_combo865.log 2>&1' && sleep 5
+
+-- screen -ls (confirm detached) --
+$ screen -ls 2>&1 || true
+There are screens on:
+	211760.v3_no_gcid	(04/21/2026 03:51:03 AM)	(Detached)
+	197436.v4_no_gcid	(04/20/2026 08:05:46 PM)	(Detached)
+	186881.full_pool_skip	(04/20/2026 04:56:57 AM)	(Detached)
+3 Sockets in /run/screen/S-root.
+
+-- polling --
+0
+
+-- t+0s — tail --
+$ tail -4 /root/intra/logs/probe2_combo865.log 2>/dev/null || echo '(no log yet)'
+-rw-r--r--  1 root root    981 Apr 21 20:33 combo865_1h_test_manifest.json
+-rw-r--r--  1 root root  55412 Apr 21 20:33 combo865_1h_test.parquet
+
+=== Probe 2 end Tue Apr 21 08:33:01 PM UTC 2026 ===
+
+[ok] screen session terminated after ~0 s
+
+-- full log tail --
+$ tail -80 /root/intra/logs/probe2_combo865.log 2>&1
+=== Probe 2 start Tue Apr 21 08:32:57 PM UTC 2026 ===
+target commit: a49f370
+a49f370d84e1ac327254b1a99bcd9cddee2bbc5b
+
+=== 15m test partition ===
+Running as unit: run-r6b20e181794b4a41af81b7b8aa4cb7bd.scope; invocation ID: aca58f196dbf414ca97802f613a5c758
+[sweep] engine=Numba  combinations=3000  start_combo=865  hours=unlimited  seed=0  range_mode=v11  timeframe=15min
+[sweep] Loading data...
+[sweep] Loaded 170,422 15min bars from data/NQ_15min.parquet
+[sweep] eval_partition=test  Test bars: 34,085 (B6 temporal-OOD eval)
+[sweep] Combos to run: 1  (#865 to #2999)
+[sweep] Pre-computing indicator caches...
+[sweep] Cache built in 0.5s — z_windows=46  vol_windows=46  ema_periods=58
+[sweep] Merging 1 chunk files...
+[sweep] Merged to data/ml/probe2/combo865_15m_test.parquet (0 MB)
+[sweep] Done — 1 combos in 0.0m | ~780 trade rows | data/ml/probe2/combo865_15m_test.parquet
+15m wall-clock: 2 s
+
+=== 1h test partition ===
+Running as unit: run-r651507b00f664e21a3ee1fc4a7c533e0.scope; invocation ID: 2837534084444b6395136ab3a653f25c
+[sweep] engine=Numba  combinations=1500  start_combo=865  hours=unlimited  seed=0  range_mode=v11  timeframe=1h
+[sweep] Loading data...
+[sweep] Loaded 41,900 1h bars from data/NQ_1h.parquet
+[sweep] eval_partition=test  Test bars: 8,380 (B6 temporal-OOD eval)
+[sweep] Combos to run: 1  (#865 to #1499)
+[sweep] Pre-computing indicator caches...
+[sweep] Cache built in 0.5s — z_windows=46  vol_windows=46  ema_periods=58
+[sweep] Merging 1 chunk files...
+[sweep] Merged to data/ml/probe2/combo865_1h_test.parquet (0 MB)
+[sweep] Done — 1 combos in 0.0m | ~220 trade rows | data/ml/probe2/combo865_1h_test.parquet
+1h wall-clock: 2 s
+
+=== artifacts ===
+total 176
+drwxr-xr-x  2 root root   4096 Apr 21 20:33 .
+drwx------ 21 root root   4096 Apr 21 20:32 ..
+-rw-r--r--  1 root root    984 Apr 21 20:32 combo865_15m_test_manifest.json
+-rw-r--r--  1 root root 105951 Apr 21 20:32 combo865_15m_test.parquet
+-rw-r--r--  1 root root    981 Apr 21 20:33 combo865_1h_test_manifest.json
+-rw-r--r--  1 root root  55412 Apr 21 20:33 combo865_1h_test.parquet
+
+=== Probe 2 end Tue Apr 21 08:33:01 PM UTC 2026 ===
+
+-- pulling artifacts --
+[ok] pulled data/ml/probe2/combo865_15m_test.parquet  (105,951 bytes)
+[ok] pulled data/ml/probe2/combo865_15m_test_manifest.json  (984 bytes)
+[ok] pulled data/ml/probe2/combo865_1h_test.parquet  (55,412 bytes)
+[ok] pulled data/ml/probe2/combo865_1h_test_manifest.json  (981 bytes)
+
+[done] probe 2 remote run complete — next: python tasks/_probe2_readout.py

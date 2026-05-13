@@ -1,0 +1,56 @@
+Traceback (most recent call last):
+  File "<string>", line 19, in <module>
+    print(stdout.read().decode(errors='replace'))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kunpa\miniconda3\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u25cf' in position 0: character maps to <undefined>
+=== last-100-log ===
+Running as unit: run-re475e7f2b3984d819c18c48c8c8c6212.scope; invocation ID: 27a3d784f41045419549b52673aed7c2
+[v3_no_gcid] git pull @ Tue Apr 21 01:24:56 AM UTC 2026
+From https://github.com/kunpark04/intra
+   930bace..b141e74  master     -> origin/master
+HEAD is now at b141e74 Phase 2: V3 combo-agnostic remote refit scaffolding
+[v3_no_gcid] training V3 with --no-combo-id on MFE v2..v10 (V3 default versions)
+[v3] combo-agnostic mode: global_combo_id DROPPED from features + categoricals
+[v3] output_dir = data/ml/adaptive_rr_v3_no_gcid
+[v3] Loading v[2, 3, 4, 5, 6, 7, 8, 9, 10], target 1,200,000 base trades...
+  Per-version load budgets (target=1,200,000):
+    v2:  151,076  (1.09% sample of   13,877,398 rows)
+    v3:  300,000  (0.53% sample of   56,550,362 rows)
+    v4:   40,966  (3.47% sample of    1,180,187 rows)
+    v5:   36,886  (5.20% sample of      709,761 rows)
+    v6:   48,742  (2.35% sample of    2,076,949 rows)
+    v7:   35,466  (6.50% sample of      546,027 rows)
+    v8:  127,815  (1.14% sample of   11,195,086 rows)
+    v9:  159,049  (1.07% sample of   14,796,795 rows)
+    v10:  300,000  (0.80% sample of   37,444,146 rows)
+  Streaming v2 (p_keep=0.0109)... 151,061 trades, 2512 combos
+  Streaming v3 (p_keep=0.0053)... 300,162 trades, 2262 combos
+  Streaming v4 (p_keep=0.0347)... 40,995 trades, 2643 combos
+  Streaming v5 (p_keep=0.0520)... 36,951 trades, 2580 combos
+  Streaming v6 (p_keep=0.0235)... 48,494 trades, 2984 combos
+  Streaming v7 (p_keep=0.0650)... 35,908 trades, 3000 combos
+  Streaming v8 (p_keep=0.0114)... 127,540 trades, 1830 combos
+  Streaming v9 (p_keep=0.0107)... 158,692 trades, 3351 combos
+  Streaming v10 (p_keep=0.0080)...
+=== screen-ls ===
+There are screens on:
+	206406.v3_no_gcid	(04/21/2026 01:24:57 AM)	(Detached)
+	201907.eval_nbs	(04/21/2026 12:15:46 AM)	(Detached)
+	197436.v4_no_gcid	(04/20/2026 08:05:47 PM)	(Detached)
+	186881.full_pool_skip	(04/20/2026 04:56:58 AM)	(Detached)
+4 Sockets in /run/screen/S-root.
+
+=== artifact-dir ===
+total 8
+drwxr-xr-x  2 root root 4096 Apr 21 01:24 .
+drwx------ 20 root root 4096 Apr 21 01:48 ..
+
+=== free-h ===
+               total        used        free      shared  buff/cache   available
+Mem:           9.7Gi       5.0Gi       653Mi       1.6Mi       4.5Gi       4.8Gi
+Swap:             0B          0B          0B
+
+=== scope-status ===

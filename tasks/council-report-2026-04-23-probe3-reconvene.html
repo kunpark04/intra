@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LLM Council — Probe 3 COUNCIL_RECONVENE (2026-04-23)</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1a1a1a;
+    --muted: #5f6b7a;
+    --border: #e4e7eb;
+    --accent: #7c2d12;
+    --accent-bg: #fef3e2;
+    --warn: #c05621;
+    --warn-bg: #fffaf0;
+    --ok: #22543d;
+    --ok-bg: #f0fff4;
+    --code-bg: #f7fafc;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 32px 28px 80px; }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 28px; }
+  header h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header .meta { font-size: 13px; color: var(--muted); }
+  .question {
+    background: var(--code-bg);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+  .question .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .verdict {
+    background: var(--accent-bg);
+    border: 1px solid #fbd38d;
+    border-radius: 4px;
+    padding: 22px 24px;
+    margin-bottom: 32px;
+  }
+  .verdict h2 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .verdict .headline {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 14px;
+    color: #7b341e;
+    line-height: 1.4;
+  }
+  .verdict .body { font-size: 14.5px; color: #7b341e; }
+  .verdict .one-thing {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid #fbd38d;
+    font-size: 13.5px;
+  }
+  .verdict .one-thing strong {
+    color: var(--accent);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .dissent-banner {
+    background: #fff5f5;
+    border-left: 3px solid #c53030;
+    padding: 10px 14px;
+    margin-bottom: 22px;
+    font-size: 13px;
+    color: #742a2a;
+  }
+  .dissent-banner strong { color: #c53030; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+  section { margin-bottom: 32px; }
+  h2.section-title {
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 165px repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+    font-size: 12.5px;
+  }
+  .grid > div { background: var(--bg); padding: 10px 12px; }
+  .grid .hdr {
+    background: var(--code-bg);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .grid .row-label {
+    background: var(--code-bg);
+    font-weight: 600;
+    font-size: 12.5px;
+  }
+  .pos-yes { background: var(--ok-bg); color: var(--ok); font-weight: 600; }
+  .pos-no { background: #fed7d7; color: #742a2a; font-weight: 600; }
+  .pos-mixed { background: #fffceb; color: #744210; font-weight: 600; }
+  .pos-na { color: var(--muted); }
+  .grid-note { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  details {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background: var(--bg);
+  }
+  details[open] { background: #fafbfc; }
+  details summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::after {
+    content: "▸";
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  details[open] summary::after { transform: rotate(90deg); }
+  details summary .role {
+    font-weight: 500;
+    color: var(--muted);
+    font-size: 13px;
+    margin-left: 10px;
+  }
+  details .content {
+    padding: 4px 20px 18px;
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+  }
+  details .content p { margin: 10px 0; }
+  details .content strong { color: var(--fg); }
+  details .content em { color: var(--accent); font-style: normal; font-weight: 600; }
+  .subhead {
+    font-weight: 600;
+    color: var(--accent);
+    margin: 14px 0 6px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .blind-spots {
+    background: var(--warn-bg);
+    border-left: 3px solid var(--warn);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+  .blind-spots ul { margin: 6px 0 0; padding-left: 22px; }
+  .blind-spots li { margin-bottom: 8px; }
+  .synthesis {
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 22px;
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+  .synthesis h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .synthesis p { margin: 8px 0; }
+  footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  code {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12.5px;
+  }
+  .big-stat {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>LLM Council — Probe 3 COUNCIL_RECONVENE Adjudication</h1>
+  <div class="meta">2026-04-23 UTC · Triggered by §5.2 branch routing after TZ-bug retraction (commit <code>a38d3c5</code>) · 5 advisors, 5 peer reviews, chairman synthesis</div>
+</header>
+
+<div class="question">
+  <div class="label">Question</div>
+  Adjudicate the COUNCIL_RECONVENE on Probe 3 (combo-865 @ 1h). Signed verdict was F=0 → PAPER_TRADE. Under corrected TZ fix (source is Central Time, not UTC), F becomes 1: §4.3 15m negative control flips 0/16 PASS → <strong>8/16 FAIL</strong> (rescue fires); §4.4 1h ritual strengthens 8/16 → <strong>12/16</strong> PASS; §4.1 and §4.2 unchanged (TZ-agnostic). §5.2 routes to COUNCIL_RECONVENE. Corrected combo-865 RTH Sharpe = <span class="big-stat">2.64</span> (not 0.64); overnight = 1.47 (not 3.32). Combo-1298 from Probe 4 shows RTH Sharpe <span class="big-stat">4.41</span> on n=77 RTH trades. Candidate options: <strong>A</strong> paper-trade prereg anyway; <strong>B</strong> Probe 3 v2 on fresh 2026-04-09+ holdout; <strong>C</strong> sunset combo-865; <strong>D</strong> hybrid (accept corrected gates + single fresh-holdout confirmation).
+</div>
+
+<div class="dissent-banner">
+  <strong>Chairman dissent</strong> — 5/5 peer reviewers picked First Principles' Probe-3-v2-with-1298-primary as strongest, but Chairman disagrees with that specific conclusion. Chairman adopts First Principles' <em>framing refusal</em> (the A/B/C/D menu is wrong) but not its <em>conclusion</em> (1298 as primary), because Reviewers 2 and 4 independently showed that combo-1298 is not a "clean" candidate — it was selected from Probe 4 conditional on RTH strength AND triggered SESSION_CONFOUND. Following the framing but not the conclusion is the consistent read of the peer-review signal.
+</div>
+
+<div class="verdict">
+  <h2>Chairman Verdict</h2>
+  <div class="headline">Suspend options A, B, C, D. No paper-trade, no fresh-holdout probe yet. Halt downstream inference pending an upstream TZ-fix audit — specifically, Probe 1's 15m falsification (N_1.3=9 at gate=10) may itself not survive the TZ correction.</div>
+  <div class="body">
+    <strong>On combo focus:</strong> neither 865 nor 1298 is valid as a primary right now. Combo-865's denominator is exhausted (6 reads post-TZ, narrative inverted 180°); combo-1298's "clean" framing does not survive peer review — it was selected from Probe 4's combo×session matrix conditional on RTH performance, AND it triggered SESSION_CONFOUND in Probe 4 (same structural dependency as 865 pre-correction, per Reviewer 4). Any future Probe 3 v2 must treat <em>both</em> 865 and 1298 as confound-positive candidates with pre-registered session-decomposition gates.
+    <br><br>
+    <strong>On Probe 1:</strong> Reviewer 5 surfaced an existential question. The same TZ pipeline that shifted §4.3 from 0/16 PASS to 8/16 FAIL (a 6-cell swing on a 15m session×exit matrix) also underpins Probe 1's 15m N_1.3=9. With gate=10 and a plausible 6-cell-swing magnitude under TZ correction, Probe 1's family-level falsification could flip. The council cannot adjudicate a carve-out while the family-level verdict that scopes it is TZ-buggy.
+  </div>
+  <div class="one-thing">
+    <strong>The one thing to do first</strong>
+    Produce a single artifact with two contents: (1) a timestamped TZ-correction provenance log — when the bug was noticed, by whom, under what trigger, with all intermediate commits (Reviewer 1's admissibility test); (2) Probe 1's 1m/15m/1h N_1.3 counts recomputed under corrected Central-Time session labels, with §7.6 decision rule re-applied. If Probe 1 survives the re-audit, then — and only then — convene a new council to scope a Probe 3 v2 that treats both 865 and 1298 as confound-positive. If Probe 1 flips, the carve-out line is moot and the project reverts to B1 session-structure sweep with a corrected pipeline.
+  </div>
+</div>
+
+<section>
+  <h2 class="section-title">Advisor Position Map</h2>
+  <div class="grid">
+    <div class="hdr"></div>
+    <div class="hdr">Contrarian</div>
+    <div class="hdr">First&nbsp;Principles</div>
+    <div class="hdr">Expansionist</div>
+    <div class="hdr">Outsider</div>
+    <div class="hdr">Executor</div>
+
+    <div class="row-label">What to do on 865?</div>
+    <div class="pos-no">Sunset (Option C)</div>
+    <div class="pos-mixed">Secondary in fresh-holdout test</div>
+    <div class="pos-yes">Paper-trade + expand scope</div>
+    <div class="pos-mixed">Fresh holdout, one look</div>
+    <div class="pos-yes">Paper-trade + parallel fresh-holdout</div>
+
+    <div class="row-label">What to do on 1298?</div>
+    <div class="pos-na">—</div>
+    <div class="pos-yes">Primary candidate</div>
+    <div class="pos-yes">Anchor RTH thesis</div>
+    <div class="pos-na">—</div>
+    <div class="pos-na">—</div>
+
+    <div class="row-label">§4.3 FAIL meaning?</div>
+    <div class="pos-no">Evidence of uncalibrated gates</div>
+    <div class="pos-mixed">Falsifies narrative, not the asset</div>
+    <div class="pos-yes">Discovery of tradable 15m</div>
+    <div class="pos-no">Framework flaw — re-audit all session claims</div>
+    <div class="pos-mixed">Downgrades specificity only</div>
+
+    <div class="row-label">6th read defensible?</div>
+    <div class="pos-no">Already at read 6</div>
+    <div class="pos-no">Go to fresh holdout</div>
+    <div class="pos-yes">Yes, for new RTH hypothesis</div>
+    <div class="pos-no">Indefensible regardless</div>
+    <div class="pos-mixed">Only as TZ-correction re-read</div>
+
+    <div class="row-label">Preferred option</div>
+    <div class="pos-no">C (Sunset)</div>
+    <div class="pos-mixed">Custom (v2 on fresh, 1298 primary)</div>
+    <div class="pos-yes">D + append 15m sweep</div>
+    <div class="pos-yes">B only</div>
+    <div class="pos-yes">D = A+B stacked</div>
+
+    <div class="row-label">RTH inversion read</div>
+    <div class="pos-no">Kill signal (narrative moved with data)</div>
+    <div class="pos-mixed">Obsoletes prior paper-trade reasoning</div>
+    <div class="pos-yes">10× deployable universe upside</div>
+    <div class="pos-no">Demands audit of all session claims</div>
+    <div class="pos-yes">Cheaper/more-liquid venue path</div>
+  </div>
+  <div class="grid-note">Green = advisor endorses. Red = advisor rejects. Yellow = mixed/conditional. Grey = not addressed. Positions synthesized from full responses below.</div>
+</section>
+
+<section>
+  <h2 class="section-title">Advisor Responses (full text)</h2>
+
+  <details>
+    <summary>The Contrarian<span class="role">· "Sunset combo-865 — narrative inversion IS the kill"</span></summary>
+    <div class="content">
+      <p class="subhead">Fatal flaw nobody addresses</p>
+      <p>A preregistration signed against a TZ-buggy dataset <em>isn't</em> a preregistration — it's a draft retroactively validated by a post-hoc correction. Every downstream threshold (0/16, 8/16, 27/27) was calibrated against a corrupted SES label. The "§4.4 strengthens to 12/16" is <em>not</em> reassurance — it's evidence the gate was miscalibrated in the direction of your prior. When gates move <em>with</em> the researcher's hypothesis after a correction, that's the signature of a gate that was never power-calibrated in the first place (violating Rule 2 retroactively across all four sub-gates).</p>
+      <p class="subhead">Partition debt everyone skips</p>
+      <p>The 1h test partition has not been read 5 times — it's been read 5 times <em>and re-interpreted once under TZ correction</em>, which is a 6th informational extraction. Read #6 already happened, silently, the moment the SES labels were recomputed. Option A/B/C/D all pretend the debt meter is at 5.</p>
+      <p class="subhead">Why reconvenes keep firing</p>
+      <p>Combo-865 is the local max of a 3000-combo sweep on a falsified family. It has to keep passing novel gates because the base rate for its survival under honest OOS is roughly 1/3000. Each reconvene is a researcher degree of freedom harvested against an already-overfit candidate. The combo isn't being tested — it's being <em>chaperoned</em>.</p>
+      <p class="subhead">Option D is the hidden trap</p>
+      <p>You already know combo-865 is RTH-leaning, that combo-1298's RTH Sharpe is 4.41, and the "overnight narrative" inverted. Any Probe 3v2 gate on 2026-04-09+ will implicitly condition on RTH-session performance. That's not a prereg — it's a confirmation test designed by someone who already saw the answer. The 336-bar runway is also laughably underpowered: ~14 1h trades at historical frequency, Sharpe CI ±1.5 minimum.</p>
+      <p class="subhead">Kill criterion</p>
+      <p>The honest kill criterion is retrospective: did the corrected SES findings require a narrative inversion? Yes. That alone is the kill. <strong>Option C. Sunset combo-865.</strong> The edge, if real, will re-emerge in the B1 session-structure sweep as one combo among thousands — unchaperoned.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The First Principles Thinker<span class="role">· "Probe 3 v2 on fresh holdout, combo-1298 primary"</span></summary>
+    <div class="content">
+      <p class="subhead">Strip the problem to its foundations</p>
+      <p>The signed question is "adjudicate F=1 on combo-865." But that's a procedural question, not a scientific one. The scientific question is: <em>what is the project trying to produce?</em> Combo-865 is no longer obviously the protagonist — it's a 5-retraction artifact whose narrative keeps inverting. Combo-1298 arrived clean from Probe 4 with RTH Sharpe 4.41 on n=77 — discovered as a side effect, not the thing being defended. Asymmetry: 865 has been optimized-against by 5 verdict cycles; 1298 has been looked at once.</p>
+      <p class="subhead">Rule 1 — stages</p>
+      <p>Stage 1 (generation): Probe 2 picks 865 from a sweep. Stage 2 (original conf): Probe 3 UTC. Stage 3 (corrected conf): Probe 3 CT. Stage 4 (separate conf): <em>does not exist</em> for 865. Denominator: 5 reads × {original, corrected} × 4 gates = dozens. Combo-1298's denominator is 1.</p>
+      <p class="subhead">Rule 2 — paper-trade's info value is lower now</p>
+      <p>Pre-TZ council chose paper-trade &gt; B1 on the premise that overnight concentration made venue the binding constraint. That premise is <em>dead</em>. Paper-trade's info value was high for "does venue kill overnight?" — it's low for "does RTH edge hold on unseen bars?" A fresh holdout answers the current question faster and cheaper.</p>
+      <p class="subhead">The right question</p>
+      <p>Not A/B/C/D on 865. Run Probe 3 v2 on the fresh 2026-04-09+ holdout with <strong>combo-1298 as primary</strong> and combo-865 as secondary. One prereg, two combos, same gates, no 6th read.</p>
+      <p class="subhead">Kill hierarchy</p>
+      <p>If 1298 fails on fresh holdout → sunset the 1h-carve-out line entirely. If 1298 passes and 865 fails → ship 1298 retire 865. If both pass → 1298 primary regardless of 865's magnitude.</p>
+      <p><strong>§4.3 FAIL doesn't falsify the 1h edge.</strong> It falsifies the narrative that justified combo-865 specifically. Those are different objects.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The Expansionist<span class="role">· "Option D + 15m session/exit sweep — pivot to RTH-deployable"</span></summary>
+    <div class="content">
+      <p class="subhead">§4.3 rescue is a discovery, not a failure</p>
+      <p>The 15m negative control flipping means we just <em>found a second tradable timeframe</em>. Probe 1's "15m falsified" was aggregate N_1.3 under default session/exit — with session × exit DoF engaged, 8/16 15m cells now clear. How many 15m combos beyond 865's sibling would pass a proper sweep? Run it.</p>
+      <p class="subhead">Parameter basin, not point</p>
+      <p>§4.2's 27/27 at ±5% is prima facie evidence of a parameter <em>basin</em>. Combined with combo-1298 (Sharpe 4.41 RTH from Probe 4), we have two hits from two probes — a pattern being undersampled.</p>
+      <p class="subhead">Rule 2 — gates strengthened</p>
+      <p>§4.4 jumped from 8/16 (exact) to 12/16 — 50% absolute power lift. If the ritual stack is now robust, the whole structure gets stronger, not weaker.</p>
+      <p class="subhead">§4.3 FAIL orthogonal to 1h</p>
+      <p>§4.3 was designed as a negative control on 15m, not a test of 1h. Its failure tells you 15m is tradable — orthogonal to 1h's edge. Treating it as 1h falsification is a category error.</p>
+      <p class="subhead">RTH inversion = 10× deployable universe</p>
+      <p>Overnight thesis meant: specialty broker, prop-firm routing, thin liquidity, wide spreads. <em>RTH thesis means: every retail US futures broker deploys this.</em> AMP, NinjaTrader, Tradovate, IBKR. Fill model cleaner, slippage tighter, strategy pitchable to prop firms with RTH-only evaluations.</p>
+      <p class="subhead">Kill criterion (more ambitious)</p>
+      <p>Sunset combo-865 only if a <em>15m session × exit sweep</em> AND the RTH-primary refit on fresh holdout both produce &lt; 2 combos clearing Sharpe ≥ 1.3 at n ≥ 50.</p>
+      <p><strong>Pick Option D + append a 15m session/exit sweep.</strong> The project isn't dying — it's pivoting from overnight-niche to RTH-deployable, single-TF to potentially dual-TF.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The Outsider<span class="role">· "Option B on fresh holdout — one look, pre-registered"</span></summary>
+    <div class="content">
+      <p>I'm reading this fresh and several things don't parse.</p>
+      <p class="subhead">(a) F-count arithmetic is weird</p>
+      <p>3 of 4 PASS is usually "strong evidence." Here, F=1 flips the branch entirely. Why binary? If each sub-gate has independent evidentiary weight, sum them. If not, why four? Somebody chose this threshold — they should justify it now.</p>
+      <p class="subhead">(b) §4.3 vetoing a 1h decision is load-bearing nonsense</p>
+      <p>15m is a different timeframe. If its failure tells me the framework is sensitive to session labeling, that's a <em>framework finding</em>, not a combo-865 finding. Why does framework calibration failure kill a specific combo's paper-trade? Unless the argument is "all session-conditional conclusions are fragile" — in which case re-audit everything, not just §4.3.</p>
+      <p class="subhead">(c) Five reads, asking for a sixth</p>
+      <p>At this point you're not measuring combo-865's edge — you're measuring your own optionality to keep looking. Fresh 2026-04-09+ holdout exists. Use it. A 6th read on the same partition is indefensible regardless of framing.</p>
+      <p class="subhead">(d) RTH inversion is the actual story</p>
+      <p>Five weeks of narrative was wrong. That's a "what else did we conclude from mis-labeled data" question. Audit every session-conditional claim before any further inference.</p>
+      <p class="subhead">Kill criterion</p>
+      <p><strong>Option B on fresh holdout, pre-registered, two-sided gates, one look.</strong> If it fails, sunset. If it passes, paper-trade with sizing calibrated to the corrected (lower) concentration. Option D is Option B wearing a hat.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>The Executor<span class="role">· "Option D = A+B stacked; paper-trade prereg this week"</span></summary>
+    <div class="content">
+      <p class="subhead">Rule 1</p>
+      <p>Stage 1 = original Probe 3 (signed, F=0). Stage 2 = TZ correction re-read (Stage 1', not Stage 2). Denominator: 4 gates re-read, one TZ-correction pass. Don't inflate.</p>
+      <p class="subhead">Rule 2 — per-gate LRs</p>
+      <p>§4.1 regime halves: P(PASS|H1)≈0.80, P(PASS|H0)≈0.15 → LR ~5.3<br>
+      §4.2 param ±5%: P(PASS|H1)≈0.65, P(PASS|H0)≈0.05 → LR ~13<br>
+      §4.3 15m NC (FAIL): P(PASS|H1)≈0.70, P(PASS|H0)≈0.40 → LR ~1.75 against H1<br>
+      §4.4 session/exit: P(PASS|H1)≈0.60, P(PASS|H0)≈0.10 → LR ~6</p>
+      <p>Combined 3P/1F: posterior 0.65-0.85 prior → ~0.55-0.75. Above coin-flip, not ship-level.</p>
+      <p class="subhead">Does §4.3 FAIL falsify 1h?</p>
+      <p>No. Different TF. Downgrades specificity, not primary signal.</p>
+      <p class="subhead">6th read defensible?</p>
+      <p>Only as "TZ correction re-read" framing, not "new hypothesis." Document explicitly in the verdict.</p>
+      <p class="subhead">Wall-clock math</p>
+      <p>Paper-trade prereg = 1-2 days (leverages existing Probe 3 scripts + SES masks). Fresh-holdout Probe 3 v2 at combo-865's historical ~12 trades/month = ~3-4 months to accumulate 30+ trades.</p>
+      <p class="subhead">Recommendation</p>
+      <p><strong>Option D as A+B stacked.</strong> Ship paper-trade prereg this week; in parallel run Probe 3 v2 on fresh holdout with 2 cheap gates (≥20 trades in 90 days, Sharpe ≥ 1.0). Paper-trade accumulates real fill data during the 3-month confirmation window. Kill criterion: fresh-holdout &lt; 10 trades in 60 days OR Sharpe &lt; 0.8 after 30 trades → sunset.</p>
+    </div>
+  </details>
+</section>
+
+<section>
+  <h2 class="section-title">Peer Review Convergence</h2>
+  <details>
+    <summary>Unanimous: First Principles strongest, Expansionist biggest blind spot</summary>
+    <div class="content">
+      <p><strong>Strongest = 5/5 First Principles.</strong> Every reviewer picked First Principles' framing refusal (the A/B/C/D menu is wrong; pivot to combo-1298) as the strongest response. Reviewers explicitly named the denominator asymmetry (865 has accumulated ~5-6 reads + narrative inversion; 1298 came from Probe 4 with one look).</p>
+      <p><strong>Biggest blind spot = 5/5 Expansionist.</strong> Every reviewer flagged Expansionist for motivated reasoning. Core critique: (a) §4.3 "0/16→8/16" does NOT mean "8 cells newly tradable" — it means 8 cells FAILED the negative control; Expansionist inverts the sign. (b) The RTH inversion after 5 partition reads is textbook RDoF (hypothesis moved with data). (c) Adding a 15m session×exit sweep on top of a failed negative control doubles down on partition-debt. (d) n=77 Sharpe 4.41 is quoted without CI (SE ≈ 0.11 annualization-inflated — wide).</p>
+    </div>
+  </details>
+
+  <div class="blind-spots">
+    <strong>Blind spots ALL five advisors missed (one per reviewer — each different and all load-bearing):</strong>
+    <ul>
+      <li><strong>Reviewer 1 — TZ-correction provenance isn't pre-registered.</strong> If the bug was noticed because someone went looking for explanations of weak 865 results post-signing, the "correction" is a 6th read disguised as a bug fix. The council should demand the provenance log before trusting any corrected gate value.</li>
+      <li><strong>Reviewer 2 — Combo-1298's denominator is NOT 1.</strong> 1298 was selected from Probe 4's combo×session matrix conditional on RTH performance. First Principles' "clean candidate" framing repeats the 865 mistake under a new name unless the Probe 4 selection surface is audited.</li>
+      <li><strong>Reviewer 3 — Nobody did a power calc on the fresh holdout.</strong> At 336 bars and growing, with 1298's likely &lt;20 trades on 1h during the planning horizon, Executor's "Sharpe ≥ 1.0 on 30 trades" kill rule may be infeasible. Gate feasibility is upstream of gate selection.</li>
+      <li><strong>Reviewer 4 — Combo-1298 TRIGGERED SESSION_CONFOUND in Probe 4.</strong> ~80% SES_2-concentrated per project memory. Shipping 1298 after a single fresh-holdout pass reproduces exactly the confound B1 was authorized to investigate. Any Probe 3 v2 on 1298 needs a pre-registered session-decomposition gate.</li>
+      <li><strong>Reviewer 5 — The TZ bug is a process failure, not a local correction.</strong> Every prior verdict (Probe 1 N_1.3, Probe 2 1h PASS, Probe 4 SESSION_CONFOUND) used the same pipeline. If §4.3 flipped from 0/16 to 8/16, <em>Probe 1's 15m N_1.3=9 could move across gate=10 — potentially unfalsifying the family.</em> The council is adjudicating Probe 3 while the upstream foundation is unverified.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2 class="section-title">Full Chairman Synthesis</h2>
+
+  <div class="synthesis">
+    <h3>Where the Council Agrees</h3>
+    <p><strong>Combo-865's partition is corrupted by read-count, not rescued by it.</strong> Four of five advisors + 5/5 reviewers. The TZ correction is a 6th extraction (however well-motivated).</p>
+    <p><strong>The RTH narrative inversion is load-bearing.</strong> Every advisor registers it as a material change, though in different directions (see Clashes).</p>
+    <p><strong>§4.3 flip is not neutral.</strong> Nobody reads 0/16 → 8/16 FAIL as a non-event.</p>
+    <p><strong>Fresh 2026-04-09+ holdout is the obvious instrument</strong> — but nobody did a power calc on it.</p>
+  </div>
+
+  <div class="synthesis">
+    <h3>Where the Council Clashes</h3>
+    <p><strong>Clash 1 — §4.3 evidence vs noise.</strong> Expansionist calls it "discovery of tradable 15m"; Reviewers 3 and 5 rebut (8/16 cells FAILED, not newly tradable; Reviewer 5 notes a failed negative control invalidates the control mechanism, not reveals hidden edge).</p>
+    <p><strong>Clash 2 — Is combo-1298 clean?</strong> First Principles says yes (denominator=1). Reviewers 2 and 4 both say no — 1298 was selected from Probe 4 conditional on RTH, AND triggered SESSION_CONFOUND (same structural dependency 865 pre-correction had).</p>
+    <p><strong>Clash 3 — Paper-trade now vs hold fire.</strong> Executor (A+B stacked) vs Contrarian (hidden trap) vs Outsider ("D is B wearing a hat").</p>
+    <p><strong>Clash 4 — Probe 1's falsification itself under TZ fix.</strong> Unflagged by advisors; Reviewer 5 makes it existential. If §4.3 moved 6 cells under TZ correction, Probe 1's 15m N_1.3=9 (gate=10) is at the boundary.</p>
+  </div>
+
+  <div class="synthesis">
+    <h3>The Recommendation (full)</h3>
+    <p><strong>Adjudicate §5.2 as: no paper-trade, no fresh-holdout probe yet. Halt all downstream inference pending TZ-fix upstream audit.</strong></p>
+    <p><strong>(a) Suspend A, B, C, D.</strong> All four options assume the upstream pipeline is sound.</p>
+    <p><strong>(b) Neither 865 nor 1298 is a valid focus right now.</strong> 865 is exhausted; 1298's "clean" status does not survive Reviewer 2/4 critique (Probe 4 selection + SESSION_CONFOUND).</p>
+    <p><strong>(c) Probe 1's 15m falsification must be re-audited under TZ fix before any combo-level decision.</strong> If N_1.3(15m) moves from 9 to 10+, the family-level Branch A sunset flips and the entire carve-out line is moot.</p>
+    <p><strong>(d) Combo-1298's "clean" denominator does NOT survive peer review.</strong> It's confound-positive for the same structural reason 865 was pre-correction.</p>
+    <p><em>Chairman dissents from the 5/5 reviewer-unanimous endorsement of First Principles' specific recommendation (Probe 3 v2 with 1298 primary). Justification: reviewers picked First Principles strongest because it refused the framing, but Reviewers 2 and 4 then demolished the specific 1298-primary conclusion. Following the framing but not the conclusion is the consistent read.</em></p>
+  </div>
+</section>
+
+<footer>
+  <strong>Counciled:</strong> Probe 3 COUNCIL_RECONVENE per §5.2 after TZ-bug retraction · <strong>Signed prereg:</strong> <code>tasks/probe3_preregistration.md</code> (<code>f8447af</code> + <code>8636167</code>) · <strong>Retraction:</strong> <code>tasks/probe3_verdict.md</code> Amendment 2 (commit <code>a38d3c5</code>) · <strong>Methodology:</strong> <code>memory/feedback_council_methodology.md</code> · <strong>Transcript:</strong> <code>tasks/council-transcript-2026-04-23-probe3-reconvene.md</code> · <strong>Generated:</strong> 2026-04-23 UTC
+</footer>
+
+</div>
+</body>
+</html>
